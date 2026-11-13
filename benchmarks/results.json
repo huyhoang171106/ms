@@ -1,0 +1,158 @@
+{
+  "metadata": {
+    "timestamp": "2026-11-13T20:51:42Z",
+    "kernel": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450HX",
+    "memTotal": "28433672 kB",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "rg": "ripgrep 14.1.0",
+    "fd": "fdfind 9.0.0",
+    "python": "3.12.3",
+    "msBinary": "/home/hoang/ms/target/release/ms",
+    "iterations": 7
+  },
+  "results": [
+    {
+      "scenario": "list_large_repo_501_files",
+      "baselineCmd": "fdfind --type f --max-results 1000",
+      "msCold": {
+        "iterations": 7,
+        "correct": true,
+        "medianMs": 9.619,
+        "p95Ms": 10.097,
+        "minMs": 7.575,
+        "maxMs": 10.097,
+        "maxRssKb": 7148,
+        "outputBytes": 36131,
+        "calls": 1
+      },
+      "msWarm": {
+        "iterations": 7,
+        "correct": true,
+        "medianMs": 2.904,
+        "p95Ms": 5.76,
+        "outputBytes": 36131,
+        "calls": 1
+      },
+      "baseline": {
+        "iterations": 7,
+        "correct": true,
+        "medianMs": 5.945,
+        "p95Ms": 7.04,
+        "minMs": 4.878,
+        "maxMs": 7.04,
+        "maxRssKb": 5252,
+        "outputBytes": 11017,
+        "calls": 1
+      }
+    },
+    {
+      "scenario": "search_symbol_large_repo",
+      "baselineCmd": "rg -n --fixed-strings --max-count 50 target_symbol_0100",
+      "msCold": {
+        "iterations": 7,
+        "correct": true,
+        "medianMs": 15.175,
+        "p95Ms": 18.378,
+        "minMs": 14.23,
+        "maxMs": 18.378,
+        "maxRssKb": 6032,
+        "outputBytes": 421,
+        "calls": 1
+      },
+      "msWarm": {
+        "iterations": 7,
+        "correct": true,
+        "medianMs": 9.574,
+        "p95Ms": 13.284,
+        "outputBytes": 420,
+        "calls": 1
+      },
+      "baseline": {
+        "iterations": 7,
+        "correct": true,
+        "medianMs": 6.59,
+        "p95Ms": 7.576,
+        "minMs": 6.221,
+        "maxMs": 7.576,
+        "maxRssKb": 7820,
+        "outputBytes": 78,
+        "calls": 1
+      }
+    },
+    {
+      "scenario": "read_bounded_20_lines",
+      "baselineCmd": "python3 -c '<slice lines 10..30>'",
+      "msCold": {
+        "iterations": 7,
+        "correct": true,
+        "medianMs": 4.487,
+        "p95Ms": 4.777,
+        "minMs": 4.251,
+        "maxMs": 4.777,
+        "maxRssKb": 5152,
+        "outputBytes": 3518,
+        "calls": 1
+      },
+      "msWarm": {
+        "iterations": 7,
+        "correct": true,
+        "medianMs": 0.238,
+        "p95Ms": 0.405,
+        "outputBytes": 3518,
+        "calls": 1
+      },
+      "baseline": {
+        "iterations": 7,
+        "correct": true,
+        "medianMs": 21.09,
+        "p95Ms": 24.53,
+        "minMs": 19.086,
+        "maxMs": 24.53,
+        "maxRssKb": 12236,
+        "outputBytes": 1422,
+        "calls": 1
+      }
+    },
+    {
+      "scenario": "read_plus_patch_small_repo",
+      "baselineCmd": "python3 -c '<read + replace + write>' (no revision check/journal/undo)",
+      "msCold": {
+        "iterations": 7,
+        "correct": true,
+        "medianMs": 4.492,
+        "p95Ms": 4.654,
+        "minMs": 4.297,
+        "maxMs": 4.654,
+        "maxRssKb": 5208,
+        "outputBytes": 1618,
+        "calls": 2
+      },
+      "baseline": {
+        "iterations": 7,
+        "correct": true,
+        "medianMs": 19.667,
+        "p95Ms": 22.83,
+        "minMs": 19.065,
+        "maxMs": 22.83,
+        "maxRssKb": 12132,
+        "outputBytes": 0,
+        "calls": 1
+      }
+    },
+    {
+      "scenario": "stale_edit_conflict_detection",
+      "msCold": {
+        "iterations": 7,
+        "correct": true,
+        "medianMs": 4.585,
+        "p95Ms": 4.955,
+        "minMs": 4.18,
+        "maxMs": 4.955,
+        "maxRssKb": 5160,
+        "outputBytes": 1218,
+        "calls": 2
+      }
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ms-protocol",
+    "crates/ms-runtime",
+    "crates/ms-rpc",
+    "crates/ms-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98.1"
+license = "MIT"
+repository = "https://github.com/hoang/ms"
+
+[workspace.dependencies]
+ms-protocol = { path = "crates/ms-protocol" }
+ms-runtime = { path = "crates/ms-runtime" }
+ms-rpc = { path = "crates/ms-rpc" }
+
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.149"
+thiserror = "=2.0.18"
+tokio = { version = "=1.50.0", features = ["full"] }
+blake3 = "=1.8.7"
+rustix = { version = "=1.1.4", features = ["fs", "process", "system"] }
+ignore = "=0.4.34"
+regex = "=1.13.1"
+base64 = "=0.22.1"
+tempfile = "=3.26.0"

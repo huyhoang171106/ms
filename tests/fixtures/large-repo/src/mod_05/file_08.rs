@@ -1,0 +1,43 @@
+// Module 05 File 08 (index 258)
+pub const ID_0258: usize = 258;
+
+pub fn compute_metric_0258_00(v: i64) -> i64 { v.wrapping_mul(1) }
+pub fn compute_metric_0258_01(v: i64) -> i64 { v.wrapping_mul(2) }
+pub fn compute_metric_0258_02(v: i64) -> i64 { v.wrapping_mul(3) }
+pub fn compute_metric_0258_03(v: i64) -> i64 { v.wrapping_mul(4) }
+pub fn compute_metric_0258_04(v: i64) -> i64 { v.wrapping_mul(5) }
+pub fn compute_metric_0258_05(v: i64) -> i64 { v.wrapping_mul(6) }
+pub fn compute_metric_0258_06(v: i64) -> i64 { v.wrapping_mul(7) }
+pub fn compute_metric_0258_07(v: i64) -> i64 { v.wrapping_mul(8) }
+pub fn compute_metric_0258_08(v: i64) -> i64 { v.wrapping_mul(9) }
+pub fn compute_metric_0258_09(v: i64) -> i64 { v.wrapping_mul(10) }
+pub fn compute_metric_0258_10(v: i64) -> i64 { v.wrapping_mul(11) }
+pub fn compute_metric_0258_11(v: i64) -> i64 { v.wrapping_mul(12) }
+pub fn compute_metric_0258_12(v: i64) -> i64 { v.wrapping_mul(13) }
+pub fn compute_metric_0258_13(v: i64) -> i64 { v.wrapping_mul(14) }
+pub fn compute_metric_0258_14(v: i64) -> i64 { v.wrapping_mul(15) }
+pub fn compute_metric_0258_15(v: i64) -> i64 { v.wrapping_mul(16) }
+pub fn compute_metric_0258_16(v: i64) -> i64 { v.wrapping_mul(17) }
+pub fn compute_metric_0258_17(v: i64) -> i64 { v.wrapping_mul(18) }
+pub fn compute_metric_0258_18(v: i64) -> i64 { v.wrapping_mul(19) }
+pub fn compute_metric_0258_19(v: i64) -> i64 { v.wrapping_mul(20) }
+pub fn compute_metric_0258_20(v: i64) -> i64 { v.wrapping_mul(21) }
+pub fn compute_metric_0258_21(v: i64) -> i64 { v.wrapping_mul(22) }
+pub fn compute_metric_0258_22(v: i64) -> i64 { v.wrapping_mul(23) }
+pub fn compute_metric_0258_23(v: i64) -> i64 { v.wrapping_mul(24) }
+pub fn compute_metric_0258_24(v: i64) -> i64 { v.wrapping_mul(25) }
+pub fn compute_metric_0258_25(v: i64) -> i64 { v.wrapping_mul(26) }
+pub fn compute_metric_0258_26(v: i64) -> i64 { v.wrapping_mul(27) }
+pub fn compute_metric_0258_27(v: i64) -> i64 { v.wrapping_mul(28) }
+pub fn compute_metric_0258_28(v: i64) -> i64 { v.wrapping_mul(29) }
+pub fn compute_metric_0258_29(v: i64) -> i64 { v.wrapping_mul(30) }
+pub fn compute_metric_0258_30(v: i64) -> i64 { v.wrapping_mul(31) }
+pub fn compute_metric_0258_31(v: i64) -> i64 { v.wrapping_mul(32) }
+pub fn compute_metric_0258_32(v: i64) -> i64 { v.wrapping_mul(33) }
+pub fn compute_metric_0258_33(v: i64) -> i64 { v.wrapping_mul(34) }
+pub fn compute_metric_0258_34(v: i64) -> i64 { v.wrapping_mul(35) }
+pub fn compute_metric_0258_35(v: i64) -> i64 { v.wrapping_mul(36) }
+pub fn compute_metric_0258_36(v: i64) -> i64 { v.wrapping_mul(37) }
+pub fn compute_metric_0258_37(v: i64) -> i64 { v.wrapping_mul(38) }
+pub fn compute_metric_0258_38(v: i64) -> i64 { v.wrapping_mul(39) }
+pub fn compute_metric_0258_39(v: i64) -> i64 { v.wrapping_mul(40) }

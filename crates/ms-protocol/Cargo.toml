@@ -1,0 +1,12 @@
+[package]
+name = "ms-protocol"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Protocol v1 NDJSON DTOs, error codes, limits, and schemas for ms"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
