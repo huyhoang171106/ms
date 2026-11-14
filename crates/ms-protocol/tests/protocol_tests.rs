@@ -126,13 +126,35 @@ fn hard_limits_narrow_never_widens() {
 fn path_validation_rejects_traversal_and_unsafe_paths() {
     assert!(validate_relative_path("src/main.rs").is_ok());
     assert!(validate_relative_path("a/b/c.txt").is_ok());
+    assert_eq!(
+        normalize_relative_path("tests/../tinydb_demo/store.py").unwrap(),
+        "tinydb_demo/store.py"
+    );
+    assert_eq!(normalize_relative_path("a/b/../../c").unwrap(), "c");
+    assert_eq!(normalize_relative_path("a/..").unwrap(), ".");
+    assert_eq!(
+        normalize_relative_path("./src/./main.rs").unwrap(),
+        "src/main.rs"
+    );
+    assert!(validate_relative_path("tests/../tinydb_demo/store.py").is_ok());
     assert!(validate_relative_path("").is_err());
     assert!(validate_relative_path("/etc/passwd").is_err());
     assert!(validate_relative_path("../secret").is_err());
     assert!(validate_relative_path("src/../../secret").is_err());
+    assert!(validate_relative_path("..").is_err());
     assert!(validate_relative_path("src\\main.rs").is_err());
     assert!(validate_relative_path("src/\0main.rs").is_err());
     assert!(validate_relative_path("src/\nmain.rs").is_err());
+
+    // Rename with equivalent normalized paths is rejected
+    let rename_op = Operation::RenameFile(RenameFileParams {
+        from: "a.txt".into(),
+        to: "sub/../a.txt".into(),
+        expected_revision: None,
+        overwrite: None,
+        dry_run: None,
+    });
+    assert!(validate_operation(&rename_op).is_err());
 }
 
 #[test]

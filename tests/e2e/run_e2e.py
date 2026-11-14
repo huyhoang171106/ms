@@ -73,6 +73,14 @@ def test_t01_path_traversal_and_symlinks() -> None:
 
             assert (ws.outside_dir / "secret_outside.txt").read_text() == "OUTSIDE_SECRET_DATA\n"
 
+            # In-workspace '..' normalization succeeds via RPC while root-escaping '..' fails
+            recs, comp_ok = ms.call_op(sid, {"kind": "read", "path": "docs/../src/lib.rs"})
+            assert comp_ok["status"] == "ok", f"T01 expected in-workspace '..' read to succeed, got {comp_ok}"
+            assert len(recs) > 0, "T01 expected records for normalized read"
+
+            _, comp_esc = ms.call_op(sid, {"kind": "read", "path": "a/../../outside"})
+            assert comp_esc["status"] == "error" and comp_esc["error"]["code"] == "E_POLICY_DENIED"
+
 
 # ---------------------------------------------------------------------------
 # T02 P0: Secret deny path, special file/FIFO, large file / bounded output

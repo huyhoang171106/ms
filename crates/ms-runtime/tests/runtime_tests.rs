@@ -129,6 +129,69 @@ async fn t01_path_traversal_and_symlinks_denied() {
         .await
         .unwrap_err();
     assert_eq!(err.error_code(), ErrorCode::EPolicyDenied);
+
+    // In-workspace '..' normalization succeeds for read while root-escaping '..' is rejected
+    write_file(ws.path(), "tests/t.py", b"pass\n");
+    write_file(
+        ws.path(),
+        "tinydb_demo/store.py",
+        b"def ok():\n    return 1\n",
+    );
+    let ok_read = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::Read(ReadParams {
+                    path: "tests/../tinydb_demo/store.py".into(),
+                    start_line: None,
+                    line_count: None,
+                    format: None,
+                }),
+                None,
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    assert!(!ok_read.records.is_empty());
+
+    let err_escape = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::Read(ReadParams {
+                    path: "a/../../outside".into(),
+                    start_line: None,
+                    line_count: None,
+                    format: None,
+                }),
+                None,
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(err_escape.error_code(), ErrorCode::EPolicyDenied);
+
+    // In-workspace '..' targeting a denied secret path (.env) is still rejected
+    write_file(ws.path(), ".env", b"SECRET=1\n");
+    let err_secret = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::Read(ReadParams {
+                    path: "tests/../.env".into(),
+                    start_line: None,
+                    line_count: None,
+                    format: None,
+                }),
+                None,
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(err_secret.error_code(), ErrorCode::EPolicyDenied);
 }
 
 #[tokio::test]

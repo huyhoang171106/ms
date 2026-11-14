@@ -2,12 +2,14 @@ use crate::error::ProtocolError;
 use crate::messages::{Request, RequestBody};
 use crate::operations::{EditSpec, Operation, TextEdit};
 
-/// Validates a workspace-relative UTF-8 path at the protocol boundary.
+/// Lexically normalizes a workspace-relative UTF-8 path at the protocol boundary.
 ///
-/// Rejects empty paths, NUL bytes, backslashes, leading `/`, `.` or `..` traversal
-/// segments, and ASCII control characters. Filesystem-level symlink and `openat2`
-/// checks are enforced by `ms-runtime`.
-pub fn validate_relative_path(path: &str) -> Result<(), ProtocolError> {
+/// Rejects empty paths, NUL bytes, backslashes, leading `/`, ASCII control
+/// characters, and `..` segments that escape above the workspace root.
+/// In-workspace `.` and `..` segments are normalized (e.g. `a/../b` -> `b`,
+/// `a/..` -> `.`). Filesystem-level symlink and `openat2` checks are enforced
+/// by `ms-runtime`.
+pub fn normalize_relative_path(path: &str) -> Result<String, ProtocolError> {
     if path.is_empty() {
         return Err(ProtocolError::InvalidPath("path cannot be empty".into()));
     }
@@ -29,14 +31,33 @@ pub fn validate_relative_path(path: &str) -> Result<(), ProtocolError> {
             "path contains control characters".into(),
         ));
     }
+
+    let mut stack: Vec<&str> = Vec::new();
     for segment in path.split('/') {
+        if segment.is_empty() || segment == "." {
+            continue;
+        }
         if segment == ".." {
-            return Err(ProtocolError::InvalidPath(
-                "parent directory traversal ('..') is not allowed".into(),
-            ));
+            if stack.pop().is_none() {
+                return Err(ProtocolError::InvalidPath(
+                    "parent directory traversal ('..') escapes workspace root".into(),
+                ));
+            }
+        } else {
+            stack.push(segment);
         }
     }
-    Ok(())
+
+    if stack.is_empty() {
+        Ok(".".to_string())
+    } else {
+        Ok(stack.join("/"))
+    }
+}
+
+/// Validates a workspace-relative UTF-8 path at the protocol boundary.
+pub fn validate_relative_path(path: &str) -> Result<(), ProtocolError> {
+    normalize_relative_path(path).map(|_| ())
 }
 
 /// Validates a full BLAKE3 revision string (64 lowercase hex characters).
@@ -242,9 +263,9 @@ pub fn validate_operation(op: &Operation) -> Result<(), ProtocolError> {
             Ok(())
         }
         Operation::RenameFile(p) => {
-            validate_relative_path(&p.from)?;
-            validate_relative_path(&p.to)?;
-            if p.from == p.to {
+            let from = normalize_relative_path(&p.from)?;
+            let to = normalize_relative_path(&p.to)?;
+            if from == to {
                 return Err(ProtocolError::InvalidRequest(
                     "rename_file 'from' and 'to' paths must differ".into(),
                 ));

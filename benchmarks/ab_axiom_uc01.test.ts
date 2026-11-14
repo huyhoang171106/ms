@@ -26,8 +26,11 @@ import {
   buildControlledPytestInvocation,
   buildToolTraceEntry,
   getExecutionPolicySnapshot,
+  registerMsTools,
   validatePytestTarget,
 } from './ab_axiom_tools.js';
+import { distillCommandOutput, type MsAxiomAdapter } from '../examples/axiom_adapter.js';
+import { ToolRegistry } from '../../nhom-30/src/tools/registry.js';
 import {
   buildInfraErrorRecord,
   NormalizedCostTracker,
@@ -301,6 +304,49 @@ describe('F3: Controlled Execution Parity', () => {
     const combined = `${res.stdout ?? ''}\n${res.stderr ?? ''}`;
     expect(combined).not.toContain('No module named pytest');
     expect(combined).toContain('test_search_is_case_insensitive');
+  });
+
+  test('registerMsTools prunes ms_outline/ms_context/ms_undo by default and keeps them opt-in', () => {
+    const regDefault = new ToolRegistry();
+    registerMsTools(regDefault, {} as MsAxiomAdapter, 's1', 'ms', 'controlled');
+    const namesDefault = regDefault.getDefinitions().map((d) => d.name);
+    expect(namesDefault).not.toContain('ms_outline');
+    expect(namesDefault).not.toContain('ms_context');
+    expect(namesDefault).not.toContain('ms_undo');
+    expect(namesDefault).toContain('read_file');
+    expect(namesDefault).toContain('edit');
+    expect(namesDefault).toContain('write_file');
+    expect(namesDefault).toContain('list_dir');
+    expect(namesDefault).toContain('search_code');
+    expect(namesDefault).toContain('run_command');
+    expect(namesDefault).toContain('run_tests');
+
+    const regOptIn = new ToolRegistry();
+    registerMsTools(regOptIn, {} as MsAxiomAdapter, 's1', 'ms', 'controlled', undefined, { includeExtraTools: true });
+    const namesOptIn = regOptIn.getDefinitions().map((d) => d.name);
+    expect(namesOptIn).toContain('ms_outline');
+    expect(namesOptIn).toContain('ms_context');
+    expect(namesOptIn).toContain('ms_undo');
+  });
+
+  test('distillCommandOutput preserves short passing output and attaches snippets on failure', () => {
+    const shortRaw = Array.from({ length: 8 }, (_, i) => `row-${i + 1}`).join('\n');
+    const okRes = distillCommandOutput(shortRaw, { exitCode: 0, timedOut: false, durationMs: 12, kind: 'generic' });
+    for (let i = 1; i <= 8; i++) {
+      expect(okRes.output).toContain(`row-${i}`);
+    }
+
+    const failRaw = '==== FAILURES ====\nE   AssertionError: boom\nFAILED tests/test_a.py::test_1';
+    const failRes = distillCommandOutput(failRaw, {
+      exitCode: 1,
+      timedOut: false,
+      durationMs: 30,
+      kind: 'pytest',
+      snippets: ['@ tests/test_a.py:3\n3:abcd| assert False'],
+    });
+    expect(failRes.output).toContain('[FAILED | exit:1');
+    expect(failRes.output).toContain('--- context snippets ---');
+    expect(failRes.output).toContain('3:abcd| assert False');
   });
 });
 

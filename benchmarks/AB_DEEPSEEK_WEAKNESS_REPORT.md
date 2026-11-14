@@ -118,3 +118,41 @@ Per-trial breakdown:
 1. **Normalize `..` in `ms` path validation before checking workspace containment** (if a path like `tests/../tinydb_demo/store.py` resolves inside the workspace root, allow it; only reject paths that actually escape the workspace root).
 2. **Inline small `ms exec` command outputs without distillation overhead** or reduce `ms exec` per-invocation latency (`69.4 ms` vs `28.4 ms`).
 3. **Prune or fold `ms_outline` / `ms_context` / `ms_undo`**: on small/medium Python repos, models ignore standalone `ms_*` tools; either omit them from the default toolset or fold structural context into `read_file`/`search_code`.
+
+---
+
+## 7. v2 Verification: Before vs. After (`B_ms` v1 vs. `B_ms` v2 vs. `A_baseline` v2)
+
+All three fixes above were implemented and re-tested on the exact same 18-run controlled experiment (`--model trollllm/deepseek-v4-1-flash --trials 3 --seed 42 --mode controlled`):
+- **v2 Artifacts**: [`benchmarks/artifacts/deepseek-v4-1-flash-v2-t3-seed42/`](./artifacts/deepseek-v4-1-flash-v2-t3-seed42/)
+- **v2 Experiment ID**: `uc01-controlled-seed42-2026-11-14T15-30-51-110Z`
+
+### 7.1 Changes Applied in v2
+1. **Lexical `..` path normalization (`ms-protocol` + `ms-runtime`)**: Added `normalize_relative_path` in `crates/ms-protocol/src/validate.rs` and wired it through `workspace_fs.rs`, `policy.rs`, and `ops.rs` so in-workspace `.` / `..` paths (e.g. `tests/../tinydb_demo/store.py`) normalize and resolve safely via `openat2(RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS)`, while root-escaping `..` (e.g. `../etc/passwd`, `a/../../outside`) and symlink escapes remain strictly rejected with `E_POLICY_DENIED`.
+2. **In-process command execution & short-output preservation (`crates/ms-rpc/src/exec.rs`, `examples/axiom_adapter.ts`, `benchmarks/ab_axiom_tools.ts`)**: Eliminated the cold `ms exec` subprocess spawn per `run_command`/`run_tests` call, preserved concise passing outputs (`exit == 0`, `<= 15` lines, `<= 800 B`) intact, and kept distilled errors + hashline `--- context snippets ---` (fetched via the already-running `ms` RPC session) on failures.
+3. **Clean 1-to-1 tool replacement (`benchmarks/ab_axiom_tools.ts`)**: Pruned `ms_outline`, `ms_context`, and `ms_undo` from the default `B_ms` toolset (kept opt-in via `includeExtraTools`).
+
+### 7.2 Before vs. After Comparison Table
+
+| Metric (9 runs per arm) | `B_ms` v1 (Before) | `B_ms` v2 (After) | `A_baseline` v2 | Delta (`B_ms` v2 vs v1) | Delta (`B_ms` v2 vs `A` v2) |
+|---|---:|---:|---:|---:|---:|
+| Verified Success (`overallPassed`) | **9 / 9 (100%)** | **9 / 9 (100%)** | **9 / 9 (100%)** | 0 (0.0 pp) | 0 (0.0 pp) |
+| Total Wall-Clock Time | 246,525.58 ms | **234,618.71 ms** | 345,004.93 ms | **-11,906.87 ms (-4.8%)** | **-110,386.22 ms (-32.0%)** |
+| Total LLM Turns | 115 | 114 | 107 | -1 (-0.9%) | +7 (+6.5%) |
+| Total Tool Calls | 184 | **172** | 152 | **-12 (-6.5%)** | +20 (+13.2%) |
+| `read_file` Calls | 70 | **58** | 60 | **-12 (-17.1%)** | **-2 (-3.3%)** |
+| `run_command` Avg Duration | 69.4 ms | **32.7 ms** | 2,420.1 ms* | **-36.7 ms (-52.9%)** | — |
+| `run_tests` Avg Duration | 157.2 ms | **146.1 ms** | 149.3 ms | **-11.1 ms (-7.1%)** | **-3.2 ms (-2.1%)** |
+| `edit` / `write_file` Errors | 0 / 17 (0%) | **0 / 16 (0%)** | 1 / 14 (`apply_patch` 7.1%) | 0 | **-1 error** |
+| Total Tool Output Bytes | 57,852 B | **52,997 B** | 117,962 B | **-4,855 B (-8.4%)** | **-64,965 B (-55.1%)** |
+| `uncachedInput` Tokens | 36,702 | **34,313** | 37,002 | **-2,389 (-6.5%)** | **-2,689 (-7.3%)** |
+| `cacheRead` Tokens | 493,184 | **425,214** | 511,872 | **-67,970 (-13.8%)** | **-86,658 (-16.9%)** |
+| `output` Tokens | 20,448 | **19,537** | 18,568 | **-911 (-4.5%)** | +969 (+5.2%) |
+| **Total Tokens** | **550,334** | **479,064** | **567,442** | **-71,270 (-13.0%)** | **-88,378 (-15.6%)** |
+
+*\*`A_baseline` v2 `run_command` average includes a single long-running command outlier; median/typical `run_command` latency in both arms is ~28–33 ms.*
+
+### 7.3 Remaining Notes from v2 Traces
+- `B_ms` v2 achieved **-55.1% tool output bytes** and **-15.6% total tokens** vs `A_baseline` v2 while maintaining **100% (9/9) pass rate** and **0% edit/write errors**.
+- `read_file` errors in `B_ms` v2 (`11`) were strictly legitimate rejections: `6×` `E_NOT_FOUND` on `skills/bug-fix/SKILL.md` (mirroring `A_baseline`'s `5×` `File or directory not found`) and `5×` `E_POLICY_DENIED` on root-escaping `..` attempts (e.g. `../../skills/bug-fix/SKILL.md`), which are intentionally blocked by workspace containment.
+- `run_command` errors in `B_ms` v2 (`9`) were all `Blocked by policy (shell references a path outside the workspace)` from Axiom's shared shell policy guard.

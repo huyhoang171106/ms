@@ -7,7 +7,7 @@ use ms_protocol::{
     OutlineFile, OutlineParams, OutlineSymbol, PatchParams, PatchResult, ReadFormat, ReadParams,
     ReadResult, RenameFileParams, RenameFileResult, SchemaParams, SearchMatch, SearchParams,
     TxKind, TxListParams, TxRecord, TxUndoParams, TxUndoResult, WriteFileParams, WriteFileResult,
-    builtin_operation_schemas, validate_relative_path,
+    builtin_operation_schemas, normalize_relative_path, validate_relative_path,
 };
 use regex::RegexBuilder;
 
@@ -57,19 +57,21 @@ pub fn exec_list(
     params: &ListParams,
     cancel: &CancelToken,
 ) -> Result<ListOutput, RuntimeError> {
-    let start_rel = params.path.as_deref().unwrap_or(".");
-    if start_rel != "." {
-        validate_relative_path(start_rel)?;
-    }
-    policy.check_read(start_rel)?;
+    let raw_start = params.path.as_deref().unwrap_or(".");
+    let start_rel = if raw_start == "." {
+        ".".to_string()
+    } else {
+        normalize_relative_path(raw_start)?
+    };
+    policy.check_read(&start_rel)?;
     // Verify start directory via openat2(BENEATH | NO_SYMLINKS).
-    let _dir_fd = fs.open_dir(start_rel)?;
+    let _dir_fd = fs.open_dir(&start_rel)?;
 
     let root_abs = fs.root_path();
     let start_abs = if start_rel == "." {
         root_abs.to_path_buf()
     } else {
-        root_abs.join(start_rel)
+        root_abs.join(&start_rel)
     };
 
     let respect_ignore = params.respect_ignore.unwrap_or(true);
@@ -220,11 +222,13 @@ pub fn exec_search(
         ));
     }
 
-    let start_rel = params.path.as_deref().unwrap_or(".");
-    if start_rel != "." {
-        validate_relative_path(start_rel)?;
-    }
-    policy.check_read(start_rel)?;
+    let raw_start = params.path.as_deref().unwrap_or(".");
+    let start_rel = if raw_start == "." {
+        ".".to_string()
+    } else {
+        normalize_relative_path(raw_start)?
+    };
+    policy.check_read(&start_rel)?;
 
     let case_sensitive = params.case_sensitive.unwrap_or(true);
     let pattern = if params.regex.unwrap_or(false) {
@@ -250,15 +254,15 @@ pub fn exec_search(
     let mut diagnostics = Vec::new();
     let mut truncated = false;
 
-    if start_rel != "." && fs.open_file_read(start_rel).is_ok() {
-        candidate_files.push(start_rel.to_string());
+    if start_rel != "." && fs.open_file_read(&start_rel).is_ok() {
+        candidate_files.push(start_rel);
     } else {
-        let _dir_fd = fs.open_dir(start_rel)?;
+        let _dir_fd = fs.open_dir(&start_rel)?;
         let root_abs = fs.root_path();
         let start_abs = if start_rel == "." {
             root_abs.to_path_buf()
         } else {
-            root_abs.join(start_rel)
+            root_abs.join(&start_rel)
         };
 
         let mut builder = WalkBuilder::new(&start_abs);

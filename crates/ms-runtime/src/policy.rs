@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use ms_protocol::{HardLimits, SessionCapabilities, validate_relative_path};
+use ms_protocol::{HardLimits, SessionCapabilities, normalize_relative_path};
 
 use crate::error::RuntimeError;
 
@@ -188,7 +188,9 @@ impl EffectivePolicy {
     /// Returns true if the relative path is unconditionally denied (`.git`, state dir, or secret).
     #[must_use]
     pub fn is_denied_path(&self, rel_path: &str) -> bool {
-        let norm = trim_rel(rel_path);
+        let Ok(norm) = normalize_for_policy(rel_path) else {
+            return true;
+        };
         if norm.is_empty() {
             return false;
         }
@@ -198,7 +200,7 @@ impl EffectivePolicy {
         }
         // Deny state_dir if it resides inside workspace_root
         if let Some(prefix) = &self.state_rel_prefix
-            && is_under_prefix(norm, prefix)
+            && is_under_prefix(&norm, prefix)
         {
             return true;
         }
@@ -213,8 +215,8 @@ impl EffectivePolicy {
 
     /// Checks whether a relative path (or `.` for root) is authorized for reading.
     pub fn check_read(&self, rel_path: &str) -> Result<(), RuntimeError> {
-        let norm = trim_rel(rel_path);
-        if self.is_denied_path(norm) {
+        let norm = normalize_for_policy(rel_path)?;
+        if self.is_denied_path(&norm) {
             return Err(RuntimeError::policy_denied(format!(
                 "read access denied for protected path '{rel_path}'"
             )));
@@ -224,7 +226,7 @@ impl EffectivePolicy {
                 // Listing/searching root is allowed; individual entries will be filtered by read_subpaths.
                 return Ok(());
             }
-            if !is_covered_by(norm, allowed) {
+            if !is_covered_by(&norm, allowed) {
                 return Err(RuntimeError::policy_denied(format!(
                     "read access denied for '{rel_path}': outside allowed read subpaths"
                 )));
@@ -237,8 +239,10 @@ impl EffectivePolicy {
     /// (used during directory traversal to prune disallowed subtrees without leaking them).
     #[must_use]
     pub fn may_traverse_dir(&self, rel_path: &str) -> bool {
-        let norm = trim_rel(rel_path);
-        if self.is_denied_path(norm) {
+        let Ok(norm) = normalize_for_policy(rel_path) else {
+            return false;
+        };
+        if self.is_denied_path(&norm) {
             return false;
         }
         let Some(allowed) = &self.read_subpaths else {
@@ -250,7 +254,7 @@ impl EffectivePolicy {
         // Either norm is under an allowed prefix, OR an allowed prefix is under norm.
         allowed
             .iter()
-            .any(|a| is_under_prefix(norm, a) || is_under_prefix(a, norm))
+            .any(|a| is_under_prefix(&norm, a) || is_under_prefix(a, &norm))
     }
 
     /// Checks whether a relative path is authorized for writing.
@@ -261,26 +265,26 @@ impl EffectivePolicy {
                 "Open a write-enabled session if the host allows writes.",
             ));
         }
-        let norm = trim_rel(rel_path);
+        let norm = normalize_for_policy(rel_path)?;
         if norm.is_empty() {
             return Err(RuntimeError::policy_denied(
                 "cannot write to workspace root directory",
             ));
         }
-        if self.is_denied_path(norm) {
+        if self.is_denied_path(&norm) {
             return Err(RuntimeError::policy_denied(format!(
                 "write access denied for protected path '{rel_path}'"
             )));
         }
         if let Some(allowed_read) = &self.read_subpaths
-            && !is_covered_by(norm, allowed_read)
+            && !is_covered_by(&norm, allowed_read)
         {
             return Err(RuntimeError::policy_denied(format!(
                 "write access denied for '{rel_path}': outside allowed read subpaths"
             )));
         }
         if let Some(allowed_write) = &self.write_subpaths
-            && !is_covered_by(norm, allowed_write)
+            && !is_covered_by(&norm, allowed_write)
         {
             return Err(RuntimeError::policy_denied(format!(
                 "write access denied for '{rel_path}': outside allowed write subpaths"
@@ -290,9 +294,16 @@ impl EffectivePolicy {
     }
 }
 
-fn trim_rel(p: &str) -> &str {
-    let p = p.trim_start_matches("./");
-    if p == "." { "" } else { p.trim_matches('/') }
+fn normalize_for_policy(rel_path: &str) -> Result<String, RuntimeError> {
+    if rel_path.is_empty() || rel_path == "." {
+        return Ok(String::new());
+    }
+    let norm = normalize_relative_path(rel_path)?;
+    if norm == "." {
+        Ok(String::new())
+    } else {
+        Ok(norm)
+    }
 }
 
 fn normalize_subpaths(paths: Option<&[String]>) -> Result<Option<Vec<String>>, RuntimeError> {
@@ -305,8 +316,8 @@ fn normalize_subpaths(paths: Option<&[String]>) -> Result<Option<Vec<String>>, R
             out.push(String::new());
             continue;
         }
-        validate_relative_path(raw)?;
-        out.push(trim_rel(raw).to_string());
+        let norm = normalize_relative_path(raw)?;
+        out.push(if norm == "." { String::new() } else { norm });
     }
     Ok(Some(out))
 }

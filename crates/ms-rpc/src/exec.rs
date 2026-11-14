@@ -203,7 +203,16 @@ pub async fn exec_and_distill(
 
     let cleaned_lines = clean_and_collapse_lines(&combined);
     let kind = detect_command_kind(command_args, &cmd_display);
-    let body = distill_by_kind(kind, exit_code == 0 && !timed_out, &cleaned_lines);
+    let body = if exit_code == 0 && !timed_out && cleaned_lines.len() <= 15 && raw_bytes <= 800 {
+        cleaned_lines
+            .iter()
+            .filter(|l| !l.trim().is_empty())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        distill_by_kind(kind, exit_code == 0 && !timed_out, &cleaned_lines)
+    };
 
     let mut header = if timed_out {
         format!(
@@ -707,8 +716,8 @@ fn attach_failure_snippets(
 }
 
 fn normalize_rel_path(workspace_root: &Path, raw: &str) -> Option<String> {
-    let trimmed = raw.trim().trim_start_matches("./");
-    if trimmed.is_empty() || trimmed.contains("..") {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
         return None;
     }
     let p = Path::new(trimmed);
@@ -717,10 +726,7 @@ fn normalize_rel_path(workspace_root: &Path, raw: &str) -> Option<String> {
     } else {
         trimmed.to_string()
     };
-    if ms_protocol::validate_relative_path(&rel).is_err() {
-        return None;
-    }
-    Some(rel)
+    ms_protocol::normalize_relative_path(&rel).ok()
 }
 
 #[cfg(test)]
@@ -779,6 +785,30 @@ mod tests {
     fn read_log_rejects_traversal() {
         assert!(read_log("../etc/passwd", None, None).is_err());
         assert!(read_log("", None, None).is_err());
+    }
+
+    #[tokio::test]
+    async fn exec_preserves_short_passing_output_intact() {
+        let dir = tempfile::tempdir().unwrap();
+        let res = exec_and_distill(
+            dir.path(),
+            &[
+                "python3".to_string(),
+                "-c".to_string(),
+                "for i in range(1, 9): print(f'line-{i}')".to_string(),
+            ],
+            5_000,
+        )
+        .await
+        .unwrap();
+        assert_eq!(res.exit_code, 0);
+        for i in 1..=8 {
+            assert!(
+                res.distilled.contains(&format!("line-{i}")),
+                "missing line-{i} in: {}",
+                res.distilled
+            );
+        }
     }
 
     #[tokio::test]

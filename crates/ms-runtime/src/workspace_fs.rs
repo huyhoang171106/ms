@@ -2,7 +2,7 @@ use std::fs::File;
 use std::os::fd::{AsFd, OwnedFd};
 use std::path::{Path, PathBuf};
 
-use ms_protocol::validate_relative_path;
+use ms_protocol::normalize_relative_path;
 use rustix::fs::{
     AtFlags, FileType, Mode, OFlags, ResolveFlags, Stat, fchmod, fstat, fsync, mkdirat, openat2,
     renameat, unlinkat,
@@ -89,21 +89,21 @@ impl WorkspaceFs {
     /// Opens an existing regular file for reading, enforcing `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS`
     /// and rejecting symlinks, directories, FIFOs, sockets, and device nodes.
     pub fn open_file_read(&self, rel_path: &str) -> Result<(OwnedFd, Stat), RuntimeError> {
-        validate_relative_path(rel_path)?;
+        let norm = normalize_relative_path(rel_path)?;
         let fd = openat2(
             &self.root_fd,
-            rel_path,
+            &norm,
             OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
             Mode::empty(),
             ResolveFlags::BENEATH | ResolveFlags::NO_SYMLINKS,
         )
-        .map_err(|e| map_open_errno(rel_path, e))?;
+        .map_err(|e| map_open_errno(&norm, e))?;
 
         let st = fstat(&fd).map_err(|e| map_errno("fstat target", e))?;
         let ft = FileType::from_raw_mode(st.st_mode);
         if ft != FileType::RegularFile {
             return Err(RuntimeError::policy_denied(format!(
-                "path '{rel_path}' is not a regular file (found {ft:?})"
+                "path '{norm}' is not a regular file (found {ft:?})"
             )));
         }
         Ok((fd, st))
@@ -112,19 +112,18 @@ impl WorkspaceFs {
     /// Opens a directory under the workspace root with `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS`.
     pub fn open_dir(&self, rel_path: &str) -> Result<OwnedFd, RuntimeError> {
         let target = if rel_path.is_empty() || rel_path == "." {
-            "."
+            ".".to_string()
         } else {
-            validate_relative_path(rel_path)?;
-            rel_path
+            normalize_relative_path(rel_path)?
         };
         let fd = openat2(
             &self.root_fd,
-            target,
+            &target,
             OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
             Mode::empty(),
             ResolveFlags::BENEATH | ResolveFlags::NO_SYMLINKS,
         )
-        .map_err(|e| map_open_errno(target, e))?;
+        .map_err(|e| map_open_errno(&target, e))?;
 
         let st = fstat(&fd).map_err(|e| map_errno("fstat dir", e))?;
         if FileType::from_raw_mode(st.st_mode) != FileType::Directory {
@@ -269,8 +268,8 @@ impl WorkspaceFs {
 
     /// Creates missing parent directories for `rel_path` safely under `root_fd` using `openat2(BENEATH | NO_SYMLINKS)`.
     pub fn ensure_parent_dirs(&self, rel_path: &str) -> Result<(), RuntimeError> {
-        validate_relative_path(rel_path)?;
-        let Some((parent, _)) = rel_path.rsplit_once('/') else {
+        let norm = normalize_relative_path(rel_path)?;
+        let Some((parent, _)) = norm.rsplit_once('/') else {
             return Ok(());
         };
         let mut cur_fd = self.open_dir(".")?;
@@ -445,25 +444,25 @@ impl WorkspaceFs {
     }
 
     fn open_parent_dir(&self, rel_path: &str) -> Result<(OwnedFd, String), RuntimeError> {
-        validate_relative_path(rel_path)?;
-        match rel_path.rsplit_once('/') {
+        let norm = normalize_relative_path(rel_path)?;
+        match norm.rsplit_once('/') {
             Some((parent, leaf)) => {
                 if leaf.is_empty() || leaf == "." || leaf == ".." {
                     return Err(RuntimeError::InvalidRequest(format!(
-                        "invalid target filename in '{rel_path}'"
+                        "invalid target filename in '{norm}'"
                     )));
                 }
                 let pfd = self.open_dir(parent)?;
                 Ok((pfd, leaf.to_string()))
             }
             None => {
-                if rel_path == "." || rel_path == ".." {
+                if norm == "." || norm == ".." {
                     return Err(RuntimeError::InvalidRequest(format!(
-                        "invalid target filename '{rel_path}'"
+                        "invalid target filename '{norm}'"
                     )));
                 }
                 let pfd = self.open_dir(".")?;
-                Ok((pfd, rel_path.to_string()))
+                Ok((pfd, norm))
             }
         }
     }

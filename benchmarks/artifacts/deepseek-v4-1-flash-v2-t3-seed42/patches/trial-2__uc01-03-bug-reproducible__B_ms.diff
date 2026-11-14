@@ -1,0 +1,23 @@
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tests/test_pretty.py b/tests/test_pretty.py
+--- a/tests/test_pretty.py	1970-01-01 08:00:00.000000000 +0800
++++ b/tests/test_pretty.py	2026-11-14 22:36:35.373421417 +0700
+@@ -0,0 +1,9 @@
++from tinydb_demo.pretty import render_table
++
++
++def test_render_table_returns_empty_string_for_no_rows():
++    assert render_table([]) == ''
++
++
++def test_render_table_renders_headers_of_first_row():
++    assert render_table([{'a': 1, 'b': 2}]) == 'a  b'
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tinydb_demo/pretty.py b/tinydb_demo/pretty.py
+--- a/tinydb_demo/pretty.py	2026-10-29 15:19:32.690682172 +0700
++++ b/tinydb_demo/pretty.py	2026-11-14 22:36:33.524438168 +0700
+@@ -1,4 +1,6 @@
+ def render_table(rows):
++    if not rows:
++        return ''
+     headers = list(rows[0])
+     widths = [len(header) for header in headers]
+     return '  '.join(_pad_header(header, width) for header, width in zip(headers, widths))

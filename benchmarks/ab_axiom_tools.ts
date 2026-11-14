@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -16,7 +16,13 @@ import {
   planSandbox,
   type SandboxPlan,
 } from '../../nhom-30/src/tools/sandbox.js';
-import { MsAxiomAdapter, type EditSpec } from '../examples/axiom_adapter.js';
+import {
+  attachFailureSnippetsViaRpc,
+  distillCommandOutput,
+  MsAxiomAdapter,
+  runProcessDirect,
+  type EditSpec,
+} from '../examples/axiom_adapter.js';
 
 export type BenchmarkMode = 'controlled' | 'native';
 
@@ -222,36 +228,6 @@ export function extractExitMetadata(toolName: string, output: string, isError: b
     return { exitCode: 0, timedOut: false };
   }
   return { exitCode: 1, timedOut: false };
-}
-
-function execViaMsDistill(
-  msBin: string,
-  workspaceRoot: string,
-  cmdArgs: string[],
-  opts: { timeoutMs: number; env: NodeJS.ProcessEnv; signal?: AbortSignal },
-): Promise<{ exitCode: number; output: string }> {
-  const args = ['exec', '--root', workspaceRoot, '--timeout', String(opts.timeoutMs), '--', ...cmdArgs];
-  return new Promise((resolve, reject) => {
-    const child = spawn(msBin, args, {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: opts.env,
-    });
-    let out = '';
-    let err = '';
-    child.stdout.on('data', (d) => {
-      out += d.toString();
-    });
-    child.stderr.on('data', (d) => {
-      err += d.toString();
-    });
-    const onAbort = () => child.kill('SIGTERM');
-    opts.signal?.addEventListener('abort', onAbort, { once: true });
-    child.on('error', reject);
-    child.on('close', (code) => {
-      opts.signal?.removeEventListener('abort', onAbort);
-      resolve({ exitCode: code ?? 1, output: (out || err).trimEnd() });
-    });
-  });
 }
 
 class MsReadTool extends BaseTool {
@@ -479,7 +455,7 @@ class MsWriteTool extends BaseTool {
 
 class MsExecTool extends BaseTool {
   readonly name = 'run_command';
-  readonly description = 'Execute a shell command in the workspace via `ms exec` (distilled output).';
+  readonly description = 'Execute a shell command in the workspace (fast distilled output).';
   readonly parameters = {
     type: 'object',
     properties: {
@@ -491,7 +467,7 @@ class MsExecTool extends BaseTool {
 
   constructor(
     private readonly ms: MsAxiomAdapter,
-    private readonly msBin: string,
+    private readonly sessionId: string,
     private readonly mode: BenchmarkMode,
     private readonly sandboxPlan: SandboxPlan,
   ) {
@@ -505,7 +481,7 @@ class MsExecTool extends BaseTool {
 
     if (this.mode === 'native') {
       const timeoutMs = typeof args.timeoutMs === 'number' ? Math.floor(args.timeoutMs) : undefined;
-      const { output } = await this.ms.exec(command, { timeoutMs, signal });
+      const { output } = await this.ms.exec(command, { timeoutMs, signal, sessionId: this.sessionId });
       return output || '(Command produced no output)';
     }
 
@@ -518,18 +494,37 @@ class MsExecTool extends BaseTool {
     const timeoutMs =
       typeof args.timeoutMs === 'number' && args.timeoutMs > 0 ? Math.floor(args.timeoutMs) : CONTROLLED_TIMEOUT_MS;
     const inv = buildControlledExecInvocation(command, cwd, this.sandboxPlan);
-    const { output } = await execViaMsDistill(this.msBin, cwd, [inv.file, ...inv.args], {
+    const res = await runProcessDirect(inv.file, inv.args, {
+      cwd,
       timeoutMs,
       env: scrubEnv(process.env),
       signal,
     });
-    return output || '(Command produced no output)';
+    const firstPass = distillCommandOutput(res.rawOutput, {
+      exitCode: res.exitCode,
+      timedOut: res.timedOut,
+      durationMs: res.durationMs,
+      kind: 'generic',
+    });
+    if (res.exitCode !== 0 || res.timedOut) {
+      const snippets = await attachFailureSnippetsViaRpc(this.ms, this.sessionId, cwd, firstPass.cleanedLines);
+      if (snippets.length > 0) {
+        return distillCommandOutput(res.rawOutput, {
+          exitCode: res.exitCode,
+          timedOut: res.timedOut,
+          durationMs: res.durationMs,
+          kind: 'generic',
+          snippets,
+        }).output;
+      }
+    }
+    return firstPass.output || '(Command produced no output)';
   }
 }
 
 class MsRunTestsTool extends BaseTool {
   readonly name = 'run_tests';
-  readonly description = 'Run pytest in the workspace via `ms exec` (distilled output + failure context).';
+  readonly description = 'Run pytest in the workspace (fast distilled output + failure context).';
   readonly parameters = {
     type: 'object',
     properties: {
@@ -539,7 +534,7 @@ class MsRunTestsTool extends BaseTool {
 
   constructor(
     private readonly ms: MsAxiomAdapter,
-    private readonly msBin: string,
+    private readonly sessionId: string,
     private readonly mode: BenchmarkMode,
     private readonly sandboxPlan: SandboxPlan,
   ) {
@@ -552,7 +547,7 @@ class MsRunTestsTool extends BaseTool {
 
     if (this.mode === 'native') {
       const cmd = rawTarget ? ['python3', '-m', 'pytest', rawTarget] : ['python3', '-m', 'pytest'];
-      const { output } = await this.ms.exec(cmd, { signal });
+      const { output } = await this.ms.exec(cmd, { signal, sessionId: this.sessionId, kind: 'pytest' });
       return output || '(pytest produced no output)';
     }
 
@@ -563,12 +558,31 @@ class MsRunTestsTool extends BaseTool {
     } catch (err) {
       return `Error: ${err instanceof Error ? err.message : String(err)}`;
     }
-    const { output } = await execViaMsDistill(this.msBin, cwd, [inv.file, ...inv.args], {
+    const res = await runProcessDirect(inv.file, inv.args, {
+      cwd,
       timeoutMs: CONTROLLED_TIMEOUT_MS,
       env: scrubEnv(process.env),
       signal,
     });
-    return output || '(pytest produced no output)';
+    const firstPass = distillCommandOutput(res.rawOutput, {
+      exitCode: res.exitCode,
+      timedOut: res.timedOut,
+      durationMs: res.durationMs,
+      kind: 'pytest',
+    });
+    if (res.exitCode !== 0 || res.timedOut) {
+      const snippets = await attachFailureSnippetsViaRpc(this.ms, this.sessionId, cwd, firstPass.cleanedLines);
+      if (snippets.length > 0) {
+        return distillCommandOutput(res.rawOutput, {
+          exitCode: res.exitCode,
+          timedOut: res.timedOut,
+          durationMs: res.durationMs,
+          kind: 'pytest',
+          snippets,
+        }).output;
+      }
+    }
+    return firstPass.output || '(pytest produced no output)';
   }
 }
 
@@ -673,9 +687,10 @@ export function registerMsTools(
   registry: ToolRegistry,
   msAdapter: MsAxiomAdapter,
   msSessionId: string,
-  msBin: string,
+  _msBin: string,
   mode: BenchmarkMode,
   sandboxPlan: SandboxPlan = planSandbox(),
+  options?: { includeExtraTools?: boolean },
 ): void {
   registry.unregisterTool('apply_patch');
   registry.registerTool(new MsReadTool(msAdapter, msSessionId));
@@ -683,11 +698,13 @@ export function registerMsTools(
   registry.registerTool(new MsSearchTool(msAdapter, msSessionId));
   registry.registerTool(new MsEditTool(msAdapter, msSessionId));
   registry.registerTool(new MsWriteTool(msAdapter, msSessionId));
-  registry.registerTool(new MsExecTool(msAdapter, msBin, mode, sandboxPlan));
-  registry.registerTool(new MsRunTestsTool(msAdapter, msBin, mode, sandboxPlan));
-  registry.registerTool(new MsOutlineTool(msAdapter, msSessionId));
-  registry.registerTool(new MsContextTool(msAdapter, msSessionId));
-  registry.registerTool(new MsUndoTool(msAdapter, msSessionId));
+  registry.registerTool(new MsExecTool(msAdapter, msSessionId, mode, sandboxPlan));
+  registry.registerTool(new MsRunTestsTool(msAdapter, msSessionId, mode, sandboxPlan));
+  if (options?.includeExtraTools) {
+    registry.registerTool(new MsOutlineTool(msAdapter, msSessionId));
+    registry.registerTool(new MsContextTool(msAdapter, msSessionId));
+    registry.registerTool(new MsUndoTool(msAdapter, msSessionId));
+  }
 }
 
 export function getArmToolDefinitionsHash(

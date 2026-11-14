@@ -30,6 +30,6 @@ pub use operations::{
     TxUndoParams, TxUndoResult, WriteFileParams, WriteFileResult, builtin_operation_schemas,
 };
 pub use validate::{
-    validate_operation, validate_patch_edits, validate_relative_path, validate_request,
-    validate_revision_hex,
+    normalize_relative_path, validate_operation, validate_patch_edits, validate_relative_path,
+    validate_request, validate_revision_hex,
 };
