@@ -355,6 +355,46 @@ async fn policy_narrowing_cannot_widen() {
         .await
         .unwrap_err();
     assert_eq!(err.error_code(), ErrorCode::EPolicyDenied);
+
+    // Narrowing with in-workspace `..` in read_subpaths normalizes to "src" and succeeds
+    let narrow_sess = rt
+        .open_session(&SessionOpenParams {
+            capabilities: Some(SessionCapabilities {
+                read_subpaths: Some(vec!["tests/../src".into()]),
+                ..Default::default()
+            }),
+        })
+        .unwrap();
+    let ok = rt
+        .execute_call(
+            &make_call(
+                &narrow_sess.session_id,
+                Operation::Read(ReadParams {
+                    path: "docs/../src/a.rs".into(),
+                    start_line: None,
+                    line_count: None,
+                    format: None,
+                }),
+                None,
+            ),
+            CancelToken::new(),
+        )
+        .await;
+    assert!(
+        ok.is_ok(),
+        "expected normalized in-workspace read to succeed: {ok:?}"
+    );
+
+    // Root-escaping `..` in read_subpaths is rejected with E_POLICY_DENIED
+    let err = rt
+        .open_session(&SessionOpenParams {
+            capabilities: Some(SessionCapabilities {
+                read_subpaths: Some(vec!["../outside".into()]),
+                ..Default::default()
+            }),
+        })
+        .unwrap_err();
+    assert_eq!(err.error_code(), ErrorCode::EPolicyDenied);
 }
 
 #[tokio::test]

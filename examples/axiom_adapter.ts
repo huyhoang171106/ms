@@ -12,6 +12,7 @@
  */
 
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import * as fs from "node:fs";
 import * as path from "node:path";
 import * as readline from "node:readline";
 
@@ -637,16 +638,9 @@ export class MsAxiomAdapter {
     opts?: { timeoutMs?: number; signal?: AbortSignal; sessionId?: string; kind?: "pytest" | "generic" },
   ): Promise<{ exitCode: number; output: string }> {
     const cmdArgs = Array.isArray(command) ? command : [command];
-    const useShell =
-      cmdArgs.length === 1 &&
-      (cmdArgs[0]!.includes(" ") ||
-        cmdArgs[0]!.includes("|") ||
-        cmdArgs[0]!.includes("&") ||
-        cmdArgs[0]!.includes(";") ||
-        cmdArgs[0]!.includes(">") ||
-        cmdArgs[0]!.includes("<"));
-    const file = useShell ? "/bin/sh" : cmdArgs[0]!;
-    const args = useShell ? ["-c", cmdArgs[0]!] : cmdArgs.slice(1);
+    const isStringCmd = !Array.isArray(command);
+    const file = isStringCmd ? "/bin/sh" : cmdArgs[0]!;
+    const args = isStringCmd ? ["-c", command] : cmdArgs.slice(1);
     const res = await runProcessDirect(file, args, {
       cwd: this.workspaceRoot,
       timeoutMs: opts?.timeoutMs ?? 60_000,
@@ -924,7 +918,12 @@ export async function attachFailureSnippetsViaRpc(
 ): Promise<string[]> {
   const seen = new Set<string>();
   const snippets: string[] = [];
-  const realRoot = path.resolve(workspaceRoot);
+  let realRoot: string;
+  try {
+    realRoot = fs.realpathSync(workspaceRoot);
+  } catch {
+    realRoot = path.resolve(workspaceRoot);
+  }
 
   for (const line of cleanedLines) {
     LOC_RE.lastIndex = 0;

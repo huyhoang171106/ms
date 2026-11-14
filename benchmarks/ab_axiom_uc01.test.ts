@@ -29,7 +29,7 @@ import {
   registerMsTools,
   validatePytestTarget,
 } from './ab_axiom_tools.js';
-import { distillCommandOutput, type MsAxiomAdapter } from '../examples/axiom_adapter.js';
+import { distillCommandOutput, MsAxiomAdapter } from '../examples/axiom_adapter.js';
 import { ToolRegistry } from '../../nhom-30/src/tools/registry.js';
 import {
   buildInfraErrorRecord,
@@ -347,6 +347,45 @@ describe('F3: Controlled Execution Parity', () => {
     expect(failRes.output).toContain('[FAILED | exit:1');
     expect(failRes.output).toContain('--- context snippets ---');
     expect(failRes.output).toContain('3:abcd| assert False');
+  });
+
+  test('MsAxiomAdapter.exec runs in-process, handles shell metacharacters, and attaches hashline snippets even via symlinked root', async () => {
+    const msBin = path.resolve(import.meta.dir, '..', 'target', 'release', 'ms');
+    if (!fs.existsSync(msBin)) {
+      throw new Error(`release binary missing at ${msBin}`);
+    }
+    const realWs = makeTempDir('ab-exec-real-');
+    const linkParent = makeTempDir('ab-exec-link-');
+    const linkWs = path.join(linkParent, 'ws-link');
+    fs.symlinkSync(realWs, linkWs);
+    const stateDir = makeTempDir('ab-exec-state-');
+    fs.writeFileSync(path.join(realWs, 'app.py'), 'def broken():\n    return 1 / 0\n', 'utf8');
+
+    const adapter = new MsAxiomAdapter(msBin, linkWs, stateDir, false);
+    try {
+      await adapter.initialize();
+      const sessionId = await adapter.openSession({ allowWrite: false });
+
+      const okRes = await adapter.exec('echo hello_world', { sessionId });
+      expect(okRes.exitCode).toBe(0);
+      expect(okRes.output).toContain('hello_world');
+
+      const metaRes = await adapter.exec('FOO=ok;echo:$FOO', { sessionId });
+      expect(metaRes.exitCode).toBe(127);
+
+      const errPath = path.join(fs.realpathSync(realWs), 'app.py');
+      const failRes = await adapter.exec(
+        ['python3', '-c', `import sys; print('File "${errPath}", line 2, in broken'); sys.exit(1)`],
+        { sessionId },
+      );
+      expect(failRes.exitCode).toBe(1);
+      expect(failRes.output).toContain('--- context snippets ---');
+      expect(failRes.output).toContain('return 1 / 0');
+
+      await adapter.closeSession(sessionId);
+    } finally {
+      adapter.shutdown();
+    }
   });
 });
 
