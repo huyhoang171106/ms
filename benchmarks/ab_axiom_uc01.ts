@@ -14,7 +14,7 @@ import { redact } from '../../nhom-30/src/core/secrets.js';
 import { SessionManager } from '../../nhom-30/src/core/session.js';
 import type { TokenUsage } from '../../nhom-30/src/core/types.js';
 import { loadCatalog } from '../../nhom-30/src/llm/catalog/index.js';
-import { CostTracker } from '../../nhom-30/src/llm/cost-tracker.js';
+import { CostTracker, type SessionSummary } from '../../nhom-30/src/llm/cost-tracker.js';
 import { createProviderFor, resolveModel } from '../../nhom-30/src/llm/model-resolver.js';
 import { ToolRegistry } from '../../nhom-30/src/tools/registry.js';
 import { planSandbox } from '../../nhom-30/src/tools/sandbox.js';
@@ -53,6 +53,7 @@ import {
 } from './ab_axiom_oracle.js';
 import {
   buildToolTraceEntry,
+  getArmToolDefinitionsHash,
   getExecutionPolicySnapshot,
   registerMsTools,
   type BenchmarkMode,
@@ -229,6 +230,45 @@ export function resolveOutDir(opts: CliOptions): { experimentId: string; outDir:
   return { experimentId, outDir, isResume: false };
 }
 
+export class NormalizedCostTracker extends CostTracker {
+  private normalizedCostDollars = 0;
+
+  override calculateCost(
+    model: string,
+    promptTokens: number,
+    completionTokens: number,
+    cachedTokens?: number,
+  ): number {
+    const norm = normalizeProviderUsage({
+      promptTokens,
+      completionTokens,
+      cacheReadInputTokens: cachedTokens,
+    });
+    return calculateNormalizedCost(model, norm).costDollars;
+  }
+
+  override record(model: string, usage: TokenUsage): void {
+    const norm = normalizeProviderUsage(usage);
+    const calc = calculateNormalizedCost(model, norm);
+    this.normalizedCostDollars = Number((this.normalizedCostDollars + calc.costDollars).toFixed(6));
+    super.record(model, { ...usage, costEstimate: calc.costDollars });
+  }
+
+  override getSessionSummary(): SessionSummary {
+    const base = super.getSessionSummary();
+    return {
+      ...base,
+      totalCost: this.normalizedCostDollars,
+      totalCostDollars: this.normalizedCostDollars,
+    };
+  }
+
+  override reset(): void {
+    this.normalizedCostDollars = 0;
+    super.reset();
+  }
+}
+
 function makeEmptyUsage(): NormalizedUsage {
   return {
     uncachedInput: 0,
@@ -277,7 +317,7 @@ export async function runSingle(
     const sandboxPlan = planSandbox();
 
     const bus = new EventBus();
-    const costTracker = new CostTracker();
+    const costTracker = new NormalizedCostTracker();
     const registry = new ToolRegistry();
     registry.allowWithoutApprover = true;
     registry.bus = bus;
@@ -468,7 +508,12 @@ export function buildInfraErrorRecord(
   wallClockMs: number,
 ): RunRecord {
   const message = redact(err instanceof Error ? err.message : String(err));
-  const pricing = resolveModelPricing(model);
+  let pricingCanonicalId = model;
+  try {
+    pricingCanonicalId = resolveModelPricing(model).canonicalId;
+  } catch {
+    // Keep raw model identifier on infra error record if pricing lookup itself failed
+  }
   return {
     schemaVersion: SCHEMA_VERSION,
     experimentId,
@@ -526,7 +571,7 @@ export function buildInfraErrorRecord(
     usage: makeEmptyUsage(),
     costDollars: 0,
     costKind: 'estimated',
-    pricingCanonicalId: pricing.canonicalId,
+    pricingCanonicalId,
     filesChangedAgent: [],
     filesChangedActual: [],
     tracePath: '',
@@ -540,7 +585,6 @@ export async function runExperiment(
     runSingleFn?: typeof runSingle;
   },
 ): Promise<{ outDir: string; manifest: ExperimentManifest; runs: RunRecord[] }> {
-  const { pricing, baselinePytest } = runPreflight(opts);
   const { experimentId, outDir, isResume } = resolveOutDir(opts);
   fs.mkdirSync(outDir, { recursive: true });
 
@@ -548,60 +592,84 @@ export async function runExperiment(
   const jsonlPath = path.join(outDir, 'runs.jsonl');
 
   let manifest: ExperimentManifest;
+  let effectiveOpts: CliOptions = opts;
+  let baselinePytest: PytestSnapshot;
+
   if (isResume && fs.existsSync(manifestPath)) {
     manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as ExperimentManifest;
+    effectiveOpts = {
+      ...opts,
+      mode: manifest.mode,
+      seed: manifest.seed,
+      trials: manifest.trials,
+      cases: manifest.cases,
+      model: manifest.modelSelector,
+      maxSteps: manifest.generationSettings.maxSteps,
+      budgetDollars: manifest.generationSettings.budgetLimitDollars,
+      msBin: manifest.msBinaryPath,
+      fixtureDir: manifest.fixtureDir,
+      casesDir: manifest.casesDir,
+    };
+    baselinePytest = runPreflight(effectiveOpts).baselinePytest;
   } else {
+    const preflight = runPreflight(effectiveOpts);
+    baselinePytest = preflight.baselinePytest;
+    const pricing = preflight.pricing;
     const config = loadConfig();
     const catalog = loadCatalog();
-    const resolvedModel = resolveModel(opts.model, catalog, config).id;
+    const resolvedModel = resolveModel(effectiveOpts.model, catalog, config).id;
     const sandboxPlan = planSandbox();
-    const schedule = buildExperimentSchedule(opts.cases, opts.trials, opts.seed);
+    const schedule = buildExperimentSchedule(effectiveOpts.cases, effectiveOpts.trials, effectiveOpts.seed);
 
     manifest = {
       schemaVersion: SCHEMA_VERSION,
       experimentId,
       createdAt: new Date().toISOString(),
-      mode: opts.mode,
-      seed: opts.seed,
-      trials: opts.trials,
-      cases: opts.cases,
-      modelSelector: opts.model,
+      mode: effectiveOpts.mode,
+      seed: effectiveOpts.seed,
+      trials: effectiveOpts.trials,
+      cases: effectiveOpts.cases,
+      modelSelector: effectiveOpts.model,
       resolvedModel,
       pricing,
       costKind: 'estimated',
-      msBinaryPath: opts.msBin,
-      fixtureDir: opts.fixtureDir,
-      casesDir: opts.casesDir,
+      msBinaryPath: effectiveOpts.msBin,
+      fixtureDir: effectiveOpts.fixtureDir,
+      casesDir: effectiveOpts.casesDir,
       git: {
         ms: getGitProvenance('/home/hoang/ms'),
         nhom30: getGitProvenance('/home/hoang/nhom-30'),
       },
       hashes: {
-        msBinarySha256: sha256File(opts.msBin),
-        fixtureSha256: sha256Directory(opts.fixtureDir),
+        msBinarySha256: sha256File(effectiveOpts.msBin),
+        fixtureSha256: sha256Directory(effectiveOpts.fixtureDir),
         adapterSha256: sha256File('/home/hoang/ms/examples/axiom_adapter.ts'),
         systemPromptSha256: crypto.createHash('sha256').update(DEFAULT_SYSTEM_PROMPT).digest('hex'),
+        toolDefinitionsSha256: {
+          A_baseline: getArmToolDefinitionsHash('A_baseline', effectiveOpts.mode, effectiveOpts.msBin, sandboxPlan),
+          B_ms: getArmToolDefinitionsHash('B_ms', effectiveOpts.mode, effectiveOpts.msBin, sandboxPlan),
+        },
       },
       generationSettings: {
-        maxSteps: opts.maxSteps,
-        budgetLimitDollars: opts.budgetDollars,
+        maxSteps: effectiveOpts.maxSteps,
+        budgetLimitDollars: effectiveOpts.budgetDollars,
       },
       executionPolicy: {
-        A_baseline: getExecutionPolicySnapshot(opts.mode, 'A_baseline', sandboxPlan),
-        B_ms: getExecutionPolicySnapshot(opts.mode, 'B_ms', sandboxPlan),
+        A_baseline: getExecutionPolicySnapshot(effectiveOpts.mode, 'A_baseline', sandboxPlan),
+        B_ms: getExecutionPolicySnapshot(effectiveOpts.mode, 'B_ms', sandboxPlan),
       },
       redactedConfigSnapshot: redactConfigObject({
         ...config,
         defaultModel: resolvedModel,
-        maxSteps: opts.maxSteps,
-        budgetLimitDollars: opts.budgetDollars,
+        maxSteps: effectiveOpts.maxSteps,
+        budgetLimitDollars: effectiveOpts.budgetDollars,
       }) as Record<string, unknown>,
       schedule,
     };
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
   }
 
-  if (opts.dryRun) {
+  if (effectiveOpts.dryRun) {
     console.log(`[dry-run] Preflight OK. Experiment ${manifest.experimentId}`);
     console.log(`[dry-run] Mode=${manifest.mode}, Seed=${manifest.seed}, Trials=${manifest.trials}, Runs=${manifest.schedule.length}`);
     console.log(`[dry-run] Pricing=${manifest.pricing.canonicalId} (in=$${manifest.pricing.inputPer1M}/1M, cacheRead=$${manifest.pricing.cacheReadPer1M}/1M, cacheWrite=$${manifest.pricing.cacheWrite5mPer1M}/1M, out=$${manifest.pricing.outputPer1M}/1M)`);
@@ -611,7 +679,7 @@ export async function runExperiment(
 
   const casesById = new Map<string, CaseFixture>();
   for (const id of manifest.cases) {
-    const raw = fs.readFileSync(path.join(opts.casesDir, `${id}.json`), 'utf8');
+    const raw = fs.readFileSync(path.join(effectiveOpts.casesDir, `${id}.json`), 'utf8');
     casesById.set(id, JSON.parse(raw) as CaseFixture);
   }
 
@@ -644,7 +712,7 @@ export async function runExperiment(
       const record = await executor(scheduled, fixture, {
         experimentId: manifest.experimentId,
         outDir,
-        opts,
+        opts: effectiveOpts,
         baselinePytest,
       });
       appendRunRecord(jsonlPath, record);

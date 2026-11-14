@@ -25,7 +25,13 @@ import {
   getExecutionPolicySnapshot,
   validatePytestTarget,
 } from './ab_axiom_tools.js';
-import { parseCliArgs, runExperiment, type RunRecord } from './ab_axiom_uc01.js';
+import {
+  buildInfraErrorRecord,
+  NormalizedCostTracker,
+  parseCliArgs,
+  runExperiment,
+  type RunRecord,
+} from './ab_axiom_uc01.js';
 
 const FIXTURE_DIR = '/home/hoang/nhom-30/evals/fixtures/uc01';
 const CASES_DIR = '/home/hoang/nhom-30/evals/uc01';
@@ -104,6 +110,16 @@ describe('F1: Normalized Usage & Explicit Pricing', () => {
     expect(agg.totals.uncachedInput).toBe(200);
     expect(agg.totals.cacheRead).toBe(101_000);
     expect(agg.totals.output).toBe(20);
+
+    const tracker = new NormalizedCostTracker();
+    tracker.record('claude-haiku-5-5', {
+      promptTokens: 100,
+      completionTokens: 10,
+      cacheReadInputTokens: 100_000,
+      cacheCreationInputTokens: 0,
+      totalTokens: 110,
+    });
+    expect(tracker.getSessionSummary().totalCost).toBe(cHigh.costDollars);
   });
 });
 
@@ -400,5 +416,45 @@ describe('F4, F5, F6: Schedule, Resume, Infra Errors, Diff & Redaction', () => {
 
     const errTrace = buildToolTraceEntry('call_2', 'run_command', 20, 50, `failed with ${fakeSecret}`, true, `err ${fakeSecret}`);
     expect(errTrace.errorPreview).not.toContain(fakeSecret);
+  });
+
+  test('manifest records toolDefinitionsSha256 and --resume hydrates manifest config', async () => {
+    const outDir = makeTempDir('ab-hydrate-test-');
+    const opts = parseCliArgs([
+      '--trials',
+      '1',
+      '--seed',
+      '7',
+      '--mode',
+      'native',
+      '--max-steps',
+      '12',
+      '--budget',
+      '0.45',
+      '--out-dir',
+      outDir,
+      '--cases',
+      'uc01-01-bug-crash-null',
+      '--dry-run',
+    ]);
+    const initial = await runExperiment(opts);
+    expect(initial.manifest.hashes.toolDefinitionsSha256?.A_baseline).toMatch(/^[a-f0-9]{64}$/);
+    expect(initial.manifest.hashes.toolDefinitionsSha256?.B_ms).toMatch(/^[a-f0-9]{64}$/);
+    expect(initial.manifest.hashes.toolDefinitionsSha256?.A_baseline).not.toBe(
+      initial.manifest.hashes.toolDefinitionsSha256?.B_ms,
+    );
+
+    const seenModes: string[] = [];
+    const seenMaxSteps: number[] = [];
+    const resumeOpts = parseCliArgs(['--resume', outDir]);
+    await runExperiment(resumeOpts, {
+      runSingleFn: async (scheduled, _fixture, ctx) => {
+        seenModes.push(ctx.opts.mode);
+        seenMaxSteps.push(ctx.opts.maxSteps);
+        return buildInfraErrorRecord(scheduled, ctx.experimentId, ctx.opts.mode, 'unknown-model-id', new Error('stop'), 1);
+      },
+    });
+    expect(seenModes).toEqual(['native', 'native']);
+    expect(seenMaxSteps).toEqual([12, 12]);
   });
 });

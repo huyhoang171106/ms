@@ -663,6 +663,23 @@ export function registerMsTools(
   registry.registerTool(new MsUndoTool(msAdapter, msSessionId));
 }
 
+export function getArmToolDefinitionsHash(
+  arm: 'A_baseline' | 'B_ms',
+  mode: BenchmarkMode,
+  msBin: string,
+  sandboxPlan: SandboxPlan = planSandbox(),
+): string {
+  const registry = new ToolRegistry();
+  if (arm === 'B_ms') {
+    registerMsTools(registry, {} as MsAxiomAdapter, 'schema-hash', msBin, mode, sandboxPlan);
+  }
+  const defs = registry
+    .getDefinitions()
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return crypto.createHash('sha256').update(JSON.stringify(defs)).digest('hex');
+}
+
 export function buildToolTraceEntry(
   toolCallId: string,
   name: string,
