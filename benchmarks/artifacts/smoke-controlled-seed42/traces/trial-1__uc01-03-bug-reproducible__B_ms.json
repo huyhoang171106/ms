@@ -1,0 +1,291 @@
+{
+  "schemaVersion": "2.0.0",
+  "experimentId": "uc01-controlled-seed42-2026-11-14T14-25-21-822Z",
+  "runId": "trial-1__uc01-03-bug-reproducible__B_ms",
+  "arm": "B_ms",
+  "caseId": "uc01-03-bug-reproducible",
+  "trial": 1,
+  "pairOrder": "AB",
+  "durationsMs": {
+    "setupMs": 7.42,
+    "agentMs": 9612.57,
+    "verifyMs": 354.4,
+    "cleanupMs": 0.33,
+    "wallClockMs": 9975.66
+  },
+  "requests": [
+    {
+      "turn": 1,
+      "usage": {
+        "uncachedInput": 258,
+        "cacheRead": 0,
+        "cacheWrite": 2519,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 107,
+        "totalInputAll": 2777,
+        "totalTokens": 2884
+      },
+      "cost": {
+        "costDollars": 0.000394,
+        "costKind": "estimated",
+        "pricing": {
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0.000026,
+          "cacheReadUsd": 0,
+          "cacheWriteUsd": 0.000315,
+          "outputUsd": 0.000053
+        }
+      }
+    },
+    {
+      "turn": 2,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 2519,
+        "cacheWrite": 653,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 192,
+        "totalInputAll": 3174,
+        "totalTokens": 3366
+      },
+      "cost": {
+        "costDollars": 0.000228,
+        "costKind": "estimated",
+        "pricing": {
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.00005,
+          "cacheWriteUsd": 0.000082,
+          "outputUsd": 0.000096
+        }
+      }
+    },
+    {
+      "turn": 3,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 3172,
+        "cacheWrite": 221,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 92,
+        "totalInputAll": 3395,
+        "totalTokens": 3487
+      },
+      "cost": {
+        "costDollars": 0.000137,
+        "costKind": "estimated",
+        "pricing": {
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000063,
+          "cacheWriteUsd": 0.000028,
+          "outputUsd": 0.000046
+        }
+      }
+    },
+    {
+      "turn": 4,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 3393,
+        "cacheWrite": 171,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 307,
+        "totalInputAll": 3566,
+        "totalTokens": 3873
+      },
+      "cost": {
+        "costDollars": 0.000243,
+        "costKind": "estimated",
+        "pricing": {
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000068,
+          "cacheWriteUsd": 0.000021,
+          "outputUsd": 0.000153
+        }
+      }
+    },
+    {
+      "turn": 5,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 3564,
+        "cacheWrite": 538,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 181,
+        "totalInputAll": 4104,
+        "totalTokens": 4285
+      },
+      "cost": {
+        "costDollars": 0.000229,
+        "costKind": "estimated",
+        "pricing": {
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000071,
+          "cacheWriteUsd": 0.000067,
+          "outputUsd": 0.000091
+        }
+      }
+    },
+    {
+      "turn": 6,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 4102,
+        "cacheWrite": 185,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 365,
+        "totalInputAll": 4289,
+        "totalTokens": 4654
+      },
+      "cost": {
+        "costDollars": 0.000288,
+        "costKind": "estimated",
+        "pricing": {
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000082,
+          "cacheWriteUsd": 0.000023,
+          "outputUsd": 0.000182
+        }
+      }
+    }
+  ],
+  "toolCalls": [
+    {
+      "toolCallId": "toolu_01JXP5sxVvCpASqAFNu9aa92",
+      "name": "read_file",
+      "startedAtMonoMs": 1172.39,
+      "durationMs": 3,
+      "isError": false,
+      "toolOutputBytes": 408,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01UYHYegQunZaD2kPjzSxsiD",
+      "name": "search_code",
+      "startedAtMonoMs": 1174.491,
+      "durationMs": 3,
+      "isError": false,
+      "toolOutputBytes": 53,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01PeqbzHigN7TucvCbWgkon5",
+      "name": "run_command",
+      "startedAtMonoMs": 2553.994,
+      "durationMs": 17,
+      "isError": false,
+      "toolOutputBytes": 153,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01KgCASLRDF4gaY5FyYoj2Cb",
+      "name": "run_command",
+      "startedAtMonoMs": 3658.076,
+      "durationMs": 136,
+      "isError": false,
+      "toolOutputBytes": 158,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01PqfqMRgdFRiHnphLqQzynU",
+      "name": "edit",
+      "startedAtMonoMs": 5412.705,
+      "durationMs": 2,
+      "isError": false,
+      "toolOutputBytes": 65,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01MGyQb6dKqJMiL2MTeouJya",
+      "name": "run_command",
+      "startedAtMonoMs": 5414.924,
+      "durationMs": 27,
+      "isError": false,
+      "toolOutputBytes": 68,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01Y99rPkz6j6W8e2iCdTrcgb",
+      "name": "run_tests",
+      "startedAtMonoMs": 5441.762,
+      "durationMs": 29,
+      "isError": false,
+      "toolOutputBytes": 130,
+      "exitCode": 1,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01KEyDSWvL3mfb2Sj34PVbEf",
+      "name": "run_command",
+      "startedAtMonoMs": 7010.081,
+      "durationMs": 625,
+      "isError": false,
+      "toolOutputBytes": 82,
+      "exitCode": 0,
+      "timedOut": false
+    }
+  ],
+  "actualFilesChanged": [
+    "tinydb_demo/pretty.py"
+  ],
+  "diffBytes": 502,
+  "diffTruncated": false
+}

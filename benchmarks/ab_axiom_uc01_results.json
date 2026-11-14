@@ -1,0 +1,308 @@
+{
+  "runAt": "2026-11-14T13:48:51.151Z",
+  "model": "anthropic/claude-haiku-5-5",
+  "msBinary": "/home/hoang/ms/target/release/ms",
+  "cases": [
+    "uc01-01-bug-crash-null",
+    "uc01-02-bug-test-fail",
+    "uc01-03-bug-reproducible"
+  ],
+  "summary": {
+    "A_baseline": {
+      "passed": 3,
+      "total": 3,
+      "totalWallClockMs": 34477,
+      "totalLlmTurns": 19,
+      "totalToolCalls": 24,
+      "totalToolFailures": 0,
+      "totalInputTokens": 881,
+      "totalOutputTokens": 5453,
+      "totalCacheReadTokens": 68261,
+      "totalTokens": 6334,
+      "totalCostDollars": 0.044064
+    },
+    "B_ms": {
+      "passed": 3,
+      "total": 3,
+      "totalWallClockMs": 74460,
+      "totalLlmTurns": 31,
+      "totalToolCalls": 43,
+      "totalToolFailures": 0,
+      "totalInputTokens": 905,
+      "totalOutputTokens": 11450,
+      "totalCacheReadTokens": 148297,
+      "totalTokens": 12355,
+      "totalCostDollars": 0.092053
+    }
+  },
+  "runs": [
+    {
+      "arm": "A_baseline",
+      "caseId": "uc01-01-bug-crash-null",
+      "status": "completed",
+      "verified": {
+        "passed": true,
+        "details": "cli_exit=0 cli_out=\"\\n\" cli_err=\"\" unit_exit=0 unit_err=\"\"",
+        "pytestExitCode": 1,
+        "pytestSummary": "=========================== short test summary info ============================ | FAILED tests/test_search.py::test_search_is_case_insensitive - AssertionError... | ============================== 1 failed in 0.01s ==============================="
+      },
+      "wallClockMs": 15780,
+      "llmTurns": 7,
+      "toolCallsTotal": 10,
+      "toolFailures": 0,
+      "toolErrors": [],
+      "toolCallsByName": {
+        "read_file": {
+          "total": 2,
+          "failures": 0
+        },
+        "list_dir": {
+          "total": 1,
+          "failures": 0
+        },
+        "run_command": {
+          "total": 5,
+          "failures": 0
+        },
+        "edit": {
+          "total": 1,
+          "failures": 0
+        },
+        "run_tests": {
+          "total": 1,
+          "failures": 0
+        }
+      },
+      "inputTokens": 349,
+      "outputTokens": 2886,
+      "cacheReadTokens": 30952,
+      "totalTokens": 3235,
+      "costDollars": 0.023262,
+      "filesChanged": [
+        "tinydb_demo/format.py"
+      ]
+    },
+    {
+      "arm": "B_ms",
+      "caseId": "uc01-01-bug-crash-null",
+      "status": "completed",
+      "verified": {
+        "passed": true,
+        "details": "cli_exit=0 cli_out=\"\\n\" cli_err=\"\" unit_exit=0 unit_err=\"\"",
+        "pytestExitCode": 1,
+        "pytestSummary": "=========================== short test summary info ============================ | FAILED tests/test_search.py::test_search_is_case_insensitive - AssertionError... | ============================== 1 failed in 0.01s ==============================="
+      },
+      "wallClockMs": 28935,
+      "llmTurns": 12,
+      "toolCallsTotal": 19,
+      "toolFailures": 0,
+      "toolErrors": [],
+      "toolCallsByName": {
+        "read_file": {
+          "total": 6,
+          "failures": 0
+        },
+        "list_dir": {
+          "total": 1,
+          "failures": 0
+        },
+        "run_command": {
+          "total": 8,
+          "failures": 0
+        },
+        "run_tests": {
+          "total": 3,
+          "failures": 0
+        },
+        "edit": {
+          "total": 1,
+          "failures": 0
+        }
+      },
+      "inputTokens": 359,
+      "outputTokens": 5021,
+      "cacheReadTokens": 64823,
+      "totalTokens": 5380,
+      "costDollars": 0.040348,
+      "filesChanged": [
+        "tinydb_demo/format.py"
+      ]
+    },
+    {
+      "arm": "A_baseline",
+      "caseId": "uc01-02-bug-test-fail",
+      "status": "completed",
+      "verified": {
+        "passed": true,
+        "details": "pytest_exit=0 unit_exit=0 unit_err=\"\"",
+        "pytestExitCode": 0,
+        "pytestSummary": "tests/test_search.py .                                                   [100%] |  | ============================== 1 passed in 0.01s ==============================="
+      },
+      "wallClockMs": 6947,
+      "llmTurns": 5,
+      "toolCallsTotal": 6,
+      "toolFailures": 0,
+      "toolErrors": [],
+      "toolCallsByName": {
+        "read_file": {
+          "total": 2,
+          "failures": 0
+        },
+        "search_code": {
+          "total": 1,
+          "failures": 0
+        },
+        "run_tests": {
+          "total": 2,
+          "failures": 0
+        },
+        "edit": {
+          "total": 1,
+          "failures": 0
+        }
+      },
+      "inputTokens": 262,
+      "outputTokens": 848,
+      "cacheReadTokens": 14445,
+      "totalTokens": 1110,
+      "costDollars": 0.006915,
+      "filesChanged": [
+        "tinydb_demo/store.py"
+      ]
+    },
+    {
+      "arm": "B_ms",
+      "caseId": "uc01-02-bug-test-fail",
+      "status": "completed",
+      "verified": {
+        "passed": true,
+        "details": "pytest_exit=0 unit_exit=0 unit_err=\"\"",
+        "pytestExitCode": 0,
+        "pytestSummary": "tests/test_search.py .                                                   [100%] |  | ============================== 1 passed in 0.01s ==============================="
+      },
+      "wallClockMs": 6027,
+      "llmTurns": 5,
+      "toolCallsTotal": 6,
+      "toolFailures": 0,
+      "toolErrors": [],
+      "toolCallsByName": {
+        "read_file": {
+          "total": 2,
+          "failures": 0
+        },
+        "run_command": {
+          "total": 1,
+          "failures": 0
+        },
+        "run_tests": {
+          "total": 2,
+          "failures": 0
+        },
+        "edit": {
+          "total": 1,
+          "failures": 0
+        }
+      },
+      "inputTokens": 262,
+      "outputTokens": 728,
+      "cacheReadTokens": 16025,
+      "totalTokens": 990,
+      "costDollars": 0.005955,
+      "filesChanged": [
+        "tinydb_demo/store.py"
+      ]
+    },
+    {
+      "arm": "A_baseline",
+      "caseId": "uc01-03-bug-reproducible",
+      "status": "completed",
+      "verified": {
+        "passed": true,
+        "details": "unit_exit=0 unit_err=\"\"",
+        "pytestExitCode": 1,
+        "pytestSummary": "=========================== short test summary info ============================ | FAILED tests/test_search.py::test_search_is_case_insensitive - AssertionError... | ============================== 1 failed in 0.01s ==============================="
+      },
+      "wallClockMs": 11750,
+      "llmTurns": 7,
+      "toolCallsTotal": 8,
+      "toolFailures": 0,
+      "toolErrors": [],
+      "toolCallsByName": {
+        "read_file": {
+          "total": 1,
+          "failures": 0
+        },
+        "search_code": {
+          "total": 1,
+          "failures": 0
+        },
+        "run_command": {
+          "total": 4,
+          "failures": 0
+        },
+        "edit": {
+          "total": 1,
+          "failures": 0
+        },
+        "run_tests": {
+          "total": 1,
+          "failures": 0
+        }
+      },
+      "inputTokens": 270,
+      "outputTokens": 1719,
+      "cacheReadTokens": 22864,
+      "totalTokens": 1989,
+      "costDollars": 0.013887,
+      "filesChanged": [
+        "tinydb_demo/pretty.py"
+      ]
+    },
+    {
+      "arm": "B_ms",
+      "caseId": "uc01-03-bug-reproducible",
+      "status": "completed",
+      "verified": {
+        "passed": true,
+        "details": "unit_exit=0 unit_err=\"\"",
+        "pytestExitCode": 1,
+        "pytestSummary": "=========================== short test summary info ============================ | FAILED tests/test_search.py::test_search_is_case_insensitive - AssertionError... | ============================== 1 failed in 0.01s ==============================="
+      },
+      "wallClockMs": 39498,
+      "llmTurns": 14,
+      "toolCallsTotal": 18,
+      "toolFailures": 0,
+      "toolErrors": [],
+      "toolCallsByName": {
+        "read_file": {
+          "total": 3,
+          "failures": 0
+        },
+        "run_command": {
+          "total": 10,
+          "failures": 0
+        },
+        "search_code": {
+          "total": 2,
+          "failures": 0
+        },
+        "edit": {
+          "total": 1,
+          "failures": 0
+        },
+        "run_tests": {
+          "total": 2,
+          "failures": 0
+        }
+      },
+      "inputTokens": 284,
+      "outputTokens": 5701,
+      "cacheReadTokens": 67449,
+      "totalTokens": 5985,
+      "costDollars": 0.04575,
+      "filesChanged": [
+        "tinydb_demo/pretty.py"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "2.0.0",
+  "experimentId": "uc01-controlled-seed42-2026-11-14T14-25-21-822Z",
+  "generatedAt": "2026-11-14T14:27:31.172Z",
+  "totalRuns": 6,
+  "mode": "controlled",
+  "seed": 42,
+  "trials": 1,
+  "byArm": {
+    "A_baseline": {
+      "attempted": 3,
+      "verifiedSuccess": 3,
+      "targetFixed": 3,
+      "noRegressions": 3,
+      "infraErrors": 0,
+      "timeouts": 0,
+      "totalWallClockMs": 43707.49,
+      "totalLlmTurns": 22,
+      "totalToolCalls": 32,
+      "totalToolFailures": 0,
+      "totalCommandNonZeroExits": 5,
+      "totalCommandTimeouts": 0,
+      "totalToolOutputBytes": 24424,
+      "totalUncachedInputTokens": 887,
+      "totalCacheReadTokens": 94695,
+      "totalCacheWriteTokens": 16793,
+      "totalOutputTokens": 6940,
+      "totalTokens": 119315,
+      "totalCostDollars": 0.007551,
+      "costPerAttemptedTask": 0.002517,
+      "costPerVerifiedSuccess": 0.002517
+    },
+    "B_ms": {
+      "attempted": 3,
+      "verifiedSuccess": 3,
+      "targetFixed": 3,
+      "noRegressions": 3,
+      "infraErrors": 0,
+      "timeouts": 0,
+      "totalWallClockMs": 79013.76,
+      "totalLlmTurns": 34,
+      "totalToolCalls": 48,
+      "totalToolFailures": 3,
+      "totalCommandNonZeroExits": 10,
+      "totalCommandTimeouts": 0,
+      "totalToolOutputBytes": 9659,
+      "totalUncachedInputTokens": 911,
+      "totalCacheReadTokens": 161867,
+      "totalCacheWriteTokens": 15660,
+      "totalOutputTokens": 12642,
+      "totalTokens": 191080,
+      "totalCostDollars": 0.011607,
+      "costPerAttemptedTask": 0.003869,
+      "costPerVerifiedSuccess": 0.003869
+    }
+  },
+  "pairedDeltasByCase": {
+    "uc01-01-bug-crash-null": {
+      "pairs": 1,
+      "passDeltaBMinusA": 0,
+      "wallClockMsMedianDeltaBMinusA": 17136.299999999996,
+      "costDollarsMedianDeltaBMinusA": 0.00193,
+      "turnsMedianDeltaBMinusA": 4
+    },
+    "uc01-02-bug-test-fail": {
+      "pairs": 1,
+      "passDeltaBMinusA": 0,
+      "wallClockMsMedianDeltaBMinusA": 21377.550000000003,
+      "costDollarsMedianDeltaBMinusA": 0.002664,
+      "turnsMedianDeltaBMinusA": 9
+    },
+    "uc01-03-bug-reproducible": {
+      "pairs": 1,
+      "passDeltaBMinusA": 0,
+      "wallClockMsMedianDeltaBMinusA": -3207.58,
+      "costDollarsMedianDeltaBMinusA": -0.000538,
+      "turnsMedianDeltaBMinusA": -1
+    }
+  }
+}
