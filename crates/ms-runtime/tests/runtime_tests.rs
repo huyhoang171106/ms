@@ -1261,3 +1261,153 @@ async fn hashline_edit_self_healing_and_file_mutations_undo() {
     assert_eq!(ctx_res["imports"][0], "use std::fmt;");
     assert_eq!(ctx_res["relatedTests"][0]["path"], "tests/lib_test.rs");
 }
+
+#[tokio::test]
+async fn crash_recovery_write_delete_rename() {
+    let ws = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    fs::write(ws.path().join("src_aborted.txt"), b"hello\n").unwrap();
+    fs::write(ws.path().join("dst_committed.txt"), b"moved\n").unwrap();
+
+    let fs_handle = WorkspaceFs::open_root(ws.path()).unwrap();
+    let mut j =
+        WorkspaceJournal::open_and_recover(state.path(), &fs_handle, 1024 * 1024, 1024 * 1024)
+            .unwrap();
+
+    // 1. Write new file that crashed before rename into place -> Aborted
+    j.append_entry(JournalEntry::Prepared {
+        tx_id: "tx_w".into(),
+        operation_id: None,
+        payload_hash: None,
+        kind: ms_protocol::TxKind::Write,
+        path: "never_created.txt".into(),
+        dest_path: None,
+        existed_before: false,
+        target_dev: 0,
+        target_ino: 0,
+        target_mode: 0o644,
+        temp_name: ".ms_tmp_tx_w".into(),
+        before_revision: String::new(),
+        after_revision: blake3_hex(b"new\n"),
+        preimage_file: String::new(),
+        target_tx_id: None,
+        epoch: 1,
+        created_at_ms: now_ms(),
+        bytes_delta: 4,
+        edits_applied: 1,
+    })
+    .unwrap();
+
+    // 2. Delete that completed on disk before crash -> Committed
+    j.write_preimage("tx_d.pre", b"gone\n").unwrap();
+    j.append_entry(JournalEntry::Prepared {
+        tx_id: "tx_d".into(),
+        operation_id: None,
+        payload_hash: None,
+        kind: ms_protocol::TxKind::Delete,
+        path: "already_deleted.txt".into(),
+        dest_path: None,
+        existed_before: true,
+        target_dev: 0,
+        target_ino: 0,
+        target_mode: 0o644,
+        temp_name: String::new(),
+        before_revision: blake3_hex(b"gone\n"),
+        after_revision: String::new(),
+        preimage_file: "tx_d.pre".into(),
+        target_tx_id: None,
+        epoch: 1,
+        created_at_ms: now_ms(),
+        bytes_delta: -5,
+        edits_applied: 1,
+    })
+    .unwrap();
+
+    // 3. Rename that crashed before rename -> Aborted (not Conflict!)
+    j.append_entry(JournalEntry::Prepared {
+        tx_id: "tx_r_abort".into(),
+        operation_id: None,
+        payload_hash: None,
+        kind: ms_protocol::TxKind::Rename,
+        path: "src_aborted.txt".into(),
+        dest_path: Some("dst_aborted.txt".into()),
+        existed_before: true,
+        target_dev: 0,
+        target_ino: 0,
+        target_mode: 0o644,
+        temp_name: String::new(),
+        before_revision: blake3_hex(b"hello\n"),
+        after_revision: blake3_hex(b"hello\n"),
+        preimage_file: String::new(),
+        target_tx_id: None,
+        epoch: 1,
+        created_at_ms: now_ms(),
+        bytes_delta: 0,
+        edits_applied: 1,
+    })
+    .unwrap();
+
+    // 4. Rename that completed on disk before crash -> Committed
+    j.append_entry(JournalEntry::Prepared {
+        tx_id: "tx_r_ok".into(),
+        operation_id: None,
+        payload_hash: None,
+        kind: ms_protocol::TxKind::Rename,
+        path: "src_committed.txt".into(),
+        dest_path: Some("dst_committed.txt".into()),
+        existed_before: true,
+        target_dev: 0,
+        target_ino: 0,
+        target_mode: 0o644,
+        temp_name: String::new(),
+        before_revision: blake3_hex(b"moved\n"),
+        after_revision: blake3_hex(b"moved\n"),
+        preimage_file: String::new(),
+        target_tx_id: None,
+        epoch: 1,
+        created_at_ms: now_ms(),
+        bytes_delta: 0,
+        edits_applied: 1,
+    })
+    .unwrap();
+    drop(j);
+
+    let cfg = HostConfig::new(ws.path(), state.path()).with_allow_write(true);
+    let rt = Runtime::new(cfg).unwrap();
+    let sess = rt.open_session(&SessionOpenParams::default()).unwrap();
+    let txs = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::TxList(TxListParams::default()),
+                None,
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+
+    let state_of = |id: &str| {
+        txs.records
+            .iter()
+            .find(|r| r["transactionId"] == id)
+            .unwrap()["state"]
+            .clone()
+    };
+    assert_eq!(
+        state_of("tx_w"),
+        serde_json::to_value(TxState::Aborted).unwrap()
+    );
+    assert_eq!(
+        state_of("tx_d"),
+        serde_json::to_value(TxState::Committed).unwrap()
+    );
+    assert_eq!(
+        state_of("tx_r_abort"),
+        serde_json::to_value(TxState::Aborted).unwrap()
+    );
+    assert_eq!(
+        state_of("tx_r_ok"),
+        serde_json::to_value(TxState::Committed).unwrap()
+    );
+}

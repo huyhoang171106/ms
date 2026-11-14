@@ -1458,7 +1458,7 @@ pub fn exec_tx_undo(
                 kind: TxKind::Undo,
                 path: latest.path.clone(),
                 dest_path: None,
-                existed_before: true,
+                existed_before: false,
                 target_dev: 0,
                 target_ino: 0,
                 target_mode: 0o644,

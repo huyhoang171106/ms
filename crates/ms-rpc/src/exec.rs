@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::LazyLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -11,6 +12,15 @@ use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
 static LOG_SEQ: AtomicU64 = AtomicU64::new(1);
+static ANSI_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\x1b\[[0-9;:?]*[a-zA-Z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-Z\\-_]").unwrap()
+});
+static LOC_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?:-->\s*|at\s+[^\n]*?\(|File\s+")?([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)(?:[:\(]|",\s*line\s*)(\d+)"#,
+    )
+    .unwrap()
+});
 
 #[derive(Debug, Clone)]
 pub struct ExecDistillResult {
@@ -118,11 +128,14 @@ pub async fn exec_and_distill(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    #[cfg(unix)]
+    cmd.process_group(0);
 
     let started = Instant::now();
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("failed to spawn '{}': {e}", command_args[0]))?;
+    let child_pid = child.id();
 
     let mut stdout_pipe = child.stdout.take();
     let mut stderr_pipe = child.stderr.take();
@@ -150,6 +163,12 @@ pub async fn exec_and_distill(
             Ok(Err(e)) => return Err(format!("wait failed: {e}")),
             Err(_) => {
                 timed_out = true;
+                #[cfg(unix)]
+                if let Some(pid) = child_pid {
+                    let _ = std::process::Command::new("kill")
+                        .args(["-9", &format!("-{pid}")])
+                        .output();
+                }
                 let _ = child.kill().await;
                 let _ = child.wait().await;
                 124
@@ -157,8 +176,17 @@ pub async fn exec_and_distill(
         };
 
     let duration_ms = started.elapsed().as_millis() as u64;
-    let out_bytes = stdout_task.await.unwrap_or_default();
-    let err_bytes = stderr_task.await.unwrap_or_default();
+    let drain_timeout = Duration::from_millis(if timed_out { 200 } else { 5_000 });
+    let out_bytes = tokio::time::timeout(drain_timeout, stdout_task)
+        .await
+        .ok()
+        .and_then(Result::ok)
+        .unwrap_or_default();
+    let err_bytes = tokio::time::timeout(drain_timeout, stderr_task)
+        .await
+        .ok()
+        .and_then(Result::ok)
+        .unwrap_or_default();
 
     let mut combined = String::from_utf8_lossy(&out_bytes).into_owned();
     if !err_bytes.is_empty() {
@@ -291,10 +319,7 @@ fn detect_command_kind(args: &[String], display: &str) -> CmdKind {
 /// Strips ANSI CSI/OSC escape sequences, handles `\r` spinner overwrites,
 /// and collapses consecutive duplicate lines.
 pub fn clean_and_collapse_lines(raw: &str) -> Vec<String> {
-    let ansi_re =
-        Regex::new(r"\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-Z\\-_]")
-            .unwrap();
-    let stripped = ansi_re.replace_all(raw, "");
+    let stripped = ANSI_RE.replace_all(raw, "");
 
     let mut collapsed: Vec<(String, usize)> = Vec::new();
     for raw_line in stripped.split('\n') {
@@ -643,16 +668,12 @@ fn attach_failure_snippets(
     let Ok(fs) = WorkspaceFs::open_root(workspace_root) else {
         return Vec::new();
     };
-    let loc_re = Regex::new(
-        r#"(?:-->\s*|at\s+[^\n]*?\(|File\s+")?([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)(?:[:\(]|",\s*line\s*)(\d+)"#,
-    )
-    .unwrap();
 
     let mut seen: HashSet<(String, u64)> = HashSet::new();
     let mut snippets = Vec::new();
 
     for l in lines {
-        for cap in loc_re.captures_iter(l) {
+        for cap in LOC_RE.captures_iter(l) {
             let raw_path = &cap[1];
             let Ok(line_num) = cap[2].parse::<u64>() else {
                 continue;
@@ -700,4 +721,79 @@ fn normalize_rel_path(workspace_root: &Path, raw: &str) -> Option<String> {
         return None;
     }
     Some(rel)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clean_strips_ansi_cr_and_collapses_duplicates() {
+        let raw = "\x1b[32mOK\x1b[0m\nstep 1\rstep 2\nrepeat\nrepeat\nrepeat\n\x1b[38:2:255:0:0mred\x1b[0m";
+        let lines = clean_and_collapse_lines(raw);
+        assert_eq!(lines, vec!["OK", "step 2", "repeat (x3)", "red"]);
+    }
+
+    #[test]
+    fn distillers_cover_pytest_jest_tsc_eslint() {
+        let pytest_fail = clean_and_collapse_lines(
+            "==== test session starts ====\n\
+             collected 3 items\n\
+             test_app.py ..F\n\
+             ==== FAILURES ====\n\
+             ____ test_math ____\n\
+             E   AssertionError: 1 != 2\n\
+             ==== short test summary info ====\n\
+             FAILED test_app.py::test_math - AssertionError",
+        );
+        let out = distill_by_kind(CmdKind::Pytest, false, &pytest_fail);
+        assert!(out.contains("==== FAILURES ===="));
+        assert!(out.contains("FAILED test_app.py::test_math"));
+
+        let pytest_pass = clean_and_collapse_lines("collected 3 items\n=== 3 passed in 0.12s ===");
+        assert_eq!(
+            distill_by_kind(CmdKind::Pytest, true, &pytest_pass),
+            "3 passed in 0.12s"
+        );
+
+        let jest_fail = clean_and_collapse_lines(
+            "FAIL src/sum.test.ts\n\
+             ● adds 1 + 2\n\
+             Expected: 3\n\
+             Received: 4\n\
+             at Object.<anonymous> (src/sum.test.ts:5:12)\n\
+             Test Suites: 1 failed, 1 total",
+        );
+        let j_out = distill_by_kind(CmdKind::JsTest, false, &jest_fail);
+        assert!(j_out.contains("FAIL src/sum.test.ts"));
+        assert!(j_out.contains("Expected: 3"));
+
+        let tsc_fail = clean_and_collapse_lines(
+            "src/index.ts(10,5): error TS2322: Type 'string' is not assignable to type 'number'.",
+        );
+        let t_out = distill_by_kind(CmdKind::TscOrEslint, false, &tsc_fail);
+        assert!(t_out.contains("error TS2322"));
+    }
+
+    #[test]
+    fn read_log_rejects_traversal() {
+        assert!(read_log("../etc/passwd", None, None).is_err());
+        assert!(read_log("", None, None).is_err());
+    }
+
+    #[tokio::test]
+    async fn exec_timeout_kills_shell_grandchild_promptly() {
+        let dir = tempfile::tempdir().unwrap();
+        let started = Instant::now();
+        let res = exec_and_distill(dir.path(), &["sleep 5".to_string()], 150)
+            .await
+            .unwrap();
+        assert!(res.timed_out);
+        assert_eq!(res.exit_code, 124);
+        assert!(
+            started.elapsed() < Duration::from_secs(2),
+            "timeout took too long: {:?}",
+            started.elapsed()
+        );
+    }
 }

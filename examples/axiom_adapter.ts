@@ -11,7 +11,7 @@
  * 5. Enforce Axiom's `test-guard` (`findChangeTampering`) hook on every file mutation path.
  */
 
-import { ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import * as path from "node:path";
 import * as readline from "node:readline";
 
@@ -477,14 +477,15 @@ export class MsAxiomAdapter {
     edits: TextEdit[],
     opts?: { dryRun?: boolean; deadlineMs?: number },
   ) {
-    if (this.testGuardOpts !== false && isTestPath(filePath)) {
+    if (this.testGuardOpts !== false && (isTestPath(filePath) || isTestConfigPath(filePath))) {
       const before = await this.readFullTextForGuard(sessionId, filePath);
       if (before !== null) {
-        const afterGuess = edits.map((e) => e.replacement).join("\n");
-        const removedText = edits.map((e) => e.expectedText ?? "").join("\n");
-        if (removedText) {
-          this.enforceTestGuard(filePath, removedText, afterGuess);
-        }
+        const buf = Buffer.from(before, "utf8");
+        const removed = edits
+          .map((e) => e.expectedText ?? buf.subarray(e.startByte, e.endByte).toString("utf8"))
+          .join("\n");
+        const added = edits.map((e) => e.replacement).join("\n");
+        this.enforceTestGuard(filePath, removed, added);
       }
     }
     return this.sendRequest("call", {
@@ -509,8 +510,19 @@ export class MsAxiomAdapter {
     opts?: { expectedRevision?: string; dryRun?: boolean; deadlineMs?: number },
   ) {
     if (this.testGuardOpts !== false && (isTestPath(filePath) || isTestConfigPath(filePath))) {
+      const needsRead = edits.some((e) => !("oldText" in e) && !("expectedText" in e && e.expectedText !== undefined));
+      const before = needsRead ? await this.readFullTextForGuard(sessionId, filePath) : null;
+      const beforeLines = before !== null ? splitLines(before) : [];
+      const beforeBuf = before !== null ? Buffer.from(before, "utf8") : Buffer.alloc(0);
+
       const removed = edits
-        .map((e) => ("oldText" in e ? e.oldText : "expectedText" in e ? (e.expectedText ?? "") : ""))
+        .map((e) => {
+          if ("oldText" in e) return e.oldText;
+          if ("startLine" in e) {
+            return beforeLines.slice(Math.max(0, e.startLine - 1), e.endLine).join("\n");
+          }
+          return e.expectedText ?? beforeBuf.subarray(e.startByte, e.endByte).toString("utf8");
+        })
         .join("\n");
       const added = edits
         .map((e) => ("newText" in e ? e.newText : e.replacement))

@@ -501,7 +501,9 @@ impl WorkspaceJournal {
             // Clean up any orphaned staging temp file.
             fs.cleanup_temp_file(&tx.path, &tx.temp_name);
 
-            let check_path = if tx.kind == TxKind::Rename {
+            let check_path = if tx.kind == TxKind::Rename
+                || (tx.kind == TxKind::Undo && tx.dest_path.is_some())
+            {
                 tx.dest_path.as_deref().unwrap_or(&tx.path)
             } else {
                 &tx.path
@@ -526,16 +528,67 @@ impl WorkspaceJournal {
                         aborted_at_ms: now_ms(),
                     })?;
                 }
+                (TxKind::Rename, None) => {
+                    let src_matches_before = fs
+                        .read_file_bytes(&tx.path, max_file_bytes)
+                        .ok()
+                        .is_some_and(|(b, _)| blake3_hex(&b) == tx.before_revision);
+                    if src_matches_before {
+                        self.append_entry(JournalEntry::Aborted {
+                            tx_id: tx.tx_id.clone(),
+                            reason: "startup recovery: rename source unchanged".to_string(),
+                            aborted_at_ms: now_ms(),
+                        })?;
+                    } else {
+                        self.append_entry(JournalEntry::Conflict {
+                            tx_id: tx.tx_id.clone(),
+                            reason:
+                                "startup recovery: rename destination and source missing/changed"
+                                    .to_string(),
+                            detected_at_ms: now_ms(),
+                        })?;
+                    }
+                }
+                (TxKind::Undo, None) if tx.dest_path.is_some() => {
+                    let src_matches_before = fs
+                        .read_file_bytes(&tx.path, max_file_bytes)
+                        .ok()
+                        .is_some_and(|(b, _)| blake3_hex(&b) == tx.before_revision);
+                    if src_matches_before {
+                        self.append_entry(JournalEntry::Aborted {
+                            tx_id: tx.tx_id.clone(),
+                            reason: "startup recovery: undo rename source unchanged".to_string(),
+                            aborted_at_ms: now_ms(),
+                        })?;
+                    } else {
+                        self.append_entry(JournalEntry::Conflict {
+                            tx_id: tx.tx_id.clone(),
+                            reason: "startup recovery: undo rename destination missing".to_string(),
+                            detected_at_ms: now_ms(),
+                        })?;
+                    }
+                }
                 (TxKind::Undo, None) if !tx.existed_before => {
-                    self.append_entry(JournalEntry::Committed {
-                        tx_id: tx.tx_id.clone(),
-                        committed_at_ms: now_ms(),
-                    })?;
-                    if let Some(target_id) = tx.target_tx_id.clone() {
-                        self.append_entry(JournalEntry::Undone {
-                            tx_id: target_id,
-                            undone_by_tx_id: tx.tx_id.clone(),
-                            undone_at_ms: now_ms(),
+                    if tx.after_revision.is_empty() {
+                        // Undoing a file creation (deleting the file) succeeded.
+                        self.append_entry(JournalEntry::Committed {
+                            tx_id: tx.tx_id.clone(),
+                            committed_at_ms: now_ms(),
+                        })?;
+                        if let Some(target_id) = tx.target_tx_id.clone() {
+                            self.append_entry(JournalEntry::Undone {
+                                tx_id: target_id,
+                                undone_by_tx_id: tx.tx_id.clone(),
+                                undone_at_ms: now_ms(),
+                            })?;
+                        }
+                    } else {
+                        // Undoing a file deletion (re-creating the file) did not happen.
+                        self.append_entry(JournalEntry::Aborted {
+                            tx_id: tx.tx_id.clone(),
+                            reason: "startup recovery: undo delete target not recreated"
+                                .to_string(),
+                            aborted_at_ms: now_ms(),
                         })?;
                     }
                 }
