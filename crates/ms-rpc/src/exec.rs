@@ -21,6 +21,8 @@ static LOC_RE: LazyLock<Regex> = LazyLock::new(|| {
     )
     .unwrap()
 });
+static NONZERO_FAIL_COUNT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\b[1-9]\d*\s+(?:failed|errors?)\b").unwrap());
 
 #[derive(Debug, Clone)]
 pub struct ExecDistillResult {
@@ -203,7 +205,9 @@ pub async fn exec_and_distill(
 
     let cleaned_lines = clean_and_collapse_lines(&combined);
     let kind = detect_command_kind(command_args, &cmd_display);
-    let body = if exit_code == 0 && !timed_out && cleaned_lines.len() <= 15 && raw_bytes <= 800 {
+    let failure_markers = has_failure_markers(&cleaned_lines);
+    let effective_passed = exit_code == 0 && !timed_out && !failure_markers;
+    let body = if effective_passed && cleaned_lines.len() <= 15 && raw_bytes <= 800 {
         cleaned_lines
             .iter()
             .filter(|l| !l.trim().is_empty())
@@ -211,14 +215,14 @@ pub async fn exec_and_distill(
             .collect::<Vec<_>>()
             .join("\n")
     } else {
-        distill_by_kind(kind, exit_code == 0 && !timed_out, &cleaned_lines)
+        distill_by_kind(kind, effective_passed, &cleaned_lines)
     };
 
     let mut header = if timed_out {
         format!(
             "[TIMED OUT after {duration_ms}ms | exit:{exit_code} | log:{log_id} | raw:{raw_lines}L/{raw_bytes}B]"
         )
-    } else if exit_code == 0 {
+    } else if effective_passed {
         format!("[OK | exit:0 | {duration_ms}ms | log:{log_id} | raw:{raw_lines}L/{raw_bytes}B]")
     } else {
         format!(
@@ -231,7 +235,7 @@ pub async fn exec_and_distill(
         header.push_str(&body);
     }
 
-    if exit_code != 0 || timed_out {
+    if !effective_passed {
         let snippets = attach_failure_snippets(workspace_root, &cleaned_lines, 3);
         if !snippets.is_empty() {
             header.push_str("\n--- context snippets ---");
@@ -364,17 +368,38 @@ pub fn clean_and_collapse_lines(raw: &str) -> Vec<String> {
         .collect()
 }
 
+fn has_failure_markers(lines: &[String]) -> bool {
+    lines.iter().any(|l| {
+        let t = l.trim_start();
+        l.contains("FAILED")
+            || l.contains("ERRORS")
+            || l.contains("=== FAILURES ===")
+            || l.contains("=== ERRORS ===")
+            || l.contains("Traceback (most recent call last):")
+            || l.contains("ModuleNotFoundError")
+            || l.contains("ImportError")
+            || l.contains("SyntaxError")
+            || l.contains("AssertionError")
+            || l.contains("panicked at")
+            || l.contains("test result: FAILED")
+            || t.starts_with("ERROR ")
+            || t.starts_with("ERROR:")
+            || NONZERO_FAIL_COUNT_RE.is_match(l)
+    })
+}
+
 fn distill_by_kind(kind: CmdKind, passed: bool, lines: &[String]) -> String {
+    let effective_passed = passed && !has_failure_markers(lines);
     match kind {
-        CmdKind::CargoTest => distill_cargo_test(passed, lines),
-        CmdKind::CargoCheckOrBuild => distill_cargo_check(passed, lines),
-        CmdKind::Pytest => distill_pytest(passed, lines),
-        CmdKind::JsTest => distill_js_test(passed, lines),
-        CmdKind::TscOrEslint => distill_tsc_eslint(passed, lines),
+        CmdKind::CargoTest => distill_cargo_test(effective_passed, lines),
+        CmdKind::CargoCheckOrBuild => distill_cargo_check(effective_passed, lines),
+        CmdKind::Pytest => distill_pytest(effective_passed, lines),
+        CmdKind::JsTest => distill_js_test(effective_passed, lines),
+        CmdKind::TscOrEslint => distill_tsc_eslint(effective_passed, lines),
         CmdKind::GitStatus => distill_git_status(lines),
         CmdKind::GitDiff => distill_git_diff(lines),
         CmdKind::GitLog => distill_git_log(lines),
-        CmdKind::Generic => distill_generic(passed, lines),
+        CmdKind::Generic => distill_generic(effective_passed, lines),
     }
 }
 
@@ -385,7 +410,7 @@ fn distill_cargo_test(passed: bool, lines: &[String]) -> String {
         let mut suites = 0u64;
         let mut warnings = 0u64;
         for l in lines {
-            if l.starts_with("test result: ok.") {
+            if l.starts_with("test result: ok.") && !NONZERO_FAIL_COUNT_RE.is_match(l) {
                 suites += 1;
                 total_passed += extract_count_before(l, " passed;");
                 total_ignored += extract_count_before(l, " ignored;");
@@ -464,27 +489,46 @@ fn distill_cargo_check(passed: bool, lines: &[String]) -> String {
 }
 
 fn distill_pytest(passed: bool, lines: &[String]) -> String {
-    if passed {
-        let summary = lines
+    if passed && !has_failure_markers(lines) {
+        if let Some(summary) = lines
             .iter()
             .rev()
-            .find(|l| l.contains(" passed") && (l.starts_with('=') || l.contains(" in ")))
+            .find(|l| {
+                let low = l.to_ascii_lowercase();
+                low.contains(" passed")
+                    && (l.starts_with('=') || l.contains(" in "))
+                    && !low.contains("failed")
+                    && !low.contains("error")
+            })
             .map(|s| s.trim().trim_matches('=').trim())
-            .unwrap_or("pytest passed");
-        return summary.to_string();
+        {
+            return summary.to_string();
+        }
+        return distill_generic(true, lines);
     }
     let mut kept = Vec::new();
     let mut capture = false;
     for l in lines {
-        if l.starts_with("==== FAILURES ====")
-            || l.starts_with("==== ERRORS ====")
-            || l.starts_with("==== short test summary info ====")
+        let t = l.trim_start();
+        if l.contains("=== FAILURES ===")
+            || l.contains("=== ERRORS ===")
+            || l.contains("=== short test summary info ===")
+            || l.contains("Traceback (most recent call last):")
         {
             capture = true;
             kept.push(l.clone());
         } else if capture
             || l.starts_with("E   ")
             || l.starts_with("FAILED ")
+            || l.contains("FAILED")
+            || t.starts_with("ERROR ")
+            || t.starts_with("ERROR:")
+            || t.starts_with("File \"")
+            || l.contains("ModuleNotFoundError")
+            || l.contains("ImportError")
+            || l.contains("SyntaxError")
+            || l.contains("AssertionError")
+            || l.contains("panicked at")
             || l.contains("Error:")
         {
             kept.push(l.clone());
@@ -497,16 +541,19 @@ fn distill_pytest(passed: bool, lines: &[String]) -> String {
 }
 
 fn distill_js_test(passed: bool, lines: &[String]) -> String {
-    if passed {
+    if passed && !has_failure_markers(lines) {
         let summary: Vec<String> = lines
             .iter()
             .filter(|l| {
                 let t = l.trim();
-                t.starts_with("Test Suites:")
+                let low = t.to_ascii_lowercase();
+                (t.starts_with("Test Suites:")
                     || t.starts_with("Tests:")
                     || t.starts_with("Test Files")
                     || t.starts_with("Duration")
-                    || t.contains(" pass")
+                    || low.contains(" pass"))
+                    && !low.contains("fail")
+                    && !low.contains("error")
             })
             .cloned()
             .collect();
@@ -825,5 +872,84 @@ mod tests {
             "timeout took too long: {:?}",
             started.elapsed()
         );
+    }
+
+    #[test]
+    fn piped_pytest_with_exit_zero_and_failure_markers_never_emits_pytest_passed() {
+        let mut raw_lines = vec![
+            "==== test session starts ====".to_string(),
+            "platform linux -- Python 3.12".to_string(),
+        ];
+        for i in 1..=16 {
+            raw_lines.push(format!("collecting ... item {i}"));
+        }
+        raw_lines.extend([
+            "Traceback (most recent call last):".to_string(),
+            "  File \"tests/test_app.py\", line 4, in <module>".to_string(),
+            "    import nonexistent_dep".to_string(),
+            "ModuleNotFoundError: No module named 'nonexistent_dep'".to_string(),
+            "FAILED tests/test_app.py::test_import".to_string(),
+        ]);
+        let out = distill_by_kind(CmdKind::Pytest, true, &raw_lines);
+        assert!(
+            !out.contains("pytest passed"),
+            "must not emit 'pytest passed' on failure output: {out}"
+        );
+        assert!(out.contains("Traceback (most recent call last):"));
+        assert!(out.contains("ModuleNotFoundError: No module named 'nonexistent_dep'"));
+        assert!(out.contains("FAILED tests/test_app.py::test_import"));
+    }
+
+    #[test]
+    fn pytest_without_summary_line_does_not_fabricate_pytest_passed() {
+        let truncated_head: Vec<String> = (1..=20)
+            .map(|i| format!("tests/test_suite.py::test_case_{i} PASSED"))
+            .collect();
+        let out = distill_by_kind(CmdKind::Pytest, true, &truncated_head);
+        assert!(
+            !out.contains("pytest passed"),
+            "must not fabricate 'pytest passed' without summary line: {out}"
+        );
+        assert!(out.contains("test_case_20 PASSED"));
+    }
+
+    #[tokio::test]
+    async fn exec_piped_pytest_exit_zero_failure_preserves_errors_and_snippets() {
+        let dir = tempfile::tempdir().unwrap();
+        let test_dir = dir.path().join("tests");
+        std::fs::create_dir_all(&test_dir).unwrap();
+        std::fs::write(
+            test_dir.join("test_mod.py"),
+            "import missing_pkg\n\ndef test_ok():\n    assert True\n",
+        )
+        .unwrap();
+
+        let script = [
+            "for i in range(1, 18): print(f'collecting ... {i}')",
+            "print('Traceback (most recent call last):')",
+            "print('  File \"tests/test_mod.py\", line 1, in <module>')",
+            "print('    import missing_pkg')",
+            "print(\"ModuleNotFoundError: No module named 'missing_pkg'\")",
+            "print('FAILED tests/test_mod.py::test_ok')",
+        ]
+        .join("\n");
+        std::fs::write(dir.path().join("emit.py"), script).unwrap();
+        let res = exec_and_distill(
+            dir.path(),
+            &["python3 emit.py | tail -30 # pytest".to_string()],
+            5_000,
+        )
+        .await
+        .unwrap();
+        assert_eq!(res.exit_code, 0);
+        assert!(
+            !res.distilled.contains("pytest passed"),
+            "must not emit 'pytest passed': {}",
+            res.distilled
+        );
+        assert!(res.distilled.contains("[FAILED | exit:0"));
+        assert!(res.distilled.contains("ModuleNotFoundError"));
+        assert!(res.distilled.contains("--- context snippets ---"));
+        assert!(res.distilled.contains("import missing_pkg"));
     }
 }

@@ -647,7 +647,7 @@ class MsExecTool extends BaseTool {
       durationMs: res.durationMs,
       kind,
     });
-    if (res.exitCode !== 0 || res.timedOut) {
+    if (firstPass.hasFailures) {
       const snippets = await attachFailureSnippetsViaRpc(this.ms, this.sessionId, cwd, firstPass.cleanedLines);
       if (snippets.length > 0) {
         return distillCommandOutput(res.rawOutput, {
@@ -711,7 +711,7 @@ class MsRunTestsTool extends BaseTool {
       durationMs: res.durationMs,
       kind: 'pytest',
     });
-    if (res.exitCode !== 0 || res.timedOut) {
+    if (firstPass.hasFailures) {
       const snippets = await attachFailureSnippetsViaRpc(this.ms, this.sessionId, cwd, firstPass.cleanedLines);
       if (snippets.length > 0) {
         return distillCommandOutput(res.rawOutput, {

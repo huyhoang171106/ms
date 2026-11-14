@@ -188,3 +188,51 @@ All three fixes above were implemented and re-tested on the exact same 18-run co
 
 *Note: In both `B_ms` `overallPassed: false` runs (`trial-1__uc01-03-bug-reproducible__B_ms` and `trial-2__uc01-01-bug-crash-null__B_ms`), `targetFixed` and `noRegressions` were `true`, but the agent hit the 20-step limit before finishing.*
 
+---
+
+## 9. v3b: Piped-Command Distillation Fix + Full 18-Run Controlled Live Verification
+
+- **v3b Artifacts**: [`benchmarks/artifacts/deepseek-v4-1-flash-v3b-t3-seed42/`](./artifacts/deepseek-v4-1-flash-v3b-t3-seed42/)
+- **v3b Experiment ID**: `uc01-controlled-seed42-2026-11-14T17-20-05-151Z`
+- **Status**: **Complete (18 / 18 runs = 9 paired comparisons, 0 infra errors, 0 timeouts)**
+
+### 9.1 Changes Implemented in v3b
+1. **Failure-Marker Guard in Command Distillation (`crates/ms-rpc/src/exec.rs`, `examples/axiom_adapter.ts`, `benchmarks/ab_axiom_tools.ts`)**:
+   - Piped commands such as `python3 -m pytest ... | tail -30` or `| head -60` can exit `0` (from `tail`/`head`) while `pytest` failed (`FAILED`, `ERRORS`, `=== FAILURES ===`, `=== ERRORS ===`, `Traceback (most recent call last):`, `ModuleNotFoundError`, `ImportError`, `SyntaxError`, `AssertionError`, `panicked at`, `test result: FAILED`, `ERROR `, or non-zero `N failed` / `N error(s)`).
+   - Both Rust (`exec_and_distill` / `distill_by_kind` / `distill_pytest`) and TypeScript (`distillCommandOutput` / `distillPytestLines` / `MsAxiomAdapter.exec` / `MsExecTool` / `MsRunTestsTool`) now detect these failure markers regardless of `exitCode`, run the failure-distillation path, emit `[FAILED | exit:0 ...]` instead of `[OK | exit:0 ...]`, and attach `--- context snippets ---` even when `exitCode === 0`.
+   - When no failure markers are present, `distill_pytest` / `distillPytestLines` only emits a passing summary if a genuine test-runner summary line confirming `0` failures/errors is present; otherwise it preserves the distilled output lines without fabricating `"pytest passed"`.
+2. **Regression Tests**: Added Rust unit/async tests in `crates/ms-rpc/src/exec.rs` (3 new tests) and Bun unit tests in `benchmarks/ab_axiom_uc01.test.ts` (27/27 passing).
+
+### 9.2 Full 18-Run Aggregate Comparison (`A_baseline` v3b vs. `B_ms` v3b)
+
+| Metric (9 runs per arm) | `A_baseline` v3b | `B_ms` v3b | Delta (`B - A`) |
+|---|---:|---:|---:|
+| Verified Success (`overallPassed`) | **9 / 9 (100%)** | **9 / 9 (100%)** | **0 (0.0 pp)** |
+| Target Fixed (`targetFixed`) | 9 / 9 (100%) | 9 / 9 (100%) | 0 (0.0 pp) |
+| No Regressions (`noRegressions`) | 9 / 9 (100%) | 9 / 9 (100%) | 0 (0.0 pp) |
+| Infra / Timeout Errors | 0 / 0 | 0 / 0 | 0 |
+| Total Wall-Clock Time | 296,942.98 ms | **269,286.45 ms** | **-27,656.53 ms (-9.3%)** |
+| Total LLM Turns | 119 | 120 | +1 (+0.8%) |
+| Total Tool Calls | 161 | 174 | +13 (+8.1%) |
+| Tool Registry Failures (`isError`) | 9 (5.6%) | 9 (5.2%) | 0 (-0.4 pp) |
+| Command Non-Zero Exits | 33 | **24** | **-9 (-27.3%)** |
+| Total Tool Output Bytes | 116,751 B | **100,691 B** | **-16,060 B (-13.8%)** |
+| `uncachedInput` Tokens | 35,895 | 44,047 | +8,152 (+22.7%) |
+| `cacheRead` Tokens | 604,288 | 580,606 | -23,682 (-3.9%) |
+| `cacheWrite` Tokens | 0 | 0 | 0 |
+| `output` Tokens | 20,225 | 21,824 | +1,599 (+7.9%) |
+| **Total Tokens** | **660,408** | **646,477** | **-13,931 (-2.1%)** |
+| Cost (USD) | `unpriced` (`null`) | `unpriced` (`null`) | `null` |
+
+### 9.3 Paired Deltas & Tool Breakdown (`v3b`)
+- **Paired Medians (`B_ms - A_baseline`)**:
+  - `uc01-01-bug-crash-null` (3 pairs): `passDelta = 0`, median wall-clock `+4,126.1 ms`, median turns `+1`.
+  - `uc01-02-bug-test-fail` (3 pairs): `passDelta = 0`, median wall-clock `+5,613.7 ms`, median turns `+2`.
+  - `uc01-03-bug-reproducible` (3 pairs): `passDelta = 0`, median wall-clock **-9,121.4 ms**, median turns `0`.
+- **Tool Accuracy**:
+  - `B_ms` `edit` + `write_file`: **15 / 15 (100%, 0 errors)** vs `A_baseline` `apply_patch`: **4 / 19 errors (21.1%)** (`edit`: 0/1).
+  - `B_ms` `read_file`: `61` calls, `6` errors; `A_baseline` `read_file`: `55` calls, `0` errors.
+  - `B_ms` `run_command`: `68` calls (`3` errors, `11` non-zero exits); `A_baseline` `run_command`: `45` calls (`5` errors, `13` non-zero exits).
+  - `B_ms` `run_tests`: `19` calls (`0` errors, `13` non-zero exits); `A_baseline` `run_tests`: `28` calls (`0` errors, `20` non-zero exits).
+
+

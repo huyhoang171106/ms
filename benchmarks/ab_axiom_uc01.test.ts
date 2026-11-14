@@ -352,6 +352,68 @@ describe('F3: Controlled Execution Parity', () => {
     expect(failRes.output).toContain('3:abcd| assert False');
   });
 
+  test('distillCommandOutput never emits pytest passed on piped exitCode 0 with failure or collection errors', () => {
+    const tailPipedFailure = [
+      ...Array.from({ length: 18 }, (_, i) => `collecting ... item ${i + 1}`),
+      '==== ERRORS ====',
+      'ERROR collecting tests/test_broken.py',
+      'Traceback (most recent call last):',
+      '  File "tests/test_broken.py", line 2, in <module>',
+      '    import missing_pkg',
+      "ModuleNotFoundError: No module named 'missing_pkg'",
+      '==== short test summary info ====',
+      'ERROR tests/test_broken.py',
+    ].join('\n');
+
+    const tailRes = distillCommandOutput(tailPipedFailure, {
+      exitCode: 0,
+      timedOut: false,
+      durationMs: 42,
+      kind: 'pytest',
+      snippets: ['@ tests/test_broken.py:2\n2:abcd| import missing_pkg'],
+    });
+    expect(tailRes.hasFailures).toBe(true);
+    expect(tailRes.output).not.toContain('pytest passed');
+    expect(tailRes.output).toContain('[FAILED | exit:0');
+    expect(tailRes.output).toContain('ModuleNotFoundError');
+    expect(tailRes.output).toContain('ERROR collecting tests/test_broken.py');
+    expect(tailRes.output).toContain('--- context snippets ---');
+    expect(tailRes.output).toContain('2:abcd| import missing_pkg');
+
+    const headPipedFailure = [
+      '==== test session starts ====',
+      ...Array.from({ length: 20 }, (_, i) => `tests/test_a.py::test_${i + 1} PASSED`),
+      '==== FAILURES ====',
+      'E   AssertionError: expected 1 == 2',
+      'FAILED tests/test_a.py::test_21 - AssertionError',
+    ].join('\n');
+
+    const headFailRes = distillCommandOutput(headPipedFailure, {
+      exitCode: 0,
+      timedOut: false,
+      durationMs: 55,
+      kind: 'pytest',
+      snippets: ['@ tests/test_a.py:10\n10:ef12| assert 1 == 2'],
+    });
+    expect(headFailRes.hasFailures).toBe(true);
+    expect(headFailRes.output).not.toContain('pytest passed');
+    expect(headFailRes.output).toContain('[FAILED | exit:0');
+    expect(headFailRes.output).toContain('AssertionError: expected 1 == 2');
+    expect(headFailRes.output).toContain('FAILED tests/test_a.py::test_21');
+    expect(headFailRes.output).toContain('10:ef12| assert 1 == 2');
+
+    const headTruncatedPass = Array.from({ length: 25 }, (_, i) => `tests/test_a.py::test_${i + 1} PASSED`).join('\n');
+    const headPassRes = distillCommandOutput(headTruncatedPass, {
+      exitCode: 0,
+      timedOut: false,
+      durationMs: 25,
+      kind: 'pytest',
+    });
+    expect(headPassRes.hasFailures).toBe(false);
+    expect(headPassRes.output).not.toContain('pytest passed');
+    expect(headPassRes.output).toContain('test_25 PASSED');
+  });
+
   test('MsAxiomAdapter.exec runs in-process, handles shell metacharacters, and attaches hashline snippets even via symlinked root', async () => {
     const msBin = path.resolve(import.meta.dir, '..', 'target', 'release', 'ms');
     if (!fs.existsSync(msBin)) {

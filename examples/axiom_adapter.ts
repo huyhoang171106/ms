@@ -653,7 +653,7 @@ export class MsAxiomAdapter {
       durationMs: res.durationMs,
       kind,
     });
-    if ((res.exitCode !== 0 || res.timedOut) && opts?.sessionId) {
+    if (firstPass.hasFailures && opts?.sessionId) {
       const snippets = await attachFailureSnippetsViaRpc(
         this,
         opts.sessionId,
@@ -748,27 +748,73 @@ function truncateLines(lines: readonly string[], maxLines: number): string {
   return `${lines.slice(0, maxLines).join("\n")}\n... (${lines.length - maxLines} more lines)`;
 }
 
+const NONZERO_FAIL_COUNT_RE = /\b[1-9]\d*\s+(?:failed|errors?)\b/i;
+
+export function hasFailureMarkers(lines: readonly string[]): boolean {
+  return lines.some((l) => {
+    const t = l.trimStart();
+    return (
+      l.includes("FAILED") ||
+      l.includes("ERRORS") ||
+      l.includes("=== FAILURES ===") ||
+      l.includes("=== ERRORS ===") ||
+      l.includes("Traceback (most recent call last):") ||
+      l.includes("ModuleNotFoundError") ||
+      l.includes("ImportError") ||
+      l.includes("SyntaxError") ||
+      l.includes("AssertionError") ||
+      l.includes("panicked at") ||
+      l.includes("test result: FAILED") ||
+      t.startsWith("ERROR ") ||
+      t.startsWith("ERROR:") ||
+      NONZERO_FAIL_COUNT_RE.test(l)
+    );
+  });
+}
+
 function distillPytestLines(passed: boolean, lines: readonly string[]): string {
-  if (passed) {
+  if (passed && !hasFailureMarkers(lines)) {
     for (let i = lines.length - 1; i >= 0; i--) {
       const l = lines[i]!;
-      if (l.includes(" passed") && (l.startsWith("=") || l.includes(" in "))) {
+      const low = l.toLowerCase();
+      if (
+        low.includes(" passed") &&
+        (l.startsWith("=") || l.includes(" in ")) &&
+        !low.includes("failed") &&
+        !low.includes("error")
+      ) {
         return l.trim().replace(/^=+|=+$/g, "").trim();
       }
     }
-    return "pytest passed";
+    return distillGenericLines(true, lines);
   }
   const kept: string[] = [];
   let capture = false;
   for (const l of lines) {
+    const t = l.trimStart();
     if (
-      l.startsWith("==== FAILURES ====") ||
-      l.startsWith("==== ERRORS ====") ||
-      l.startsWith("==== short test summary info ====")
+      l.includes("=== FAILURES ===") ||
+      l.includes("=== ERRORS ===") ||
+      l.includes("=== short test summary info ===") ||
+      l.includes("Traceback (most recent call last):")
     ) {
       capture = true;
       kept.push(l);
-    } else if (capture || l.startsWith("E   ") || l.startsWith("FAILED ") || l.includes("Error:")) {
+    } else if (
+      capture ||
+      l.startsWith("E   ") ||
+      l.startsWith("FAILED ") ||
+      l.includes("FAILED") ||
+      t.startsWith("ERROR ") ||
+      t.startsWith("ERROR:") ||
+      t.startsWith('File "') ||
+      l.includes("ModuleNotFoundError") ||
+      l.includes("ImportError") ||
+      l.includes("SyntaxError") ||
+      l.includes("AssertionError") ||
+      l.includes("panicked at") ||
+      l.includes("Error:")
+    ) {
       kept.push(l);
     }
   }
@@ -804,34 +850,35 @@ export function distillCommandOutput(
     kind?: "pytest" | "generic";
     snippets?: readonly string[];
   },
-): { cleanedLines: string[]; output: string } {
+): { cleanedLines: string[]; output: string; hasFailures: boolean } {
   const rawBytes = Buffer.byteLength(raw, "utf8");
   const rawLines = raw.length === 0 ? 0 : raw.split("\n").length;
   const cleanedLines = cleanAndCollapseLines(raw);
-  const passed = opts.exitCode === 0 && !opts.timedOut;
+  const failureMarkers = hasFailureMarkers(cleanedLines);
+  const effectivePassed = opts.exitCode === 0 && !opts.timedOut && !failureMarkers;
 
   let body: string;
-  if (passed && cleanedLines.length <= 15 && rawBytes <= 800) {
+  if (effectivePassed && cleanedLines.length <= 15 && rawBytes <= 800) {
     body = cleanedLines.filter((l) => l.trim().length > 0).join("\n");
   } else if (opts.kind === "pytest") {
-    body = distillPytestLines(passed, cleanedLines);
+    body = distillPytestLines(effectivePassed, cleanedLines);
   } else {
-    body = distillGenericLines(passed, cleanedLines);
+    body = distillGenericLines(effectivePassed, cleanedLines);
   }
 
   let out = opts.timedOut
     ? `[TIMED OUT after ${opts.durationMs}ms | exit:${opts.exitCode} | raw:${rawLines}L/${rawBytes}B]`
-    : opts.exitCode === 0
+    : effectivePassed
       ? `[OK | exit:0 | ${opts.durationMs}ms | raw:${rawLines}L/${rawBytes}B]`
       : `[FAILED | exit:${opts.exitCode} | ${opts.durationMs}ms | raw:${rawLines}L/${rawBytes}B]`;
 
   if (body.length > 0) {
     out += `\n${body}`;
   }
-  if (!passed && opts.snippets && opts.snippets.length > 0) {
+  if (!effectivePassed && opts.snippets && opts.snippets.length > 0) {
     out += `\n--- context snippets ---\n${opts.snippets.join("\n")}`;
   }
-  return { cleanedLines, output: out };
+  return { cleanedLines, output: out, hasFailures: !effectivePassed };
 }
 
 export async function runProcessDirect(
