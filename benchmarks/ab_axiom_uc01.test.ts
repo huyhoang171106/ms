@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -26,7 +27,9 @@ import {
   buildControlledPytestInvocation,
   buildToolTraceEntry,
   getExecutionPolicySnapshot,
+  registerBaselineTools,
   registerMsTools,
+  resolveAllowlistedBundledSkill,
   validatePytestTarget,
 } from './ab_axiom_tools.js';
 import { distillCommandOutput, MsAxiomAdapter } from '../examples/axiom_adapter.js';
@@ -585,5 +588,212 @@ describe('F4, F5, F6: Schedule, Resume, Infra Errors, Diff & Redaction', () => {
     });
     expect(seenModes).toEqual(['native', 'native']);
     expect(seenMaxSteps).toEqual([12, 12]);
+  });
+
+  test('trace entry records turnIndex, truncated, originalBytes, sha256, and redacts secrets in args & output', () => {
+    const secret = 'sk-test-trace-redaction-1234567890';
+    registerSecret(secret);
+
+    const longCmd = `pytest -q ${secret} ${'a'.repeat(700)}`;
+    const longOut = `PASS ${secret} ${'b'.repeat(1200)}`;
+    const entry = buildToolTraceEntry('tc-1', 'run_command', 12.34, 45.67, longOut, false, undefined, {
+      turnIndex: 3,
+      args: { command: longCmd, apiKey: secret },
+    });
+
+    expect(entry.turnIndex).toBe(3);
+    expect(entry.argsTruncated).toBe(true);
+    expect(entry.argsOriginalBytes).toBeGreaterThan(512);
+    expect(entry.argsSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(entry.argsPreview).not.toContain(secret);
+    expect(entry.argsPreview).toContain('‹redacted›');
+
+    expect(entry.outputTruncated).toBe(true);
+    expect(entry.outputOriginalBytes).toBeGreaterThan(1024);
+    expect(entry.outputSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(entry.outputPreview).not.toContain(secret);
+
+    const shortEntry = buildToolTraceEntry('tc-2', 'read_file', 1, 2, 'hello', false, undefined, {
+      turnIndex: 1,
+      args: { path: 'tiny.py' },
+    });
+    expect(shortEntry.argsTruncated).toBe(false);
+    expect(shortEntry.outputTruncated).toBe(false);
+    expect(shortEntry.argsSha256).toBe(crypto.createHash('sha256').update('{"path":"tiny.py"}').digest('hex'));
+    expect(shortEntry.outputSha256).toBe(crypto.createHash('sha256').update('hello').digest('hex'));
+  });
+
+  test('manifest records systemPromptSha256, bundledSkillSha256, featureFlags, featureConfigSha256 and hydrates --bundled-skill-mode on --resume', async () => {
+    const outDir = makeTempDir('ab-v3a-manifest-');
+    const opts = parseCliArgs([
+      '--trials',
+      '1',
+      '--seed',
+      '11',
+      '--mode',
+      'controlled',
+      '--bundled-skill-mode',
+      'off',
+      '--out-dir',
+      outDir,
+      '--cases',
+      'uc01-01-bug-crash-null',
+      '--dry-run',
+    ]);
+    const initial = await runExperiment(opts);
+    expect(initial.manifest.hashes.systemPromptSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(initial.manifest.hashes.bundledSkillSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(initial.manifest.hashes.featureConfigSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(initial.manifest.featureFlags).toEqual({ bundledSkillMode: 'off' });
+
+    const seenSkillModes: string[] = [];
+    const resumeOpts = parseCliArgs(['--resume', outDir]);
+    await runExperiment(resumeOpts, {
+      runSingleFn: async (scheduled, _fixture, ctx) => {
+        seenSkillModes.push(ctx.opts.bundledSkillMode);
+        return buildInfraErrorRecord(scheduled, ctx.experimentId, ctx.opts.mode, 'unknown-model-id', new Error('stop'), 1);
+      },
+    });
+    expect(seenSkillModes).toEqual(['off', 'off']);
+  });
+});
+
+describe('v3a: Shared Bundled Skill Resolver (Workspace-First + Allowlist)', () => {
+  const MS_BIN = '/home/hoang/ms/target/release/ms';
+
+  async function setupMsArm(ws: string, bundledSkillMode: 'on' | 'off') {
+    const stateDir = makeTempDir('ab-skill-ms-state-');
+    const adapter = new MsAxiomAdapter(MS_BIN, ws, stateDir, true);
+    const sessionId = await adapter.openSession({ allowWrite: false });
+    const reg = new ToolRegistry();
+    reg.allowWithoutApprover = true;
+    registerMsTools(reg, adapter, sessionId, MS_BIN, 'controlled', planSandbox(), { bundledSkillMode });
+    return { adapter, sessionId, reg };
+  }
+
+  function setupBaselineArm(bundledSkillMode: 'on' | 'off') {
+    const reg = new ToolRegistry();
+    reg.allowWithoutApprover = true;
+    registerBaselineTools(reg, bundledSkillMode);
+    return reg;
+  }
+
+  test('workspace skills/bug-fix/SKILL.md shadows bundled skill in both A_baseline and B_ms', async () => {
+    const ws = makeTempFixtureCopy();
+    const skillDir = path.join(ws, 'skills', 'bug-fix');
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), '# WORKSPACE SHADOW SKILL\ncustom-marker-xyz\n', 'utf8');
+
+    const baseReg = setupBaselineArm('on');
+    const baseRes = await baseReg.executeTool('read_file', { path: 'skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+    expect(baseRes.isError).toBe(false);
+    expect(baseRes.output).toContain('WORKSPACE SHADOW SKILL');
+    expect(baseRes.output).toContain('custom-marker-xyz');
+
+    const { adapter, sessionId, reg: msReg } = await setupMsArm(ws, 'on');
+    try {
+      const msRes = await msReg.executeTool('read_file', { path: 'skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+      expect(msRes.isError).toBe(false);
+      expect(msRes.output).toContain('WORKSPACE SHADOW SKILL');
+      expect(msRes.output).toContain('custom-marker-xyz');
+    } finally {
+      await adapter.closeSession(sessionId).catch(() => {});
+      adapter.shutdown();
+    }
+  });
+
+  test('missing skills/bug-fix/SKILL.md falls back to bundled skill when bundledSkillMode=on and fails when off', async () => {
+    const ws = makeTempFixtureCopy();
+
+    const baseOn = setupBaselineArm('on');
+    const baseOnRes = await baseOn.executeTool('read_file', { path: 'skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+    expect(baseOnRes.isError).toBe(false);
+    expect(baseOnRes.output).toContain('bug-fix');
+
+    const baseOff = setupBaselineArm('off');
+    const baseOffRes = await baseOff.executeTool('read_file', { path: 'skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+    expect(baseOffRes.isError).toBe(true);
+    expect(baseOffRes.output).toContain('File or directory not found');
+
+    const msOn = await setupMsArm(ws, 'on');
+    try {
+      const msOnRes = await msOn.reg.executeTool('read_file', { path: './skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+      expect(msOnRes.isError).toBe(false);
+      expect(msOnRes.output).toContain('rev:');
+      expect(msOnRes.output).toContain('bug-fix');
+    } finally {
+      await msOn.adapter.closeSession(msOn.sessionId).catch(() => {});
+      msOn.adapter.shutdown();
+    }
+
+    const msOff = await setupMsArm(ws, 'off');
+    try {
+      const msOffRes = await msOff.reg.executeTool('read_file', { path: 'skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+      expect(msOffRes.output).toContain('E_NOT_FOUND');
+    } finally {
+      await msOff.adapter.closeSession(msOff.sessionId).catch(() => {});
+      msOff.adapter.shutdown();
+    }
+  });
+
+  test('non-allowlisted paths, traversal escapes, symlinks, and permission errors do NOT fall back to bundled skill', async () => {
+    const ws = makeTempFixtureCopy();
+
+    expect(resolveAllowlistedBundledSkill('skills/other/SKILL.md', ws)).toBeNull();
+    expect(resolveAllowlistedBundledSkill('../../skills/bug-fix/SKILL.md', ws)).toBeNull();
+    expect(resolveAllowlistedBundledSkill('/etc/passwd', ws)).toBeNull();
+    expect(resolveAllowlistedBundledSkill('skills/bug-fix/SKILL.md', ws)).not.toBeNull();
+
+    // 1. Root-escaping traversal must fail in both arms
+    const baseReg = setupBaselineArm('on');
+    const escBase = await baseReg.executeTool('read_file', { path: '../../skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+    expect(escBase.isError).toBe(true);
+
+    const msArm = await setupMsArm(ws, 'on');
+    try {
+      const escMs = await msArm.reg.executeTool('read_file', { path: '../../skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+      expect(escMs.isError).toBe(true);
+      expect(escMs.output).toMatch(/Blocked by policy|E_POLICY_DENIED/);
+      // Also verify MsReadTool directly when ms returns E_POLICY_DENIED
+      const msReadTool = msArm.reg.getTool('read_file')!;
+      const directEsc = await msReadTool.execute({ path: '../../skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+      expect(directEsc).toContain('E_POLICY_DENIED');
+
+      // 2. Non-allowlisted relative path must fail
+      const nonAllowMs = await msArm.reg.executeTool('read_file', { path: 'skills/nonexistent/SKILL.md' }, { workspaceRoot: ws });
+      expect(nonAllowMs.output).toContain('E_NOT_FOUND');
+
+      // 3. Broken symlink at skills/bug-fix/SKILL.md must NOT trigger fallback
+      const skillDir = path.join(ws, 'skills', 'bug-fix');
+      fs.mkdirSync(skillDir, { recursive: true });
+      const symlinkPath = path.join(skillDir, 'SKILL.md');
+      fs.symlinkSync('/nonexistent/outside/SKILL.md', symlinkPath);
+
+      const symBase = await baseReg.executeTool('read_file', { path: 'skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+      expect(symBase.isError).toBe(true);
+
+      const symMs = await msArm.reg.executeTool('read_file', { path: 'skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+      expect(symMs.output).toContain('E_POLICY_DENIED');
+
+      // 4. Permission error (chmod 000) must NOT trigger fallback
+      fs.unlinkSync(symlinkPath);
+      fs.writeFileSync(symlinkPath, 'secret', 'utf8');
+      fs.chmodSync(symlinkPath, 0o000);
+      try {
+        const permBase = await baseReg.executeTool('read_file', { path: 'skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+        // Note: if running as root in container, chmod 000 might still be readable; only assert if not root
+        if (process.getuid && process.getuid() !== 0) {
+          expect(permBase.isError).toBe(true);
+          const permMs = await msArm.reg.executeTool('read_file', { path: 'skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
+          expect(permMs.output).toContain('E_POLICY_DENIED');
+          expect(permMs.output).not.toContain('rev:');
+        }
+      } finally {
+        fs.chmodSync(symlinkPath, 0o644);
+      }
+    } finally {
+      await msArm.adapter.closeSession(msArm.sessionId).catch(() => {});
+      msArm.adapter.shutdown();
+    }
   });
 });

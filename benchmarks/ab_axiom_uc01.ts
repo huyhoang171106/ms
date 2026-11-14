@@ -16,6 +16,7 @@ import type { TokenUsage } from '../../nhom-30/src/core/types.js';
 import { loadCatalog } from '../../nhom-30/src/llm/catalog/index.js';
 import { CostTracker, type SessionSummary } from '../../nhom-30/src/llm/cost-tracker.js';
 import { createProviderFor, resolveModel } from '../../nhom-30/src/llm/model-resolver.js';
+import { BUNDLED_SKILLS_DIR } from '../../nhom-30/src/tools/bundled-skills.js';
 import { ToolRegistry } from '../../nhom-30/src/tools/registry.js';
 import { planSandbox } from '../../nhom-30/src/tools/sandbox.js';
 import { MsAxiomAdapter } from '../examples/axiom_adapter.js';
@@ -55,8 +56,10 @@ import {
   buildToolTraceEntry,
   getArmToolDefinitionsHash,
   getExecutionPolicySnapshot,
+  registerBaselineTools,
   registerMsTools,
   type BenchmarkMode,
+  type BundledSkillMode,
   type ToolTraceEntry,
 } from './ab_axiom_tools.js';
 
@@ -80,6 +83,7 @@ export interface CliOptions {
   trials: number;
   seed: number;
   mode: BenchmarkMode;
+  bundledSkillMode: BundledSkillMode;
   outDir?: string;
   resume?: string;
   cases: string[];
@@ -97,6 +101,7 @@ export function parseCliArgs(argv: readonly string[]): CliOptions {
     trials: 1,
     seed: 42,
     mode: 'controlled',
+    bundledSkillMode: 'on',
     cases: [...TARGET_CASES],
     model: DEFAULT_MODEL_SELECTOR,
     maxSteps: 20,
@@ -127,6 +132,10 @@ export function parseCliArgs(argv: readonly string[]): CliOptions {
       const m = next();
       if (m !== 'controlled' && m !== 'native') throw new Error(`Invalid --mode: ${m}`);
       opts.mode = m;
+    } else if (arg === '--bundled-skill-mode') {
+      const m = next();
+      if (m !== 'on' && m !== 'off') throw new Error(`Invalid --bundled-skill-mode: ${m}`);
+      opts.bundledSkillMode = m;
     } else if (arg === '--out-dir') {
       opts.outDir = path.resolve(next());
     } else if (arg === '--resume') {
@@ -168,7 +177,8 @@ function printHelp(): void {
   console.log(`Usage: bun run benchmarks/ab_axiom_uc01.ts [options]
   --trials <n>        Paired trials per case (default: 1)
   --seed <n>          PRNG seed for AB/BA counterbalancing & case shuffle (default: 42)
-  --mode <mode>       Execution parity mode: controlled | native (default: controlled)
+  --mode <mode>               Execution parity mode: controlled | native (default: controlled)
+  --bundled-skill-mode <m>    Shared bundled-skill fallback: on | off (default: on)
   --out-dir <dir>     External artifact directory (default: benchmarks/artifacts/<experimentId>)
   --resume <id|dir>   Resume an existing experiment directory or ID without duplicating runs
   --cases <list>      Comma-separated case IDs (default: all 3 uc01 bug cases)
@@ -326,7 +336,11 @@ export async function runSingle(
     if (scheduled.arm === 'B_ms') {
       msAdapter = new MsAxiomAdapter(ctx.opts.msBin, workspaceDir, msStateDir, true);
       msSessionId = await msAdapter.openSession({ allowWrite: true });
-      registerMsTools(registry, msAdapter, msSessionId, ctx.opts.msBin, ctx.opts.mode, sandboxPlan);
+      registerMsTools(registry, msAdapter, msSessionId, ctx.opts.msBin, ctx.opts.mode, sandboxPlan, {
+        bundledSkillMode: ctx.opts.bundledSkillMode,
+      });
+    } else {
+      registerBaselineTools(registry, ctx.opts.bundledSkillMode);
     }
 
     const requestTraces: RequestUsageTrace[] = [];
@@ -343,9 +357,17 @@ export async function runSingle(
 
     const toolTraces: ToolTraceEntry[] = [];
     const toolErrors: Array<{ name: string; error: string }> = [];
-    const pendingStarts = new Map<string, { name: string; startedAtMonoMs: number }>();
+    const pendingStarts = new Map<
+      string,
+      { name: string; startedAtMonoMs: number; turnIndex: number; args: unknown }
+    >();
     bus.on('tool_call_start', (tc) => {
-      pendingStarts.set(tc.id, { name: tc.name, startedAtMonoMs: performance.now() - wallStart });
+      pendingStarts.set(tc.id, {
+        name: tc.name,
+        startedAtMonoMs: performance.now() - wallStart,
+        turnIndex: requestTraces.length,
+        args: tc.arguments,
+      });
     });
     bus.on('tool_call_end', (res) => {
       const startInfo = pendingStarts.get(res.toolCallId);
@@ -360,6 +382,10 @@ export async function runSingle(
         String(res.output ?? ''),
         Boolean(res.isError),
         res.error,
+        {
+          turnIndex: startInfo?.turnIndex ?? requestTraces.length,
+          args: startInfo?.args,
+        },
       );
       toolTraces.push(entry);
       if (entry.isError && entry.errorPreview) {
@@ -607,6 +633,7 @@ export async function runExperiment(
     effectiveOpts = {
       ...opts,
       mode: manifest.mode,
+      bundledSkillMode: manifest.featureFlags?.bundledSkillMode ?? opts.bundledSkillMode,
       seed: manifest.seed,
       trials: manifest.trials,
       cases: manifest.cases,
@@ -627,6 +654,11 @@ export async function runExperiment(
     const resolvedModel = resolveModel(effectiveOpts.model, catalog, config).id;
     const sandboxPlan = planSandbox();
     const schedule = buildExperimentSchedule(effectiveOpts.cases, effectiveOpts.trials, effectiveOpts.seed);
+    const featureFlags = {
+      bundledSkillMode: effectiveOpts.bundledSkillMode,
+    };
+    const systemPromptText = buildSystemPrompt(DEFAULT_SYSTEM_PROMPT, effectiveOpts.fixtureDir);
+    const bundledSkillPath = path.join(BUNDLED_SKILLS_DIR, 'bug-fix', 'SKILL.md');
 
     manifest = {
       schemaVersion: SCHEMA_VERSION,
@@ -651,12 +683,15 @@ export async function runExperiment(
         msBinarySha256: sha256File(effectiveOpts.msBin),
         fixtureSha256: sha256Directory(effectiveOpts.fixtureDir),
         adapterSha256: sha256File('/home/hoang/ms/examples/axiom_adapter.ts'),
-        systemPromptSha256: crypto.createHash('sha256').update(DEFAULT_SYSTEM_PROMPT).digest('hex'),
+        systemPromptSha256: crypto.createHash('sha256').update(systemPromptText).digest('hex'),
+        bundledSkillSha256: sha256File(bundledSkillPath),
+        featureConfigSha256: crypto.createHash('sha256').update(JSON.stringify(featureFlags)).digest('hex'),
         toolDefinitionsSha256: {
           A_baseline: getArmToolDefinitionsHash('A_baseline', effectiveOpts.mode, effectiveOpts.msBin, sandboxPlan),
           B_ms: getArmToolDefinitionsHash('B_ms', effectiveOpts.mode, effectiveOpts.msBin, sandboxPlan),
         },
       },
+      featureFlags,
       generationSettings: {
         maxSteps: effectiveOpts.maxSteps,
         budgetLimitDollars: effectiveOpts.budgetDollars,

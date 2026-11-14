@@ -6,7 +6,7 @@ import path from 'node:path';
 import { redact, SECRET_NAME } from '../../nhom-30/src/core/secrets.js';
 import type { CostCalculation, ModelPricingEntry, NormalizedUsage } from './ab_axiom_accounting.js';
 import type { AgentStatus, IndependentVerification } from './ab_axiom_oracle.js';
-import type { BenchmarkMode, ExecutionPolicySnapshot, ToolTraceEntry } from './ab_axiom_tools.js';
+import type { BenchmarkMode, BundledSkillMode, ExecutionPolicySnapshot, ToolTraceEntry } from './ab_axiom_tools.js';
 
 export const SCHEMA_VERSION = '2.0.0';
 
@@ -51,7 +51,12 @@ export interface ExperimentManifest {
     fixtureSha256: string;
     adapterSha256: string;
     systemPromptSha256: string;
+    bundledSkillSha256?: string;
+    featureConfigSha256?: string;
     toolDefinitionsSha256?: Partial<Record<ArmName, string>>;
+  };
+  featureFlags?: {
+    bundledSkillMode: BundledSkillMode;
   };
   generationSettings: {
     maxSteps: number;

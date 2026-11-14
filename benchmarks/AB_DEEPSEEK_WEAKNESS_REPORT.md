@@ -156,3 +156,35 @@ All three fixes above were implemented and re-tested on the exact same 18-run co
 - `B_ms` v2 achieved **-55.1% tool output bytes** and **-15.6% total tokens** vs `A_baseline` v2 while maintaining **100% (9/9) pass rate** and **0% edit/write errors**.
 - `read_file` errors in `B_ms` v2 (`11`) were strictly legitimate rejections: `6×` `E_NOT_FOUND` on `skills/bug-fix/SKILL.md` (mirroring `A_baseline`'s `5×` `File or directory not found`) and `5×` `E_POLICY_DENIED` on root-escaping `..` attempts (e.g. `../../skills/bug-fix/SKILL.md`), which are intentionally blocked by workspace containment.
 - `run_command` errors in `B_ms` v2 (`9`) were all `Blocked by policy (shell references a path outside the workspace)` from Axiom's shared shell policy guard.
+
+---
+
+## 8. v3a: Telemetry + Shared Bundled-Skill Resolver (Partial: 8 / 18 Runs)
+
+- **v3a Artifacts**: [`benchmarks/artifacts/deepseek-v4-1-flash-v3a-t3-seed42/`](./artifacts/deepseek-v4-1-flash-v3a-t3-seed42/)
+- **v3a Experiment ID**: `uc01-controlled-seed42-2026-11-14T16-23-13-822Z`
+- **Status**: **Partial (8 / 18 runs = 4 complete paired comparisons)**. The remaining 10 runs were blocked by `trollllm API error (402 Payment Required): Resource credits and plan daily credits are exhausted or unavailable.` The 10 failed `402` records were removed from `runs.jsonl` so the directory remains cleanly resumable via `--resume`.
+
+### 8.1 Changes Implemented in v3a
+1. **Shared Bundled-Skill Resolver (`benchmarks/ab_axiom_tools.ts`, `benchmarks/ab_axiom_uc01.ts`)**: Added `resolveAllowlistedBundledSkill` and `--bundled-skill-mode <on|off>` (default `on`, recorded in `manifest.featureFlags`, `hashes.bundledSkillSha256`, `hashes.featureConfigSha256`, and `hashes.systemPromptSha256`, and hydrated on `--resume`). Both `A_baseline` (`BaselineReadTool`) and `B_ms` (`MsReadTool`) resolve workspace `skills/bug-fix/SKILL.md` first, falling back to the bundled skill only for allowlisted paths (`skills/bug-fix/SKILL.md`, `skills/issue-triage/SKILL.md`) when `bundledSkillMode === 'on'` and no workspace symlink/permission error is present.
+2. **Per-Tool Telemetry (`benchmarks/ab_axiom_tools.ts`, `benchmarks/ab_axiom_uc01.ts`)**: `ToolTraceEntry` now records `turnIndex`, `argsPreview` / `argsTruncated` / `argsOriginalBytes` / `argsSha256`, and `outputPreview` / `outputTruncated` / `outputOriginalBytes` / `outputSha256` with secret redaction across both args and output.
+3. **Offline Verification**: All 26 tests in `benchmarks/ab_axiom_uc01.test.ts` and all 32 Rust workspace tests (`cargo test --workspace`) pass.
+
+### 8.2 Observed Partial Results (4 Completed Pairs: T1 all 3 cases + T2 `uc01-01-bug-crash-null`)
+
+| Metric (4 runs per arm) | `A_baseline` v3a | `B_ms` v3a | Delta (`B - A`) |
+|---|---:|---:|---:|
+| Verified Success (`overallPassed`) | **4 / 4 (100%)** | **2 / 4 (50%)** | **-2 (-50.0 pp)** |
+| Target Fixed (`targetFixed`) | 4 / 4 (100%) | 4 / 4 (100%) | 0 |
+| No Regressions (`noRegressions`) | 4 / 4 (100%) | 4 / 4 (100%) | 0 |
+| Max-Step Errors (`Exceeded maximum steps (20)`) | 0 | **2** | **+2** |
+| Total Wall-Clock Time | 141,254.37 ms | 140,875.55 ms | -378.82 ms (-0.3%) |
+| Total LLM Turns | 56 | 66 | +10 (+17.9%) |
+| Total Tool Calls | 85 | 95 | +10 (+11.8%) |
+| Tool Registry Failures (`isError`) | 4 | 4 | 0 |
+| Command Non-Zero Exits | 13 | 19 | +6 (+46.2%) |
+| Total Tool Output Bytes | 53,042 B | **45,814 B** | **-7,228 B (-13.6%)** |
+| Total Tokens | 319,040 | 396,559 | +77,519 (+24.3%) |
+
+*Note: In both `B_ms` `overallPassed: false` runs (`trial-1__uc01-03-bug-reproducible__B_ms` and `trial-2__uc01-01-bug-crash-null__B_ms`), `targetFixed` and `noRegressions` were `true`, but the agent hit the 20-step limit before finishing.*
+

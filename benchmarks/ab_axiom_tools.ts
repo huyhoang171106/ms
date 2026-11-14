@@ -4,11 +4,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { pythonBin } from '../../nhom-30/src/core/paths.js';
-import { redact, scrubEnv } from '../../nhom-30/src/core/secrets.js';
+import { redact, scrubEnv, SECRET_NAME } from '../../nhom-30/src/core/secrets.js';
 import { PYTEST_ARGS, TEST_TIMEOUT_MS } from '../../nhom-30/src/core/verifier.js';
 import { BaseTool, type ToolExecutionContext } from '../../nhom-30/src/tools/base-tool.js';
+import { BUNDLED_SKILLS_DIR, isBundledSkillFile } from '../../nhom-30/src/tools/bundled-skills.js';
 import { destructiveReason } from '../../nhom-30/src/tools/bash.js';
 import { escapesWorkspace } from '../../nhom-30/src/tools/permissions.js';
+import { ReadTool } from '../../nhom-30/src/tools/read.js';
 import { ToolRegistry } from '../../nhom-30/src/tools/registry.js';
 import {
   bwrapInvocation,
@@ -25,6 +27,12 @@ import {
 } from '../examples/axiom_adapter.js';
 
 export type BenchmarkMode = 'controlled' | 'native';
+export type BundledSkillMode = 'on' | 'off';
+
+export const BUNDLED_SKILL_ALLOWLIST = new Set<string>([
+  'skills/bug-fix/SKILL.md',
+  'skills/issue-triage/SKILL.md',
+]);
 
 export const CONTROLLED_TIMEOUT_MS = TEST_TIMEOUT_MS; // 120_000 ms, matching BashTool & runPytest
 
@@ -45,10 +53,19 @@ export interface ExecutionPolicySnapshot {
 
 export interface ToolTraceEntry {
   toolCallId: string;
+  turnIndex: number;
   name: string;
   startedAtMonoMs: number;
   durationMs: number;
   isError: boolean;
+  argsPreview: string;
+  argsTruncated: boolean;
+  argsOriginalBytes: number;
+  argsSha256: string;
+  outputPreview: string;
+  outputTruncated: boolean;
+  outputOriginalBytes: number;
+  outputSha256: string;
   toolOutputBytes: number;
   exitCode: number | null;
   timedOut: boolean;
@@ -230,6 +247,113 @@ export function extractExitMetadata(toolName: string, output: string, isError: b
   return { exitCode: 1, timedOut: false };
 }
 
+export function resolveAllowlistedBundledSkill(
+  rawPath: string,
+  workspaceRoot?: string,
+): { relPath: string; bundledPath: string } | null {
+  const trimmed = rawPath.trim();
+  if (!trimmed || trimmed.includes('\0')) return null;
+
+  let relPosix: string;
+  if (path.isAbsolute(trimmed)) {
+    if (!workspaceRoot) return null;
+    let realRoot: string;
+    try {
+      realRoot = fs.realpathSync(workspaceRoot);
+    } catch {
+      realRoot = path.resolve(workspaceRoot);
+    }
+    const rel = path.relative(realRoot, path.resolve(trimmed));
+    if (!rel || rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+      return null;
+    }
+    relPosix = rel.split(path.sep).join('/');
+  } else {
+    relPosix = path.posix.normalize(trimmed.replace(/\\/g, '/'));
+  }
+
+  if (!BUNDLED_SKILL_ALLOWLIST.has(relPosix)) return null;
+  const subPath = relPosix.slice('skills/'.length);
+  const bundledPath = path.join(BUNDLED_SKILLS_DIR, subPath);
+  if (!isBundledSkillFile(bundledPath)) return null;
+  return { relPath: relPosix, bundledPath };
+}
+
+function hasWorkspaceSymlinkOrPermissionError(workspaceRoot: string | undefined, relPosix: string): boolean {
+  if (!workspaceRoot) return false;
+  const parts = relPosix.split('/').filter(Boolean);
+  let current = workspaceRoot;
+  for (const part of parts) {
+    current = path.join(current, part);
+    try {
+      const st = fs.lstatSync(current);
+      if (st.isSymbolicLink()) return true;
+    } catch (err: unknown) {
+      const code = err && typeof err === 'object' && 'code' in err && typeof err.code === 'string' ? err.code : undefined;
+      if (code === 'ENOENT') return false;
+      return true;
+    }
+  }
+  return false;
+}
+
+function formatBundledSkillHashline(
+  bundledPath: string,
+  startLine: number,
+  lineCount: number,
+): string {
+  const raw = fs.readFileSync(bundledPath, 'utf8');
+  const eol = raw.includes('\r\n') ? 'CRLF' : raw.includes('\n') ? 'LF' : 'NONE';
+  const fileRev = crypto.createHash('sha256').update(raw, 'utf8').digest('hex');
+  const allLines = raw.split(/\r?\n/);
+  if (allLines.length > 0 && allLines[allLines.length - 1] === '') {
+    allLines.pop();
+  }
+  const totalLines = allLines.length;
+  if (totalLines === 0) {
+    return `rev:${fileRev} eol:${eol} lines:0-0/0`;
+  }
+  const start = Math.max(1, Math.min(startLine, totalLines));
+  const end = Math.max(start, Math.min(start + lineCount - 1, totalLines));
+  const out = [`rev:${fileRev} eol:${eol} lines:${start}-${end}/${totalLines}`];
+  for (let ln = start; ln <= end; ln++) {
+    const text = allLines[ln - 1] ?? '';
+    const tag = crypto.createHash('sha256').update(`${ln}:${text}`, 'utf8').digest('hex').slice(0, 4);
+    out.push(`${ln}:${tag}| ${text}`);
+  }
+  return out.join('\n');
+}
+
+export class BaselineReadTool extends BaseTool {
+  private readonly inner = new ReadTool();
+  readonly name = this.inner.name;
+  readonly isReadOnly = this.inner.isReadOnly;
+  readonly description = this.inner.description;
+  readonly parameters = this.inner.parameters;
+
+  constructor(private readonly bundledSkillMode: BundledSkillMode = 'on') {
+    super();
+  }
+
+  async execute(args: Record<string, unknown>, context?: ToolExecutionContext): Promise<string> {
+    try {
+      return await this.inner.execute(args, context);
+    } catch (err) {
+      if (this.bundledSkillMode !== 'on') throw err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.startsWith('File or directory not found:')) throw err;
+
+      const rawPath = typeof args.path === 'string' ? args.path.trim() : '';
+      const resolved = resolveAllowlistedBundledSkill(rawPath, context?.workspaceRoot);
+      if (!resolved) throw err;
+      if (hasWorkspaceSymlinkOrPermissionError(context?.workspaceRoot, resolved.relPath)) {
+        throw err;
+      }
+      return await this.inner.execute({ ...args, path: resolved.bundledPath }, context);
+    }
+  }
+}
+
 class MsReadTool extends BaseTool {
   readonly name = 'read_file';
   readonly isReadOnly = true;
@@ -246,12 +370,17 @@ class MsReadTool extends BaseTool {
     required: ['path'],
   };
 
-  constructor(private readonly ms: MsAxiomAdapter, private readonly sessionId: string) {
+  constructor(
+    private readonly ms: MsAxiomAdapter,
+    private readonly sessionId: string,
+    private readonly bundledSkillMode: BundledSkillMode = 'on',
+  ) {
     super();
   }
 
   async execute(args: Record<string, unknown>, context?: ToolExecutionContext): Promise<string> {
-    const filePath = toWorkspaceRel(typeof args.path === 'string' ? args.path : '', context);
+    const rawPath = typeof args.path === 'string' ? args.path : '';
+    const filePath = toWorkspaceRel(rawPath, context);
     if (!filePath) return 'Error: path is required';
     let startLine = typeof args.offset === 'number' && args.offset >= 1 ? Math.floor(args.offset) : 1;
     let lineCount = typeof args.limit === 'number' && args.limit >= 1 ? Math.floor(args.limit) : 200;
@@ -264,9 +393,20 @@ class MsReadTool extends BaseTool {
       }
     }
     const { completed } = await this.ms.readFile(this.sessionId, filePath, startLine, lineCount, { format: 'hashline' });
-    if (completed.status !== 'ok' || !completed.result) return formatMsError(completed);
-    const res = completed.result as { hashline?: string };
-    return res.hashline ?? '';
+    if (completed.status === 'ok' && completed.result) {
+      const res = completed.result as { hashline?: string };
+      return res.hashline ?? '';
+    }
+    if (
+      this.bundledSkillMode === 'on' &&
+      completed.error?.code === 'E_NOT_FOUND'
+    ) {
+      const resolved = resolveAllowlistedBundledSkill(rawPath, context?.workspaceRoot);
+      if (resolved && !hasWorkspaceSymlinkOrPermissionError(context?.workspaceRoot, resolved.relPath)) {
+        return formatBundledSkillHashline(resolved.bundledPath, startLine, lineCount);
+      }
+    }
+    return formatMsError(completed);
   }
 }
 
@@ -684,6 +824,13 @@ class MsUndoTool extends BaseTool {
   }
 }
 
+export function registerBaselineTools(
+  registry: ToolRegistry,
+  bundledSkillMode: BundledSkillMode = 'on',
+): void {
+  registry.registerTool(new BaselineReadTool(bundledSkillMode));
+}
+
 export function registerMsTools(
   registry: ToolRegistry,
   msAdapter: MsAxiomAdapter,
@@ -691,10 +838,10 @@ export function registerMsTools(
   _msBin: string,
   mode: BenchmarkMode,
   sandboxPlan: SandboxPlan = planSandbox(),
-  options?: { includeExtraTools?: boolean },
+  options?: { includeExtraTools?: boolean; bundledSkillMode?: BundledSkillMode },
 ): void {
   registry.unregisterTool('apply_patch');
-  registry.registerTool(new MsReadTool(msAdapter, msSessionId));
+  registry.registerTool(new MsReadTool(msAdapter, msSessionId, options?.bundledSkillMode ?? 'on'));
   registry.registerTool(new MsListTool(msAdapter, msSessionId));
   registry.registerTool(new MsSearchTool(msAdapter, msSessionId));
   registry.registerTool(new MsEditTool(msAdapter, msSessionId));
@@ -717,6 +864,8 @@ export function getArmToolDefinitionsHash(
   const registry = new ToolRegistry();
   if (arm === 'B_ms') {
     registerMsTools(registry, {} as MsAxiomAdapter, 'schema-hash', msBin, mode, sandboxPlan);
+  } else {
+    registerBaselineTools(registry, 'on');
   }
   const defs = registry
     .getDefinitions()
@@ -724,6 +873,47 @@ export function getArmToolDefinitionsHash(
     .sort((a, b) => a.name.localeCompare(b.name));
   return crypto.createHash('sha256').update(JSON.stringify(defs)).digest('hex');
 }
+
+function redactUnknownValue(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'string') return redact(obj);
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(redactUnknownValue);
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    if (SECRET_NAME.test(k)) {
+      out[k] = '‹redacted›';
+    } else {
+      out[k] = redactUnknownValue(v);
+    }
+  }
+  return out;
+}
+
+function truncateUtf8Bytes(text: string, maxBytes: number): { preview: string; truncated: boolean } {
+  const buf = Buffer.from(text, 'utf8');
+  if (buf.byteLength <= maxBytes) {
+    return { preview: text, truncated: false };
+  }
+  let end = maxBytes;
+  while (end > 0 && (buf[end]! & 0xc0) === 0x80) {
+    end--;
+  }
+  return { preview: buf.subarray(0, end).toString('utf8'), truncated: true };
+}
+
+function buildPreviewTelemetry(
+  redactedText: string,
+  maxBytes: number,
+): { preview: string; truncated: boolean; originalBytes: number; sha256: string } {
+  const originalBytes = Buffer.byteLength(redactedText, 'utf8');
+  const sha256 = crypto.createHash('sha256').update(redactedText, 'utf8').digest('hex');
+  const { preview, truncated } = truncateUtf8Bytes(redactedText, maxBytes);
+  return { preview, truncated, originalBytes, sha256 };
+}
+
+export const DEFAULT_ARGS_PREVIEW_BYTES = 512;
+export const DEFAULT_OUTPUT_PREVIEW_BYTES = 1024;
 
 export function buildToolTraceEntry(
   toolCallId: string,
@@ -733,18 +923,47 @@ export function buildToolTraceEntry(
   output: string,
   isError: boolean,
   error?: string,
+  options?: {
+    turnIndex?: number;
+    args?: unknown;
+    maxArgsPreviewBytes?: number;
+    maxOutputPreviewBytes?: number;
+  },
 ): ToolTraceEntry {
+  const rawArgs =
+    options?.args === undefined
+      ? '{}'
+      : typeof options.args === 'string'
+        ? redact(options.args)
+        : redact(JSON.stringify(redactUnknownValue(options.args)) ?? '{}');
+  const argsTel = buildPreviewTelemetry(rawArgs, options?.maxArgsPreviewBytes ?? DEFAULT_ARGS_PREVIEW_BYTES);
+
   const redactedOutput = redact(output);
+  const outputTel = buildPreviewTelemetry(redactedOutput, options?.maxOutputPreviewBytes ?? DEFAULT_OUTPUT_PREVIEW_BYTES);
+
   const { exitCode, timedOut } = extractExitMetadata(name, redactedOutput, isError);
+  const redactedError = isError ? redact(String(error ?? redactedOutput)) : undefined;
+  const errorPreview =
+    redactedError !== undefined ? truncateUtf8Bytes(redactedError, 300).preview : undefined;
+
   return {
     toolCallId,
+    turnIndex: options?.turnIndex ?? 0,
     name,
     startedAtMonoMs: Number(startedAtMonoMs.toFixed(3)),
     durationMs: Number(durationMs.toFixed(3)),
     isError,
-    toolOutputBytes: Buffer.byteLength(redactedOutput, 'utf8'),
+    argsPreview: argsTel.preview,
+    argsTruncated: argsTel.truncated,
+    argsOriginalBytes: argsTel.originalBytes,
+    argsSha256: argsTel.sha256,
+    outputPreview: outputTel.preview,
+    outputTruncated: outputTel.truncated,
+    outputOriginalBytes: outputTel.originalBytes,
+    outputSha256: outputTel.sha256,
+    toolOutputBytes: outputTel.originalBytes,
     exitCode,
     timedOut,
-    ...(isError ? { errorPreview: redact(String(error ?? redactedOutput)).slice(0, 300) } : {}),
+    ...(errorPreview !== undefined ? { errorPreview } : {}),
   };
 }
