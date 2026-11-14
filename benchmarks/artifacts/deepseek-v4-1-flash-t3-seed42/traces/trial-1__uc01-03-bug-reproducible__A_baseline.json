@@ -1,0 +1,624 @@
+{
+  "schemaVersion": "2.0.0",
+  "experimentId": "uc01-controlled-seed42-2026-11-14T14-48-13-211Z",
+  "runId": "trial-1__uc01-03-bug-reproducible__A_baseline",
+  "arm": "A_baseline",
+  "caseId": "uc01-03-bug-reproducible",
+  "trial": 1,
+  "pairOrder": "AB",
+  "durationsMs": {
+    "setupMs": 5.26,
+    "agentMs": 41011.11,
+    "verifyMs": 228.55,
+    "cleanupMs": 0.42,
+    "wallClockMs": 41245.36
+  },
+  "requests": [
+    {
+      "turn": 1,
+      "usage": {
+        "uncachedInput": 225,
+        "cacheRead": 1536,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 95,
+        "totalInputAll": 1761,
+        "totalTokens": 1856
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 2,
+      "usage": {
+        "uncachedInput": 236,
+        "cacheRead": 1792,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 58,
+        "totalInputAll": 2028,
+        "totalTokens": 2086
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 3,
+      "usage": {
+        "uncachedInput": 428,
+        "cacheRead": 3840,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 216,
+        "totalInputAll": 4268,
+        "totalTokens": 4484
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 4,
+      "usage": {
+        "uncachedInput": 331,
+        "cacheRead": 4480,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 113,
+        "totalInputAll": 4811,
+        "totalTokens": 4924
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 5,
+      "usage": {
+        "uncachedInput": 254,
+        "cacheRead": 4864,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 158,
+        "totalInputAll": 5118,
+        "totalTokens": 5276
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 6,
+      "usage": {
+        "uncachedInput": 219,
+        "cacheRead": 5120,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 153,
+        "totalInputAll": 5339,
+        "totalTokens": 5492
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 7,
+      "usage": {
+        "uncachedInput": 143,
+        "cacheRead": 5376,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 45,
+        "totalInputAll": 5519,
+        "totalTokens": 5564
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 8,
+      "usage": {
+        "uncachedInput": 339,
+        "cacheRead": 5504,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 262,
+        "totalInputAll": 5843,
+        "totalTokens": 6105
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 9,
+      "usage": {
+        "uncachedInput": 243,
+        "cacheRead": 5888,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 58,
+        "totalInputAll": 6131,
+        "totalTokens": 6189
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 10,
+      "usage": {
+        "uncachedInput": 474,
+        "cacheRead": 6144,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 151,
+        "totalInputAll": 6618,
+        "totalTokens": 6769
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 11,
+      "usage": {
+        "uncachedInput": 157,
+        "cacheRead": 6656,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 84,
+        "totalInputAll": 6813,
+        "totalTokens": 6897
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 12,
+      "usage": {
+        "uncachedInput": 147,
+        "cacheRead": 6784,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 85,
+        "totalInputAll": 6931,
+        "totalTokens": 7016
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 13,
+      "usage": {
+        "uncachedInput": 250,
+        "cacheRead": 6784,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 448,
+        "totalInputAll": 7034,
+        "totalTokens": 7482
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    }
+  ],
+  "toolCalls": [
+    {
+      "toolCallId": "call_00_ET_5W4O5k7rFJeFwpx1bW608394",
+      "name": "list_dir",
+      "startedAtMonoMs": 2839.911,
+      "durationMs": 5,
+      "isError": false,
+      "toolOutputBytes": 205,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_01_ET_PpvcGGmmGJmNPFMcr3oq1133",
+      "name": "read_file",
+      "startedAtMonoMs": 2845.524,
+      "durationMs": 2,
+      "isError": false,
+      "toolOutputBytes": 6891,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_ET_NLmhdYxJ7MhRU8xOde6e3465",
+      "name": "read_file",
+      "startedAtMonoMs": 5103.693,
+      "durationMs": 1,
+      "isError": false,
+      "toolOutputBytes": 358,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_01_ET_vm89cY0lVecBA7lqWUrO0622",
+      "name": "run_tests",
+      "startedAtMonoMs": 5104.7,
+      "durationMs": 183,
+      "isError": false,
+      "toolOutputBytes": 1084,
+      "exitCode": 1,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_Jxx6LpWfQSixhhSXurbE9019",
+      "name": "read_file",
+      "startedAtMonoMs": 8785.827,
+      "durationMs": 2,
+      "isError": false,
+      "toolOutputBytes": 620,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_01_JBYxKwWhX0zn44ek27C72687",
+      "name": "read_file",
+      "startedAtMonoMs": 8787.268,
+      "durationMs": 1,
+      "isError": false,
+      "toolOutputBytes": 125,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_02_cg0hmvZ5vsjJxt0GfiI08700",
+      "name": "read_file",
+      "startedAtMonoMs": 8787.313,
+      "durationMs": 1,
+      "isError": false,
+      "toolOutputBytes": 301,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_xGvx8Ky1Kbd1LCBxmkAg6129",
+      "name": "read_file",
+      "startedAtMonoMs": 11990.503,
+      "durationMs": 2,
+      "isError": false,
+      "toolOutputBytes": 534,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_01_jKcoDT6rwXmhSsf50zrV4062",
+      "name": "read_file",
+      "startedAtMonoMs": 11992.363,
+      "durationMs": 1,
+      "isError": false,
+      "toolOutputBytes": 90,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_ET_j4TVdSwfi7hqe0tPw4xO0145",
+      "name": "apply_patch",
+      "startedAtMonoMs": 16354.088,
+      "durationMs": 1,
+      "isError": true,
+      "toolOutputBytes": 220,
+      "exitCode": null,
+      "timedOut": false,
+      "errorPreview": "Blocked by policy (cannot identify actions: invalid diff at line 13: unexpected line in hunk (must start with ' ', '-' or '+')). This action is never allowed; do not retry it in another form."
+    },
+    {
+      "toolCallId": "call_00_UlrxjNdNNJpfOKMTi1ir1657",
+      "name": "apply_patch",
+      "startedAtMonoMs": 19304.174,
+      "durationMs": 4,
+      "isError": false,
+      "toolOutputBytes": 57,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_ET_FgcMwMBsngLUUYG7otdL8011",
+      "name": "run_tests",
+      "startedAtMonoMs": 22152.241,
+      "durationMs": 182,
+      "isError": false,
+      "toolOutputBytes": 1152,
+      "exitCode": 1,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_dQFLga1eZdEsCsph8guS3053",
+      "name": "apply_patch",
+      "startedAtMonoMs": 26027.88,
+      "durationMs": 3,
+      "isError": false,
+      "toolOutputBytes": 38,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_ET_1SRLkY6YHP9Vz35DQiZN9014",
+      "name": "run_tests",
+      "startedAtMonoMs": 28756.607,
+      "durationMs": 183,
+      "isError": false,
+      "toolOutputBytes": 477,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_01_ET_KWB1bsxLZb2zLlREjv1E2491",
+      "name": "run_tests",
+      "startedAtMonoMs": 28939.126,
+      "durationMs": 189,
+      "isError": false,
+      "toolOutputBytes": 1326,
+      "exitCode": 1,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_jeCWxt94mjRHCwvZUatu1920",
+      "name": "run_command",
+      "startedAtMonoMs": 31734.159,
+      "durationMs": 1,
+      "isError": true,
+      "toolOutputBytes": 158,
+      "exitCode": 1,
+      "timedOut": false,
+      "errorPreview": "Blocked by policy (shell references a path outside the workspace). This action is never allowed; do not retry it in another form."
+    },
+    {
+      "toolCallId": "call_00_ET_9wgjPsFcFOqoCFRGDS1Q9021",
+      "name": "run_command",
+      "startedAtMonoMs": 34177.569,
+      "durationMs": 11,
+      "isError": false,
+      "toolOutputBytes": 70,
+      "exitCode": 127,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_ET_JvlRaw0gKDHYWBI0zLmC0744",
+      "name": "run_command",
+      "startedAtMonoMs": 36449.099,
+      "durationMs": 28,
+      "isError": false,
+      "toolOutputBytes": 14,
+      "exitCode": 0,
+      "timedOut": false
+    }
+  ],
+  "actualFilesChanged": [
+    "tests/test_repro_empty_table.py",
+    "tinydb_demo/pretty.py"
+  ],
+  "diffBytes": 1058,
+  "diffTruncated": false
+}

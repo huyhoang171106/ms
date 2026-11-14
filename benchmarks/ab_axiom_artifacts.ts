@@ -38,7 +38,7 @@ export interface ExperimentManifest {
   modelSelector: string;
   resolvedModel: string;
   pricing: ModelPricingEntry;
-  costKind: 'estimated';
+  costKind: 'estimated' | 'unpriced';
   msBinaryPath: string;
   fixtureDir: string;
   casesDir: string;
@@ -118,8 +118,8 @@ export interface RunRecord {
   toolErrors: Array<{ name: string; error: string }>;
   toolCallsByName: Record<string, { total: number; failures: number; nonZeroExits: number }>;
   usage: NormalizedUsage;
-  costDollars: number;
-  costKind: 'estimated';
+  costDollars: number | null;
+  costKind: 'estimated' | 'unpriced';
   pricingCanonicalId: string;
   filesChangedAgent: string[];
   filesChangedActual: string[];
@@ -348,7 +348,7 @@ export interface ArmSummary {
   totalCacheWriteTokens: number;
   totalOutputTokens: number;
   totalTokens: number;
-  totalCostDollars: number;
+  totalCostDollars: number | null;
   costPerAttemptedTask: number | null;
   costPerVerifiedSuccess: number | null;
 }
@@ -389,7 +389,11 @@ export function aggregateExperimentSummary(
     const armRuns = runs.filter((r) => r.arm === arm);
     const attempted = armRuns.length;
     const verifiedSuccess = armRuns.filter((r) => r.verified.overallPassed).length;
-    const totalCostDollars = Number(armRuns.reduce((s, r) => s + r.costDollars, 0).toFixed(6));
+    const pricedRuns = armRuns.filter((r) => r.costDollars !== null && r.costKind !== 'unpriced');
+    const allUnpriced = attempted > 0 && pricedRuns.length === 0;
+    const totalCostDollars = allUnpriced
+      ? null
+      : Number(pricedRuns.reduce((s, r) => s + (r.costDollars ?? 0), 0).toFixed(6));
     return {
       attempted,
       verifiedSuccess,
@@ -410,8 +414,10 @@ export function aggregateExperimentSummary(
       totalOutputTokens: armRuns.reduce((s, r) => s + r.usage.output, 0),
       totalTokens: armRuns.reduce((s, r) => s + r.usage.totalTokens, 0),
       totalCostDollars,
-      costPerAttemptedTask: attempted > 0 ? Number((totalCostDollars / attempted).toFixed(6)) : null,
-      costPerVerifiedSuccess: verifiedSuccess > 0 ? Number((totalCostDollars / verifiedSuccess).toFixed(6)) : null,
+      costPerAttemptedTask:
+        totalCostDollars !== null && attempted > 0 ? Number((totalCostDollars / attempted).toFixed(6)) : null,
+      costPerVerifiedSuccess:
+        totalCostDollars !== null && verifiedSuccess > 0 ? Number((totalCostDollars / verifiedSuccess).toFixed(6)) : null,
     };
   };
 
@@ -432,7 +438,9 @@ export function aggregateExperimentSummary(
       pairs += 1;
       passDeltaSum += (b.verified.overallPassed ? 1 : 0) - (a.verified.overallPassed ? 1 : 0);
       wallDeltas.push(b.wallClockMs - a.wallClockMs);
-      costDeltas.push(Number((b.costDollars - a.costDollars).toFixed(6)));
+      if (a.costDollars !== null && b.costDollars !== null) {
+        costDeltas.push(Number((b.costDollars - a.costDollars).toFixed(6)));
+      }
       turnDeltas.push(b.llmTurns - a.llmTurns);
     }
 

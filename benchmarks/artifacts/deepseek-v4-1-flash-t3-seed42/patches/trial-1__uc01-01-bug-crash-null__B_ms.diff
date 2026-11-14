@@ -1,0 +1,119 @@
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/cli.txt b/cli.txt
+--- a/cli.txt	1970-01-01 08:00:00.000000000 +0800
++++ b/cli.txt	2026-11-14 21:50:17.731580191 +0700
+@@ -0,0 +1,2 @@
++
++cli_exit=0
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/notes.json b/notes.json
+--- a/notes.json	1970-01-01 08:00:00.000000000 +0800
++++ b/notes.json	2026-11-14 21:49:57.549303675 +0700
+@@ -0,0 +1 @@
++[{"title": "hello", "body": "x"}]
+\ No newline at end of file
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/probe.txt b/probe.txt
+--- a/probe.txt	1970-01-01 08:00:00.000000000 +0800
++++ b/probe.txt	2026-11-14 21:49:53.989316640 +0700
+@@ -0,0 +1,4 @@
++hi
++/usr/bin/python3
++Python 3.12.3
++/home/hoang/.local/bin/pytest
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/pytest_out.txt b/pytest_out.txt
+--- a/pytest_out.txt	1970-01-01 08:00:00.000000000 +0800
++++ b/pytest_out.txt	2026-11-14 21:50:02.186407924 +0700
+@@ -0,0 +1,20 @@
++F                                                                        [100%]
++=================================== FAILURES ===================================
++_______________________ test_search_is_case_insensitive ________________________
++
++tmp_path = PosixPath('/dev/shm/hoang-agent-tmp/pytest-of-hoang/pytest-0/test_search_is_case_insensitiv0')
++
++    def test_search_is_case_insensitive(tmp_path):
++        store = Store(tmp_path / 'db.json')
++        store.add({'title': 'Hello World'})
++>       assert len(store.search('hello')) == 1
++E       AssertionError: assert 0 == 1
++E        +  where 0 = len([])
++E        +    where [] = search('hello')
++E        +      where search = <tinydb_demo.store.Store object at 0x766e333a2750>.search
++
++tests/test_search.py:7: AssertionError
++=========================== short test summary info ============================
++FAILED tests/test_search.py::test_search_is_case_insensitive - AssertionError...
++1 failed in 0.02s
++exit=1
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/repro.txt b/repro.txt
+--- a/repro.txt	1970-01-01 08:00:00.000000000 +0800
++++ b/repro.txt	2026-11-14 21:49:57.639357325 +0700
+@@ -0,0 +1,13 @@
++Traceback (most recent call last):
++  File "<frozen runpy>", line 198, in _run_module_as_main
++  File "<frozen runpy>", line 88, in _run_code
++  File "b/tinydb_demo/__main__.py", line 3, in <module>
++    main()
++  File "b/tinydb_demo/cli.py", line 13, in main
++    print(format_tags(note))
++          ^^^^^^^^^^^^^^^^^
++  File "b/tinydb_demo/format.py", line 2, in format_tags
++    return ', '.join(sorted(note['tags']))
++                            ~~~~^^^^^^^^
++KeyError: 'tags'
++exit=1
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/t1.txt b/t1.txt
+--- a/t1.txt	1970-01-01 08:00:00.000000000 +0800
++++ b/t1.txt	2026-11-14 21:50:12.361520805 +0700
+@@ -0,0 +1,23 @@
++.F.                                                                      [100%]
++=================================== FAILURES ===================================
++________________________ test_format_tags_missing_tags _________________________
++
++    def test_format_tags_missing_tags():
++>       assert format_tags({'title': 'hello', 'body': 'x'}) == ''
++               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++
++tests/test_format.py:9: 
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
++
++note = {'title': 'hello', 'body': 'x'}
++
++    def format_tags(note):
++>       return ', '.join(sorted(note['tags']))
++                                ^^^^^^^^^^^^
++E       KeyError: 'tags'
++
++tinydb_demo/format.py:2: KeyError
++=========================== short test summary info ============================
++FAILED tests/test_format.py::test_format_tags_missing_tags - KeyError: 'tags'
++1 failed, 2 passed in 0.02s
++exit=1
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/t2.txt b/t2.txt
+--- a/t2.txt	1970-01-01 08:00:00.000000000 +0800
++++ b/t2.txt	2026-11-14 21:50:17.700579849 +0700
+@@ -0,0 +1,3 @@
++...                                                                      [100%]
++3 passed in 0.01s
++fmt_exit=0
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tests/test_format.py b/tests/test_format.py
+--- a/tests/test_format.py	1970-01-01 08:00:00.000000000 +0800
++++ b/tests/test_format.py	2026-11-14 21:50:10.630501634 +0700
+@@ -0,0 +1,13 @@
++from tinydb_demo.format import format_tags
++
++
++def test_format_tags_joins_sorted_tags():
++    assert format_tags({'title': 'hello', 'tags': ['b', 'a']}) == 'a, b'
++
++
++def test_format_tags_missing_tags():
++    assert format_tags({'title': 'hello', 'body': 'x'}) == ''
++
++
++def test_format_tags_empty_tags():
++    assert format_tags({'title': 'hello', 'tags': []}) == ''
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tinydb_demo/format.py b/tinydb_demo/format.py
+--- a/tinydb_demo/format.py	2026-10-29 15:19:32.690682172 +0700
++++ b/tinydb_demo/format.py	2026-11-14 21:50:15.771558531 +0700
+@@ -1,2 +1,2 @@
+ def format_tags(note):
+-    return ', '.join(sorted(note['tags']))
++    return ', '.join(sorted(note.get('tags') or []))

@@ -10,7 +10,7 @@ import { DEFAULT_CONFIG, loadConfig } from '../../nhom-30/src/core/config.js';
 import { EventBus } from '../../nhom-30/src/core/event-bus.js';
 import { pythonBin } from '../../nhom-30/src/core/paths.js';
 import { buildSystemPrompt } from '../../nhom-30/src/core/prompt.js';
-import { redact } from '../../nhom-30/src/core/secrets.js';
+import { redact, registerSecret } from '../../nhom-30/src/core/secrets.js';
 import { SessionManager } from '../../nhom-30/src/core/session.js';
 import type { TokenUsage } from '../../nhom-30/src/core/types.js';
 import { loadCatalog } from '../../nhom-30/src/llm/catalog/index.js';
@@ -244,14 +244,15 @@ export class NormalizedCostTracker extends CostTracker {
       completionTokens,
       cacheReadInputTokens: cachedTokens,
     });
-    return calculateNormalizedCost(model, norm).costDollars;
+    return calculateNormalizedCost(model, norm).costDollars ?? 0;
   }
 
   override record(model: string, usage: TokenUsage): void {
     const norm = normalizeProviderUsage(usage);
     const calc = calculateNormalizedCost(model, norm);
-    this.normalizedCostDollars = Number((this.normalizedCostDollars + calc.costDollars).toFixed(6));
-    super.record(model, { ...usage, costEstimate: calc.costDollars });
+    const usd = calc.costDollars ?? 0;
+    this.normalizedCostDollars = Number((this.normalizedCostDollars + usd).toFixed(6));
+    super.record(model, { ...usage, costEstimate: usd });
   }
 
   override getSessionSummary(): SessionSummary {
@@ -481,7 +482,7 @@ export async function runSingle(
       toolCallsByName: byName,
       usage: aggregated.totals,
       costDollars: aggregated.cost.costDollars,
-      costKind: 'estimated',
+      costKind: aggregated.cost.costKind,
       pricingCanonicalId: aggregated.cost.pricing.canonicalId,
       filesChangedAgent: taskResult.filesChanged,
       filesChangedActual: diff.filesChanged,
@@ -509,8 +510,11 @@ export function buildInfraErrorRecord(
 ): RunRecord {
   const message = redact(err instanceof Error ? err.message : String(err));
   let pricingCanonicalId = model;
+  let isUnpriced = false;
   try {
-    pricingCanonicalId = resolveModelPricing(model).canonicalId;
+    const pricing = resolveModelPricing(model);
+    pricingCanonicalId = pricing.canonicalId;
+    isUnpriced = pricing.pricingStatus === 'unpriced';
   } catch {
     // Keep raw model identifier on infra error record if pricing lookup itself failed
   }
@@ -569,8 +573,8 @@ export function buildInfraErrorRecord(
     toolErrors: [],
     toolCallsByName: {},
     usage: makeEmptyUsage(),
-    costDollars: 0,
-    costKind: 'estimated',
+    costDollars: isUnpriced ? null : 0,
+    costKind: isUnpriced ? 'unpriced' : 'estimated',
     pricingCanonicalId,
     filesChangedAgent: [],
     filesChangedActual: [],
@@ -585,6 +589,9 @@ export async function runExperiment(
     runSingleFn?: typeof runSingle;
   },
 ): Promise<{ outDir: string; manifest: ExperimentManifest; runs: RunRecord[] }> {
+  if (process.env.TROLLLLM_API_KEY) {
+    registerSecret(process.env.TROLLLLM_API_KEY);
+  }
   const { experimentId, outDir, isResume } = resolveOutDir(opts);
   fs.mkdirSync(outDir, { recursive: true });
 
@@ -632,7 +639,7 @@ export async function runExperiment(
       modelSelector: effectiveOpts.model,
       resolvedModel,
       pricing,
-      costKind: 'estimated',
+      costKind: pricing.pricingStatus === 'unpriced' ? 'unpriced' : 'estimated',
       msBinaryPath: effectiveOpts.msBin,
       fixtureDir: effectiveOpts.fixtureDir,
       casesDir: effectiveOpts.casesDir,
@@ -672,7 +679,11 @@ export async function runExperiment(
   if (effectiveOpts.dryRun) {
     console.log(`[dry-run] Preflight OK. Experiment ${manifest.experimentId}`);
     console.log(`[dry-run] Mode=${manifest.mode}, Seed=${manifest.seed}, Trials=${manifest.trials}, Runs=${manifest.schedule.length}`);
-    console.log(`[dry-run] Pricing=${manifest.pricing.canonicalId} (in=$${manifest.pricing.inputPer1M}/1M, cacheRead=$${manifest.pricing.cacheReadPer1M}/1M, cacheWrite=$${manifest.pricing.cacheWrite5mPer1M}/1M, out=$${manifest.pricing.outputPer1M}/1M)`);
+    if (manifest.pricing.pricingStatus === 'unpriced') {
+      console.log(`[dry-run] Pricing=${manifest.pricing.canonicalId} (unpriced: token-only accounting)`);
+    } else {
+      console.log(`[dry-run] Pricing=${manifest.pricing.canonicalId} (in=$${manifest.pricing.inputPer1M}/1M, cacheRead=$${manifest.pricing.cacheReadPer1M}/1M, cacheWrite=$${manifest.pricing.cacheWrite5mPer1M}/1M, out=$${manifest.pricing.outputPer1M}/1M)`);
+    }
     console.log(`[dry-run] Baseline pytest: passed=${baselinePytest.passed.length}, failed=${baselinePytest.failed.length} (${baselinePytest.failed.join(', ')})`);
     return { outDir, manifest, runs: loadRunRecords(jsonlPath) };
   }
@@ -716,8 +727,9 @@ export async function runExperiment(
         baselinePytest,
       });
       appendRunRecord(jsonlPath, record);
+      const costLabel = record.costDollars === null ? 'unpriced' : `$${record.costDollars.toFixed(6)}`;
       console.log(
-        `  -> overall=${record.verified.overallPassed} target=${record.verified.targetFixed} noReg=${record.verified.noRegressions} turns=${record.llmTurns} tools=${record.toolCallsTotal} (err=${record.toolFailures}, nz=${record.commandNonZeroExits}) estCost=$${record.costDollars.toFixed(6)} time=${record.wallClockMs}ms`,
+        `  -> overall=${record.verified.overallPassed} target=${record.verified.targetFixed} noReg=${record.verified.noRegressions} turns=${record.llmTurns} tools=${record.toolCallsTotal} (err=${record.toolFailures}, nz=${record.commandNonZeroExits}) estCost=${costLabel} time=${record.wallClockMs}ms`,
       );
     } catch (err) {
       const errRec = buildInfraErrorRecord(

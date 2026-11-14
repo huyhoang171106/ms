@@ -73,6 +73,37 @@ describe('F1: Normalized Usage & Explicit Pricing', () => {
     expect(() => resolveModelPricing('anthropic/nonexistent-model-xyz')).toThrow(UnknownModelPricingError);
   });
 
+  test('supports unpriced models (trollllm/deepseek-v4-1-flash and allowUnpriced) with null USD and exact tokens', () => {
+    const p = resolveModelPricing('trollllm/deepseek-v4-1-flash');
+    expect(p.canonicalId).toBe('deepseek-v4-1-flash');
+    expect(p.pricingStatus).toBe('unpriced');
+    expect(p.inputPer1M).toBeNull();
+    expect(p.outputPer1M).toBeNull();
+
+    const pFallback = resolveModelPricing('custom/unpriced-model', { allowUnpriced: true });
+    expect(pFallback.pricingStatus).toBe('unpriced');
+    expect(pFallback.inputPer1M).toBeNull();
+
+    const usage = normalizeProviderUsage({
+      promptTokens: 500,
+      completionTokens: 120,
+      cacheReadInputTokens: 2000,
+      cacheCreationInputTokens: 0,
+    });
+    const calc = calculateNormalizedCost('trollllm/deepseek-v4-1-flash', usage);
+    expect(calc.costKind).toBe('unpriced');
+    expect(calc.costDollars).toBeNull();
+    expect(calc.breakdown.uncachedInputUsd).toBeNull();
+    expect(calc.breakdown.outputUsd).toBeNull();
+
+    const agg = aggregateNormalizedUsage([usage], 'trollllm/deepseek-v4-1-flash');
+    expect(agg.totals.uncachedInput).toBe(500);
+    expect(agg.totals.cacheRead).toBe(2000);
+    expect(agg.totals.output).toBe(120);
+    expect(agg.cost.costKind).toBe('unpriced');
+    expect(agg.cost.costDollars).toBeNull();
+  });
+
   test('does not double-subtract cache from promptTokens and reflects cacheRead & cacheWrite deltas', () => {
     const lowCache = normalizeProviderUsage({
       promptTokens: 100,

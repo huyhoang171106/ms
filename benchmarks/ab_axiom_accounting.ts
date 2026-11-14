@@ -12,26 +12,29 @@ export interface NormalizedUsage {
   totalTokens: number;
 }
 
+export type PricingStatus = 'priced' | 'free' | 'unpriced';
+
 export interface ModelPricingEntry {
   canonicalId: string;
-  inputPer1M: number;
-  outputPer1M: number;
-  cacheReadPer1M: number;
-  cacheWrite5mPer1M: number;
-  cacheWrite1hPer1M?: number;
+  pricingStatus?: PricingStatus;
+  inputPer1M: number | null;
+  outputPer1M: number | null;
+  cacheReadPer1M: number | null;
+  cacheWrite5mPer1M: number | null;
+  cacheWrite1hPer1M?: number | null;
   source: string;
   asOfDate: string;
 }
 
 export interface CostCalculation {
-  costDollars: number;
-  costKind: 'estimated';
+  costDollars: number | null;
+  costKind: 'estimated' | 'unpriced';
   pricing: ModelPricingEntry;
   breakdown: {
-    uncachedInputUsd: number;
-    cacheReadUsd: number;
-    cacheWriteUsd: number;
-    outputUsd: number;
+    uncachedInputUsd: number | null;
+    cacheReadUsd: number | null;
+    cacheWriteUsd: number | null;
+    outputUsd: number | null;
   };
 }
 
@@ -128,6 +131,27 @@ const MODEL_ALIASES: Record<string, string> = {
   'claude-haiku-5.5': 'claude-haiku-5.5',
 };
 
+const KNOWN_UNPRICED_MODELS = new Set<string>([
+  'deepseek-v4-1-flash',
+]);
+
+export interface ResolvePricingOptions {
+  allowUnpriced?: boolean;
+}
+
+function makeUnpricedEntry(canonicalId: string, source: string): ModelPricingEntry {
+  return {
+    canonicalId,
+    pricingStatus: 'unpriced',
+    inputPer1M: null,
+    outputPer1M: null,
+    cacheReadPer1M: null,
+    cacheWrite5mPer1M: null,
+    source,
+    asOfDate: PRICING_AS_OF_DATE,
+  };
+}
+
 export function finiteNonNegInt(value: number | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
@@ -139,11 +163,12 @@ export function canonicalizeModelId(model: string): string {
   return MODEL_ALIASES[withoutPrefix] ?? withoutPrefix;
 }
 
-export function resolveModelPricing(model: string): ModelPricingEntry {
+export function resolveModelPricing(model: string, opts?: ResolvePricingOptions): ModelPricingEntry {
   const normalized = model.toLowerCase().trim();
   if (normalized.endsWith(':free') || normalized.includes(':free')) {
     return {
       canonicalId: normalized,
+      pricingStatus: 'free',
       inputPer1M: 0,
       outputPer1M: 0,
       cacheReadPer1M: 0,
@@ -155,15 +180,23 @@ export function resolveModelPricing(model: string): ModelPricingEntry {
 
   const canonical = canonicalizeModelId(model);
   if (MODEL_PRICING_TABLE[canonical]) {
-    return MODEL_PRICING_TABLE[canonical];
+    return { pricingStatus: 'priced', ...MODEL_PRICING_TABLE[canonical] };
   }
 
   const candidates = Object.keys(MODEL_PRICING_TABLE).sort((a, b) => b.length - a.length);
   for (const key of candidates) {
     const suffix = canonical.slice(key.length);
     if (canonical.startsWith(key) && /^(?:-\d{4,}|-latest|-v\d+|\/|$)/.test(suffix)) {
-      return MODEL_PRICING_TABLE[key];
+      return { pricingStatus: 'priced', ...MODEL_PRICING_TABLE[key] };
     }
+  }
+
+  if (KNOWN_UNPRICED_MODELS.has(canonical)) {
+    return makeUnpricedEntry(canonical, 'unpriced-catalog-model');
+  }
+
+  if (opts?.allowUnpriced) {
+    return makeUnpricedEntry(canonical, 'unpriced-fallback');
   }
 
   throw new UnknownModelPricingError(model, canonical);
@@ -197,10 +230,34 @@ export function normalizeProviderUsage(
   };
 }
 
-export function calculateNormalizedCost(model: string, usage: NormalizedUsage): CostCalculation {
-  const pricing = resolveModelPricing(model);
+export function calculateNormalizedCost(
+  model: string,
+  usage: NormalizedUsage,
+  opts?: ResolvePricingOptions,
+): CostCalculation {
+  const pricing = resolveModelPricing(model, opts);
+  if (
+    pricing.pricingStatus === 'unpriced' ||
+    pricing.inputPer1M === null ||
+    pricing.outputPer1M === null ||
+    pricing.cacheReadPer1M === null ||
+    pricing.cacheWrite5mPer1M === null
+  ) {
+    return {
+      costDollars: null,
+      costKind: 'unpriced',
+      pricing,
+      breakdown: {
+        uncachedInputUsd: null,
+        cacheReadUsd: null,
+        cacheWriteUsd: null,
+        outputUsd: null,
+      },
+    };
+  }
+
   const cacheWriteRate =
-    usage.cacheWriteType === 'ephemeral_1h' && pricing.cacheWrite1hPer1M !== undefined
+    usage.cacheWriteType === 'ephemeral_1h' && pricing.cacheWrite1hPer1M != null
       ? pricing.cacheWrite1hPer1M
       : pricing.cacheWrite5mPer1M;
 
@@ -226,6 +283,7 @@ export function calculateNormalizedCost(model: string, usage: NormalizedUsage): 
 export function aggregateNormalizedUsage(
   requests: readonly NormalizedUsage[],
   model: string,
+  opts?: ResolvePricingOptions,
 ): { totals: NormalizedUsage; cost: CostCalculation } {
   const totals: NormalizedUsage = {
     uncachedInput: 0,
@@ -247,6 +305,6 @@ export function aggregateNormalizedUsage(
 
   return {
     totals,
-    cost: calculateNormalizedCost(model, totals),
+    cost: calculateNormalizedCost(model, totals, opts),
   };
 }
