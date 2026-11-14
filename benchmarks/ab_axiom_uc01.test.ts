@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { planSandbox } from '../../nhom-30/src/tools/sandbox.js';
 import { registerSecret } from '../../nhom-30/src/core/secrets.js';
 import { destructiveReason } from '../../nhom-30/src/tools/bash.js';
 import {
@@ -21,6 +23,7 @@ import {
 } from './ab_axiom_artifacts.js';
 import { captureBaselinePytest, verifyWorkspace } from './ab_axiom_oracle.js';
 import {
+  buildControlledPytestInvocation,
   buildToolTraceEntry,
   getExecutionPolicySnapshot,
   validatePytestTarget,
@@ -288,6 +291,16 @@ describe('F3: Controlled Execution Parity', () => {
       'tests/test_search.py::test_search_is_case_insensitive',
     );
     expect(destructiveReason('rm -rf /')).not.toBeNull();
+  });
+
+  test('buildControlledPytestInvocation executes pytest inside sandbox without missing site-packages', () => {
+    const ws = makeTempFixtureCopy();
+    const plan = planSandbox(ws, { allowUnsandboxed: true });
+    const inv = buildControlledPytestInvocation(ws, 'tests/test_search.py', plan);
+    const res = spawnSync(inv.file, inv.args, { cwd: ws, encoding: 'utf8', timeout: 15_000 });
+    const combined = `${res.stdout ?? ''}\n${res.stderr ?? ''}`;
+    expect(combined).not.toContain('No module named pytest');
+    expect(combined).toContain('test_search_is_case_insensitive');
   });
 });
 

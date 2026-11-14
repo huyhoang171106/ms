@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -133,19 +133,46 @@ export function buildControlledPytestInvocation(
   return { file: python, args: argv.slice(1), validatedTarget };
 }
 
+const pythonReadableRootsCache = new Map<string, string[]>();
+
 function resolvePythonReadableRoots(python: string): string[] {
+  const cached = pythonReadableRootsCache.get(python);
+  if (cached) return cached;
+
   const roots = new Set<string>();
-  const dir = path.dirname(python);
-  roots.add(dir);
+  roots.add(path.dirname(python));
   try {
     roots.add(path.dirname(fs.realpathSync(python)));
   } catch {
     // ignore
   }
+
+  const probe = spawnSync(
+    python,
+    [
+      '-I',
+      '-c',
+      "import os, site, sys; print(sys.prefix, sys.base_prefix, site.getusersitepackages(), os.path.dirname(os.path.realpath(sys.executable)), sep='\\n')",
+    ],
+    { encoding: 'utf8', timeout: 15_000 },
+  );
+  if (probe.status === 0 && probe.stdout) {
+    for (const line of probe.stdout.split('\n').map((l) => l.trim()).filter(Boolean)) {
+      roots.add(line);
+      try {
+        roots.add(fs.realpathSync(line));
+      } catch {
+        // user site dir may not exist
+      }
+    }
+  }
+
   for (const p of ['/usr', '/lib', '/lib64', '/etc', '/bin']) {
     if (fs.existsSync(p)) roots.add(p);
   }
-  return [...roots];
+  const result = [...roots].filter((r) => r !== '/');
+  pythonReadableRootsCache.set(python, result);
+  return result;
 }
 
 function toWorkspaceRel(filePath: string, context?: ToolExecutionContext): string {

@@ -1,17 +1,17 @@
 {
   "schemaVersion": "2.0.0",
-  "experimentId": "uc01-controlled-seed42-2026-11-14T14-48-13-211Z",
+  "experimentId": "uc01-controlled-seed42-2026-11-14T15-05-32-528Z",
   "runId": "trial-1__uc01-01-bug-crash-null__A_baseline",
   "arm": "A_baseline",
   "caseId": "uc01-01-bug-crash-null",
   "trial": 1,
   "pairOrder": "BA",
   "durationsMs": {
-    "setupMs": 6.73,
-    "agentMs": 28792.98,
-    "verifyMs": 235.83,
-    "cleanupMs": 0.29,
-    "wallClockMs": 29035.85
+    "setupMs": 1.93,
+    "agentMs": 40160.19,
+    "verifyMs": 215.1,
+    "cleanupMs": 0.15,
+    "wallClockMs": 40377.37
   },
   "requests": [
     {
@@ -21,9 +21,9 @@
         "cacheRead": 1664,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 117,
+        "output": 100,
         "totalInputAll": 1817,
-        "totalTokens": 1934
+        "totalTokens": 1917
       },
       "cost": {
         "costDollars": null,
@@ -49,13 +49,13 @@
     {
       "turn": 2,
       "usage": {
-        "uncachedInput": 1020,
+        "uncachedInput": 297,
         "cacheRead": 1792,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 174,
-        "totalInputAll": 2812,
-        "totalTokens": 2986
+        "output": 145,
+        "totalInputAll": 2089,
+        "totalTokens": 2234
       },
       "cost": {
         "costDollars": null,
@@ -81,13 +81,13 @@
     {
       "turn": 3,
       "usage": {
-        "uncachedInput": 194,
-        "cacheRead": 2944,
+        "uncachedInput": 535,
+        "cacheRead": 3968,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 206,
-        "totalInputAll": 3138,
-        "totalTokens": 3344
+        "output": 82,
+        "totalInputAll": 4503,
+        "totalTokens": 4585
       },
       "cost": {
         "costDollars": null,
@@ -113,13 +113,13 @@
     {
       "turn": 4,
       "usage": {
-        "uncachedInput": 323,
-        "cacheRead": 3072,
+        "uncachedInput": 494,
+        "cacheRead": 4480,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 88,
-        "totalInputAll": 3395,
-        "totalTokens": 3483
+        "output": 485,
+        "totalInputAll": 4974,
+        "totalTokens": 5459
       },
       "cost": {
         "costDollars": null,
@@ -145,13 +145,13 @@
     {
       "turn": 5,
       "usage": {
-        "uncachedInput": 237,
-        "cacheRead": 3456,
+        "uncachedInput": 251,
+        "cacheRead": 5376,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 166,
-        "totalInputAll": 3693,
-        "totalTokens": 3859
+        "output": 126,
+        "totalInputAll": 5627,
+        "totalTokens": 5753
       },
       "cost": {
         "costDollars": null,
@@ -177,13 +177,13 @@
     {
       "turn": 6,
       "usage": {
-        "uncachedInput": 431,
-        "cacheRead": 3840,
+        "uncachedInput": 155,
+        "cacheRead": 5632,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 116,
-        "totalInputAll": 4271,
-        "totalTokens": 4387
+        "output": 111,
+        "totalInputAll": 5787,
+        "totalTokens": 5898
       },
       "cost": {
         "costDollars": null,
@@ -209,13 +209,13 @@
     {
       "turn": 7,
       "usage": {
-        "uncachedInput": 383,
-        "cacheRead": 4352,
+        "uncachedInput": 256,
+        "cacheRead": 5760,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 220,
-        "totalInputAll": 4735,
-        "totalTokens": 4955
+        "output": 90,
+        "totalInputAll": 6016,
+        "totalTokens": 6106
       },
       "cost": {
         "costDollars": null,
@@ -241,13 +241,13 @@
     {
       "turn": 8,
       "usage": {
-        "uncachedInput": 252,
-        "cacheRead": 4736,
+        "uncachedInput": 262,
+        "cacheRead": 5888,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 59,
-        "totalInputAll": 4988,
-        "totalTokens": 5047
+        "output": 43,
+        "totalInputAll": 6150,
+        "totalTokens": 6193
       },
       "cost": {
         "costDollars": null,
@@ -273,13 +273,13 @@
     {
       "turn": 9,
       "usage": {
-        "uncachedInput": 241,
-        "cacheRead": 4864,
+        "uncachedInput": 239,
+        "cacheRead": 6016,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 135,
-        "totalInputAll": 5105,
-        "totalTokens": 5240
+        "output": 115,
+        "totalInputAll": 6255,
+        "totalTokens": 6370
       },
       "cost": {
         "costDollars": null,
@@ -305,13 +305,13 @@
     {
       "turn": 10,
       "usage": {
-        "uncachedInput": 391,
-        "cacheRead": 5120,
+        "uncachedInput": 365,
+        "cacheRead": 6272,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 435,
-        "totalInputAll": 5511,
-        "totalTokens": 5946
+        "output": 288,
+        "totalInputAll": 6637,
+        "totalTokens": 6925
       },
       "cost": {
         "costDollars": null,
@@ -337,13 +337,13 @@
     {
       "turn": 11,
       "usage": {
-        "uncachedInput": 429,
-        "cacheRead": 5632,
+        "uncachedInput": 169,
+        "cacheRead": 6784,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 113,
-        "totalInputAll": 6061,
-        "totalTokens": 6174
+        "output": 46,
+        "totalInputAll": 6953,
+        "totalTokens": 6999
       },
       "cost": {
         "costDollars": null,
@@ -369,13 +369,13 @@
     {
       "turn": 12,
       "usage": {
-        "uncachedInput": 227,
-        "cacheRead": 6016,
+        "uncachedInput": 677,
+        "cacheRead": 6912,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 184,
-        "totalInputAll": 6243,
-        "totalTokens": 6427
+        "output": 82,
+        "totalInputAll": 7589,
+        "totalTokens": 7671
       },
       "cost": {
         "costDollars": null,
@@ -401,13 +401,13 @@
     {
       "turn": 13,
       "usage": {
-        "uncachedInput": 379,
-        "cacheRead": 6400,
+        "uncachedInput": 275,
+        "cacheRead": 7552,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 217,
-        "totalInputAll": 6779,
-        "totalTokens": 6996
+        "output": 137,
+        "totalInputAll": 7827,
+        "totalTokens": 7964
       },
       "cost": {
         "costDollars": null,
@@ -433,13 +433,173 @@
     {
       "turn": 14,
       "usage": {
-        "uncachedInput": 190,
-        "cacheRead": 6912,
+        "uncachedInput": 224,
+        "cacheRead": 7808,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 469,
-        "totalInputAll": 7102,
-        "totalTokens": 7571
+        "output": 46,
+        "totalInputAll": 8032,
+        "totalTokens": 8078
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 15,
+      "usage": {
+        "uncachedInput": 558,
+        "cacheRead": 8064,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 194,
+        "totalInputAll": 8622,
+        "totalTokens": 8816
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 16,
+      "usage": {
+        "uncachedInput": 138,
+        "cacheRead": 8704,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 46,
+        "totalInputAll": 8842,
+        "totalTokens": 8888
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 17,
+      "usage": {
+        "uncachedInput": 193,
+        "cacheRead": 8832,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 93,
+        "totalInputAll": 9025,
+        "totalTokens": 9118
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 18,
+      "usage": {
+        "uncachedInput": 398,
+        "cacheRead": 9088,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 260,
+        "totalInputAll": 9486,
+        "totalTokens": 9746
+      },
+      "cost": {
+        "costDollars": null,
+        "costKind": "unpriced",
+        "pricing": {
+          "canonicalId": "deepseek-v4-1-flash",
+          "pricingStatus": "unpriced",
+          "inputPer1M": null,
+          "outputPer1M": null,
+          "cacheReadPer1M": null,
+          "cacheWrite5mPer1M": null,
+          "source": "unpriced-catalog-model",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": null,
+          "cacheReadUsd": null,
+          "cacheWriteUsd": null,
+          "outputUsd": null
+        }
+      }
+    },
+    {
+      "turn": 19,
+      "usage": {
+        "uncachedInput": 188,
+        "cacheRead": 9600,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 558,
+        "totalInputAll": 9788,
+        "totalTokens": 10346
       },
       "cost": {
         "costDollars": null,
@@ -465,9 +625,9 @@
   ],
   "toolCalls": [
     {
-      "toolCallId": "call_00_ET_XB3BXMk0ouuwnKjYwrK15015",
+      "toolCallId": "call_00_ET_pyBnxnEVjzYrU2glGU1Z3999",
       "name": "list_dir",
-      "startedAtMonoMs": 1405.384,
+      "startedAtMonoMs": 1392.896,
       "durationMs": 1,
       "isError": false,
       "toolOutputBytes": 205,
@@ -475,29 +635,119 @@
       "timedOut": false
     },
     {
-      "toolCallId": "call_01_ET_mFHmQGG2PLo6Rzh4yx2r2308",
-      "name": "run_command",
-      "startedAtMonoMs": 1406.43,
-      "durationMs": 11,
+      "toolCallId": "call_01_ET_aFjZhZjmQpOajx9XFdeR0589",
+      "name": "read_file",
+      "startedAtMonoMs": 1394.465,
+      "durationMs": 1,
       "isError": false,
-      "toolOutputBytes": 1641,
+      "toolOutputBytes": 6891,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_ET_AcWIeSAWnXPDrzogspjd0217",
+      "name": "read_file",
+      "startedAtMonoMs": 3027.629,
+      "durationMs": 3,
+      "isError": false,
+      "toolOutputBytes": 125,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_01_ET_TzVUgNQH5odKittETidz4041",
+      "name": "read_file",
+      "startedAtMonoMs": 3030.552,
+      "durationMs": 2,
+      "isError": false,
+      "toolOutputBytes": 534,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_02_ET_ltGWLoPWCgadyZIowcco2062",
+      "name": "read_file",
+      "startedAtMonoMs": 3030.72,
+      "durationMs": 1,
+      "isError": false,
+      "toolOutputBytes": 301,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_03_ET_XQS8NotLWI5PFAXraNTA1480",
+      "name": "read_file",
+      "startedAtMonoMs": 3030.84,
+      "durationMs": 2,
+      "isError": false,
+      "toolOutputBytes": 620,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_J9YkybL1YUINhfWicYBB8162",
+      "name": "run_tests",
+      "startedAtMonoMs": 4790.037,
+      "durationMs": 167,
+      "isError": false,
+      "toolOutputBytes": 1084,
+      "exitCode": 1,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_01_yJEfUmU4LCLvrV7iMtKS2902",
+      "name": "read_file",
+      "startedAtMonoMs": 4957.041,
+      "durationMs": 0,
+      "isError": false,
+      "toolOutputBytes": 358,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_m8QFKJrMLhzKFBla2Nbc6399",
+      "name": "read_file",
+      "startedAtMonoMs": 8769.28,
+      "durationMs": 1,
+      "isError": false,
+      "toolOutputBytes": 426,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_01_NTcmQOP54teQeZv8hXph6396",
+      "name": "run_command",
+      "startedAtMonoMs": 8770.356,
+      "durationMs": 9,
+      "isError": false,
+      "toolOutputBytes": 136,
       "exitCode": 0,
       "timedOut": false
     },
     {
-      "toolCallId": "call_00_VVKm6AiWhiYB7YQyKBMS8492",
+      "toolCallId": "call_00_ET_O3tWUqumb36Jfiu9yZro1592",
       "name": "run_command",
-      "startedAtMonoMs": 3357.659,
-      "durationMs": 95,
+      "startedAtMonoMs": 10399.58,
+      "durationMs": 22,
       "isError": false,
-      "toolOutputBytes": 195,
+      "toolOutputBytes": 62,
       "exitCode": 0,
       "timedOut": false
     },
     {
-      "toolCallId": "call_01_9vDH6u8iAJI000THhJsv4884",
+      "toolCallId": "call_00_OGfWlumA9inm2KKQENzf5196",
       "name": "run_command",
-      "startedAtMonoMs": 3452.771,
+      "startedAtMonoMs": 12309.506,
+      "durationMs": 7,
+      "isError": false,
+      "toolOutputBytes": 298,
+      "exitCode": 1,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_Vgj8nkETRffqVSBVRDcJ5149",
+      "name": "run_command",
+      "startedAtMonoMs": 14279.965,
       "durationMs": 0,
       "isError": true,
       "toolOutputBytes": 158,
@@ -506,131 +756,19 @@
       "errorPreview": "Blocked by policy (shell references a path outside the workspace). This action is never allowed; do not retry it in another form."
     },
     {
-      "toolCallId": "call_00_6EzAnf29aKPp3AbhAOVx6658",
-      "name": "list_dir",
-      "startedAtMonoMs": 5550.506,
-      "durationMs": 2,
-      "isError": true,
-      "toolOutputBytes": 66,
-      "exitCode": null,
-      "timedOut": false,
-      "errorPreview": "Directory not found: evals/fixtures/uc01"
-    },
-    {
-      "toolCallId": "call_01_2uYIzzRcbEncy9EECgYK9212",
-      "name": "read_file",
-      "startedAtMonoMs": 5551.72,
-      "durationMs": 1,
-      "isError": true,
-      "toolOutputBytes": 65,
-      "exitCode": null,
-      "timedOut": false,
-      "errorPreview": "File or directory not found: AGENTS.md"
-    },
-    {
-      "toolCallId": "call_00_Ug6kKIqoaYZGlDzJ7eeu6739",
+      "toolCallId": "call_00_ET_6o6fZkoecbrrPcFl63w16617",
       "name": "run_command",
-      "startedAtMonoMs": 7219.924,
-      "durationMs": 8,
-      "isError": false,
-      "toolOutputBytes": 403,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_MVmpIdhIYJFDqiB1kqoo1751",
-      "name": "read_file",
-      "startedAtMonoMs": 8910.82,
-      "durationMs": 3,
-      "isError": false,
-      "toolOutputBytes": 125,
-      "exitCode": null,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_01_xTuUvIXNzXtukZWhpaXx8758",
-      "name": "read_file",
-      "startedAtMonoMs": 8914.214,
-      "durationMs": 2,
-      "isError": false,
-      "toolOutputBytes": 534,
-      "exitCode": null,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_02_5k7MN0gUsf1gmRRBNwFp6131",
-      "name": "read_file",
-      "startedAtMonoMs": 8914.333,
-      "durationMs": 2,
-      "isError": false,
-      "toolOutputBytes": 426,
-      "exitCode": null,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_03_IusVlw65wqA29cNgKnl19234",
-      "name": "read_file",
-      "startedAtMonoMs": 8914.489,
-      "durationMs": 1,
-      "isError": false,
-      "toolOutputBytes": 301,
-      "exitCode": null,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_ET_knJhLSEvzj1Pjrv24n6h3467",
-      "name": "read_file",
-      "startedAtMonoMs": 10669.144,
-      "durationMs": 2,
-      "isError": false,
-      "toolOutputBytes": 620,
-      "exitCode": null,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_01_ET_BRxilBumn1cudeuHDtpw4591",
-      "name": "read_file",
-      "startedAtMonoMs": 10671.431,
-      "durationMs": 1,
-      "isError": false,
-      "toolOutputBytes": 358,
-      "exitCode": null,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_02_ET_VfvHWAdR6mb14PjzD2J84216",
-      "name": "read_file",
-      "startedAtMonoMs": 10671.533,
-      "durationMs": 1,
-      "isError": false,
-      "toolOutputBytes": 109,
-      "exitCode": null,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_vQLIiZY5EP3Ix3vd9Fpp2950",
-      "name": "run_command",
-      "startedAtMonoMs": 12706.293,
+      "startedAtMonoMs": 15772.579,
       "durationMs": 9,
       "isError": false,
-      "toolOutputBytes": 63,
+      "toolOutputBytes": 125,
       "exitCode": 0,
       "timedOut": false
     },
     {
-      "toolCallId": "call_00_ET_aPyhP0rN7EtAuHZFiyxj5979",
+      "toolCallId": "call_00_ET_Bv2WdzJpTCupoGfr2O0w2754",
       "name": "run_command",
-      "startedAtMonoMs": 14028.148,
-      "durationMs": 10,
-      "isError": false,
-      "toolOutputBytes": 128,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_ET_TvzjhaXt5oMTgGZBc0me5607",
-      "name": "run_command",
-      "startedAtMonoMs": 15889.793,
+      "startedAtMonoMs": 17451.578,
       "durationMs": 109,
       "isError": false,
       "toolOutputBytes": 717,
@@ -638,71 +776,110 @@
       "timedOut": false
     },
     {
-      "toolCallId": "call_00_Jwcl92YnyjSE1QTYY2992947",
+      "toolCallId": "call_00_TE9CMaWQcxHrUAnrwbGV6380",
       "name": "apply_patch",
-      "startedAtMonoMs": 19264.918,
-      "durationMs": 0,
-      "isError": true,
-      "toolOutputBytes": 195,
-      "exitCode": null,
-      "timedOut": false,
-      "errorPreview": "Blocked by policy (cannot identify actions: invalid diff at line 3: hunk before a ---/+++ file header). This action is never allowed; do not retry it in another form."
-    },
-    {
-      "toolCallId": "call_01_1c5GuRen4ToOBhEGL3P39873",
-      "name": "write_file",
-      "startedAtMonoMs": 19265.527,
+      "startedAtMonoMs": 20271.3,
       "durationMs": 2,
       "isError": false,
-      "toolOutputBytes": 129,
+      "toolOutputBytes": 59,
       "exitCode": null,
       "timedOut": false
     },
     {
-      "toolCallId": "call_00_7jZeBUIwr6j9c3LkwLfB4729",
-      "name": "edit",
-      "startedAtMonoMs": 20691.824,
-      "durationMs": 2,
-      "isError": false,
-      "toolOutputBytes": 160,
-      "exitCode": null,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_ET_ITewE6gsNxhf9f8i1gC94150",
-      "name": "run_command",
-      "startedAtMonoMs": 22580.848,
-      "durationMs": 49,
-      "isError": false,
-      "toolOutputBytes": 12,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_01_ET_cctqkmJUJmJtHZHXLIfI6817",
+      "toolCallId": "call_00_ET_EDTngxwmjfflIVpn4rHu4244",
       "name": "run_tests",
-      "startedAtMonoMs": 22630.591,
-      "durationMs": 187,
+      "startedAtMonoMs": 22083.871,
+      "durationMs": 242,
       "isError": false,
-      "toolOutputBytes": 1356,
+      "toolOutputBytes": 2146,
+      "exitCode": 2,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_rYy2p0CZFwWC1xB5A9O05301",
+      "name": "read_file",
+      "startedAtMonoMs": 23894.961,
+      "durationMs": 1,
+      "isError": false,
+      "toolOutputBytes": 478,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_qzC207nkc43PibwPl3fi0790",
+      "name": "edit",
+      "startedAtMonoMs": 26020.434,
+      "durationMs": 2,
+      "isError": false,
+      "toolOutputBytes": 171,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_ET_7rIXamm5iLdPSYVGh5Cv9863",
+      "name": "run_tests",
+      "startedAtMonoMs": 27541.735,
+      "durationMs": 157,
+      "isError": false,
+      "toolOutputBytes": 2093,
       "exitCode": 1,
       "timedOut": false
     },
     {
-      "toolCallId": "call_00_SFJzeGXXr52JB3sdRMdb9337",
-      "name": "run_command",
-      "startedAtMonoMs": 25162.604,
-      "durationMs": 12,
+      "toolCallId": "call_00_2vsWBwW12glslczX5VVO0477",
+      "name": "apply_patch",
+      "startedAtMonoMs": 29821.712,
+      "durationMs": 1,
       "isError": false,
-      "toolOutputBytes": 285,
+      "toolOutputBytes": 38,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_ET_Q81hAoXNdkWnWq0OLiLX2154",
+      "name": "run_tests",
+      "startedAtMonoMs": 31601.15,
+      "durationMs": 155,
+      "isError": false,
+      "toolOutputBytes": 580,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_ET_JXkXdJOTOh3CpIMqw0Wk3073",
+      "name": "run_tests",
+      "startedAtMonoMs": 33447.679,
+      "durationMs": 159,
+      "isError": false,
+      "toolOutputBytes": 1429,
+      "exitCode": 1,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_01_ET_54gLL2Mgmbg3wIaPQt046798",
+      "name": "run_command",
+      "startedAtMonoMs": 33606.859,
+      "durationMs": 35,
+      "isError": false,
+      "toolOutputBytes": 6,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_00_ZOSqIpIdksQ2zQye0rAY2966",
+      "name": "run_command",
+      "startedAtMonoMs": 35863.087,
+      "durationMs": 13,
+      "isError": false,
+      "toolOutputBytes": 109,
       "exitCode": 0,
       "timedOut": false
     }
   ],
   "actualFilesChanged": [
-    "tests/test_format.py",
+    "tests/test_repro_missing_tags.py",
     "tinydb_demo/format.py"
   ],
-  "diffBytes": 1032,
+  "diffBytes": 1134,
   "diffTruncated": false
 }

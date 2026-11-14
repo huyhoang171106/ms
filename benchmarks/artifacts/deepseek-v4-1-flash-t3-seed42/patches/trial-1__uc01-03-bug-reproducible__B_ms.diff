@@ -1,13 +1,6 @@
-diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/probe.txt b/probe.txt
---- a/probe.txt	1970-01-01 08:00:00.000000000 +0800
-+++ b/probe.txt	2026-11-14 21:49:33.558087736 +0700
-@@ -0,0 +1,3 @@
-+/home/hoang/.local/bin/pytest
-+/usr/bin/python3
-+HAVE 9.1.1
 diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tests/test_pretty.py b/tests/test_pretty.py
 --- a/tests/test_pretty.py	1970-01-01 08:00:00.000000000 +0800
-+++ b/tests/test_pretty.py	2026-11-14 21:49:07.553793444 +0700
++++ b/tests/test_pretty.py	2026-11-14 22:06:25.555053294 +0700
 @@ -0,0 +1,9 @@
 +from tinydb_demo.pretty import render_table
 +
@@ -16,5 +9,15 @@ diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/t
 +    assert render_table([]) == ''
 +
 +
-+def test_render_table_renders_headers_of_first_row():
-+    assert render_table([{'alpha': 1, 'beta': 2}, {'alpha': 3, 'beta': 4}]) == 'alpha  beta'
++def test_render_table_renders_headers():
++    assert render_table([{'title': 'a', 'body': 'b'}]) == 'title  body'
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tinydb_demo/pretty.py b/tinydb_demo/pretty.py
+--- a/tinydb_demo/pretty.py	2026-10-29 15:19:32.690682172 +0700
++++ b/tinydb_demo/pretty.py	2026-11-14 22:06:29.329087661 +0700
+@@ -1,4 +1,6 @@
+ def render_table(rows):
++    if not rows:
++        return ''
+     headers = list(rows[0])
+     widths = [len(header) for header in headers]
+     return '  '.join(_pad_header(header, width) for header, width in zip(headers, widths))

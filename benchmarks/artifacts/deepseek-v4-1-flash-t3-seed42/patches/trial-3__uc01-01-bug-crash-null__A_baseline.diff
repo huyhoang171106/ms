@@ -1,25 +1,29 @@
 diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tests/test_repro_missing_tags.py b/tests/test_repro_missing_tags.py
 --- a/tests/test_repro_missing_tags.py	1970-01-01 08:00:00.000000000 +0800
-+++ b/tests/test_repro_missing_tags.py	2026-11-14 21:58:20.927528392 +0700
-@@ -0,0 +1,14 @@
++++ b/tests/test_repro_missing_tags.py	2026-11-14 22:18:18.803435974 +0700
+@@ -0,0 +1,17 @@
++import json
++import sys
++
 +from tinydb_demo.cli import main
 +from tinydb_demo.format import format_tags
 +
 +
-+def test_format_tags_handles_note_without_tags():
++def test_format_tags_without_tags_key():
 +    assert format_tags({'title': 'hello', 'body': 'x'}) == ''
 +
 +
-+def test_list_does_not_crash_on_note_without_tags(tmp_path, monkeypatch, capsys):
-+    (tmp_path / 'notes.json').write_text('[{"title": "hello", "body": "x"}]')
++def test_cli_list_tags_with_untagged_note(tmp_path, monkeypatch, capsys):
++    (tmp_path / 'notes.json').write_text(json.dumps([{'title': 'hello', 'body': 'x'}]))
 +    monkeypatch.chdir(tmp_path)
-+    monkeypatch.setattr('sys.argv', ['tinydb_demo', 'list', '--format', 'tags'])
++    monkeypatch.setattr(sys, 'argv', ['tinydb_demo', 'list', '--format', 'tags'])
 +    main()
 +    assert capsys.readouterr().out == '\n'
 diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tinydb_demo/format.py b/tinydb_demo/format.py
 --- a/tinydb_demo/format.py	2026-10-29 15:19:32.690682172 +0700
-+++ b/tinydb_demo/format.py	2026-11-14 21:58:25.677574214 +0700
-@@ -1,2 +1,2 @@
++++ b/tinydb_demo/format.py	2026-11-14 22:18:23.297475738 +0700
+@@ -1,2 +1,3 @@
  def format_tags(note):
 -    return ', '.join(sorted(note['tags']))
-+    return ', '.join(sorted(note.get('tags') or []))
++    tags = note.get('tags') or []
++    return ', '.join(sorted(tags))

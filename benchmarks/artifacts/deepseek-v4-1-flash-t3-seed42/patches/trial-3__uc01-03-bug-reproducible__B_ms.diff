@@ -1,19 +1,19 @@
 diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tests/test_pretty.py b/tests/test_pretty.py
 --- a/tests/test_pretty.py	1970-01-01 08:00:00.000000000 +0800
-+++ b/tests/test_pretty.py	2026-11-14 21:56:33.973485522 +0700
++++ b/tests/test_pretty.py	2026-11-14 22:17:14.569867247 +0700
 @@ -0,0 +1,9 @@
 +from tinydb_demo.pretty import render_table
 +
 +
-+def test_render_table_with_rows():
-+    assert render_table([{'title': 'Hello', 'body': 'World'}]) == 'title  body'
-+
-+
-+def test_render_table_empty():
++def test_render_table_empty_rows_returns_empty_string():
 +    assert render_table([]) == ''
++
++
++def test_render_table_single_row_renders_header():
++    assert render_table([{'title': 'Hello'}]) == 'title'
 diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tinydb_demo/pretty.py b/tinydb_demo/pretty.py
 --- a/tinydb_demo/pretty.py	2026-10-29 15:19:32.690682172 +0700
-+++ b/tinydb_demo/pretty.py	2026-11-14 21:56:51.835661261 +0700
++++ b/tinydb_demo/pretty.py	2026-11-14 22:17:17.549893649 +0700
 @@ -1,4 +1,6 @@
  def render_table(rows):
 +    if not rows:

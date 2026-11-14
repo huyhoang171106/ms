@@ -1,17 +1,17 @@
 {
   "schemaVersion": "2.0.0",
-  "experimentId": "uc01-controlled-seed42-2026-11-14T14-48-13-211Z",
+  "experimentId": "uc01-controlled-seed42-2026-11-14T15-05-32-528Z",
   "runId": "trial-3__uc01-01-bug-crash-null__A_baseline",
   "arm": "A_baseline",
   "caseId": "uc01-01-bug-crash-null",
   "trial": 3,
   "pairOrder": "AB",
   "durationsMs": {
-    "setupMs": 1.96,
-    "agentMs": 48968.65,
-    "verifyMs": 222.52,
-    "cleanupMs": 0.2,
-    "wallClockMs": 49193.35
+    "setupMs": 3.25,
+    "agentMs": 35501.53,
+    "verifyMs": 190.99,
+    "cleanupMs": 0.26,
+    "wallClockMs": 35696.05
   },
   "requests": [
     {
@@ -21,9 +21,9 @@
         "cacheRead": 1664,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 95,
+        "output": 122,
         "totalInputAll": 1817,
-        "totalTokens": 1912
+        "totalTokens": 1939
       },
       "cost": {
         "costDollars": null,
@@ -49,13 +49,13 @@
     {
       "turn": 2,
       "usage": {
-        "uncachedInput": 383,
+        "uncachedInput": 1407,
         "cacheRead": 1792,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 155,
-        "totalInputAll": 2175,
-        "totalTokens": 2330
+        "output": 170,
+        "totalInputAll": 3199,
+        "totalTokens": 3369
       },
       "cost": {
         "costDollars": null,
@@ -81,13 +81,13 @@
     {
       "turn": 3,
       "usage": {
-        "uncachedInput": 521,
-        "cacheRead": 2304,
+        "uncachedInput": 774,
+        "cacheRead": 3328,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 144,
-        "totalInputAll": 2825,
-        "totalTokens": 2969
+        "output": 277,
+        "totalInputAll": 4102,
+        "totalTokens": 4379
       },
       "cost": {
         "costDollars": null,
@@ -113,13 +113,13 @@
     {
       "turn": 4,
       "usage": {
-        "uncachedInput": 330,
-        "cacheRead": 2944,
+        "uncachedInput": 721,
+        "cacheRead": 4352,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 198,
-        "totalInputAll": 3274,
-        "totalTokens": 3472
+        "output": 322,
+        "totalInputAll": 5073,
+        "totalTokens": 5395
       },
       "cost": {
         "costDollars": null,
@@ -145,13 +145,13 @@
     {
       "turn": 5,
       "usage": {
-        "uncachedInput": 248,
-        "cacheRead": 3328,
+        "uncachedInput": 315,
+        "cacheRead": 5376,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 220,
-        "totalInputAll": 3576,
-        "totalTokens": 3796
+        "output": 54,
+        "totalInputAll": 5691,
+        "totalTokens": 5745
       },
       "cost": {
         "costDollars": null,
@@ -177,13 +177,13 @@
     {
       "turn": 6,
       "usage": {
-        "uncachedInput": 175,
-        "cacheRead": 3712,
+        "uncachedInput": 482,
+        "cacheRead": 5632,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 86,
-        "totalInputAll": 3887,
-        "totalTokens": 3973
+        "output": 1148,
+        "totalInputAll": 6114,
+        "totalTokens": 7262
       },
       "cost": {
         "costDollars": null,
@@ -209,13 +209,13 @@
     {
       "turn": 7,
       "usage": {
-        "uncachedInput": 200,
-        "cacheRead": 3840,
+        "uncachedInput": 157,
+        "cacheRead": 7168,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 173,
-        "totalInputAll": 4040,
-        "totalTokens": 4213
+        "output": 397,
+        "totalInputAll": 7325,
+        "totalTokens": 7722
       },
       "cost": {
         "costDollars": null,
@@ -241,13 +241,13 @@
     {
       "turn": 8,
       "usage": {
-        "uncachedInput": 321,
-        "cacheRead": 4096,
+        "uncachedInput": 198,
+        "cacheRead": 7552,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 191,
-        "totalInputAll": 4417,
-        "totalTokens": 4608
+        "output": 46,
+        "totalInputAll": 7750,
+        "totalTokens": 7796
       },
       "cost": {
         "costDollars": null,
@@ -273,13 +273,13 @@
     {
       "turn": 9,
       "usage": {
-        "uncachedInput": 172,
-        "cacheRead": 4480,
+        "uncachedInput": 917,
+        "cacheRead": 7680,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 68,
-        "totalInputAll": 4652,
-        "totalTokens": 4720
+        "output": 269,
+        "totalInputAll": 8597,
+        "totalTokens": 8866
       },
       "cost": {
         "costDollars": null,
@@ -305,13 +305,13 @@
     {
       "turn": 10,
       "usage": {
-        "uncachedInput": 380,
-        "cacheRead": 4608,
+        "uncachedInput": 188,
+        "cacheRead": 8704,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 310,
-        "totalInputAll": 4988,
-        "totalTokens": 5298
+        "output": 46,
+        "totalInputAll": 8892,
+        "totalTokens": 8938
       },
       "cost": {
         "costDollars": null,
@@ -337,13 +337,13 @@
     {
       "turn": 11,
       "usage": {
-        "uncachedInput": 554,
-        "cacheRead": 5248,
+        "uncachedInput": 217,
+        "cacheRead": 8832,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 393,
-        "totalInputAll": 5802,
-        "totalTokens": 6195
+        "output": 213,
+        "totalInputAll": 9049,
+        "totalTokens": 9262
       },
       "cost": {
         "costDollars": null,
@@ -369,13 +369,13 @@
     {
       "turn": 12,
       "usage": {
-        "uncachedInput": 1927,
-        "cacheRead": 6144,
+        "uncachedInput": 406,
+        "cacheRead": 9216,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 165,
-        "totalInputAll": 8071,
-        "totalTokens": 8236
+        "output": 234,
+        "totalInputAll": 9622,
+        "totalTokens": 9856
       },
       "cost": {
         "costDollars": null,
@@ -401,13 +401,13 @@
     {
       "turn": 13,
       "usage": {
-        "uncachedInput": 318,
-        "cacheRead": 8192,
+        "uncachedInput": 184,
+        "cacheRead": 9728,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 453,
-        "totalInputAll": 8510,
-        "totalTokens": 8963
+        "output": 90,
+        "totalInputAll": 9912,
+        "totalTokens": 10002
       },
       "cost": {
         "costDollars": null,
@@ -433,205 +433,13 @@
     {
       "turn": 14,
       "usage": {
-        "uncachedInput": 201,
-        "cacheRead": 8832,
+        "uncachedInput": 209,
+        "cacheRead": 9856,
         "cacheWrite": 0,
         "cacheWriteType": "ephemeral_5m",
-        "output": 453,
-        "totalInputAll": 9033,
-        "totalTokens": 9486
-      },
-      "cost": {
-        "costDollars": null,
-        "costKind": "unpriced",
-        "pricing": {
-          "canonicalId": "deepseek-v4-1-flash",
-          "pricingStatus": "unpriced",
-          "inputPer1M": null,
-          "outputPer1M": null,
-          "cacheReadPer1M": null,
-          "cacheWrite5mPer1M": null,
-          "source": "unpriced-catalog-model",
-          "asOfDate": "2026-11-14"
-        },
-        "breakdown": {
-          "uncachedInputUsd": null,
-          "cacheReadUsd": null,
-          "cacheWriteUsd": null,
-          "outputUsd": null
-        }
-      }
-    },
-    {
-      "turn": 15,
-      "usage": {
-        "uncachedInput": 170,
-        "cacheRead": 9344,
-        "cacheWrite": 0,
-        "cacheWriteType": "ephemeral_5m",
-        "output": 46,
-        "totalInputAll": 9514,
-        "totalTokens": 9560
-      },
-      "cost": {
-        "costDollars": null,
-        "costKind": "unpriced",
-        "pricing": {
-          "canonicalId": "deepseek-v4-1-flash",
-          "pricingStatus": "unpriced",
-          "inputPer1M": null,
-          "outputPer1M": null,
-          "cacheReadPer1M": null,
-          "cacheWrite5mPer1M": null,
-          "source": "unpriced-catalog-model",
-          "asOfDate": "2026-11-14"
-        },
-        "breakdown": {
-          "uncachedInputUsd": null,
-          "cacheReadUsd": null,
-          "cacheWriteUsd": null,
-          "outputUsd": null
-        }
-      }
-    },
-    {
-      "turn": 16,
-      "usage": {
-        "uncachedInput": 909,
-        "cacheRead": 9472,
-        "cacheWrite": 0,
-        "cacheWriteType": "ephemeral_5m",
-        "output": 346,
-        "totalInputAll": 10381,
-        "totalTokens": 10727
-      },
-      "cost": {
-        "costDollars": null,
-        "costKind": "unpriced",
-        "pricing": {
-          "canonicalId": "deepseek-v4-1-flash",
-          "pricingStatus": "unpriced",
-          "inputPer1M": null,
-          "outputPer1M": null,
-          "cacheReadPer1M": null,
-          "cacheWrite5mPer1M": null,
-          "source": "unpriced-catalog-model",
-          "asOfDate": "2026-11-14"
-        },
-        "breakdown": {
-          "uncachedInputUsd": null,
-          "cacheReadUsd": null,
-          "cacheWriteUsd": null,
-          "outputUsd": null
-        }
-      }
-    },
-    {
-      "turn": 17,
-      "usage": {
-        "uncachedInput": 257,
-        "cacheRead": 10496,
-        "cacheWrite": 0,
-        "cacheWriteType": "ephemeral_5m",
-        "output": 82,
-        "totalInputAll": 10753,
-        "totalTokens": 10835
-      },
-      "cost": {
-        "costDollars": null,
-        "costKind": "unpriced",
-        "pricing": {
-          "canonicalId": "deepseek-v4-1-flash",
-          "pricingStatus": "unpriced",
-          "inputPer1M": null,
-          "outputPer1M": null,
-          "cacheReadPer1M": null,
-          "cacheWrite5mPer1M": null,
-          "source": "unpriced-catalog-model",
-          "asOfDate": "2026-11-14"
-        },
-        "breakdown": {
-          "uncachedInputUsd": null,
-          "cacheReadUsd": null,
-          "cacheWriteUsd": null,
-          "outputUsd": null
-        }
-      }
-    },
-    {
-      "turn": 18,
-      "usage": {
-        "uncachedInput": 532,
-        "cacheRead": 10752,
-        "cacheWrite": 0,
-        "cacheWriteType": "ephemeral_5m",
-        "output": 345,
-        "totalInputAll": 11284,
-        "totalTokens": 11629
-      },
-      "cost": {
-        "costDollars": null,
-        "costKind": "unpriced",
-        "pricing": {
-          "canonicalId": "deepseek-v4-1-flash",
-          "pricingStatus": "unpriced",
-          "inputPer1M": null,
-          "outputPer1M": null,
-          "cacheReadPer1M": null,
-          "cacheWrite5mPer1M": null,
-          "source": "unpriced-catalog-model",
-          "asOfDate": "2026-11-14"
-        },
-        "breakdown": {
-          "uncachedInputUsd": null,
-          "cacheReadUsd": null,
-          "cacheWriteUsd": null,
-          "outputUsd": null
-        }
-      }
-    },
-    {
-      "turn": 19,
-      "usage": {
-        "uncachedInput": 151,
-        "cacheRead": 11520,
-        "cacheWrite": 0,
-        "cacheWriteType": "ephemeral_5m",
-        "output": 197,
-        "totalInputAll": 11671,
-        "totalTokens": 11868
-      },
-      "cost": {
-        "costDollars": null,
-        "costKind": "unpriced",
-        "pricing": {
-          "canonicalId": "deepseek-v4-1-flash",
-          "pricingStatus": "unpriced",
-          "inputPer1M": null,
-          "outputPer1M": null,
-          "cacheReadPer1M": null,
-          "cacheWrite5mPer1M": null,
-          "source": "unpriced-catalog-model",
-          "asOfDate": "2026-11-14"
-        },
-        "breakdown": {
-          "uncachedInputUsd": null,
-          "cacheReadUsd": null,
-          "cacheWriteUsd": null,
-          "outputUsd": null
-        }
-      }
-    },
-    {
-      "turn": 20,
-      "usage": {
-        "uncachedInput": 405,
-        "cacheRead": 11776,
-        "cacheWrite": 0,
-        "cacheWriteType": "ephemeral_5m",
-        "output": 594,
-        "totalInputAll": 12181,
-        "totalTokens": 12775
+        "output": 485,
+        "totalInputAll": 10065,
+        "totalTokens": 10550
       },
       "cost": {
         "costDollars": null,
@@ -657,9 +465,9 @@
   ],
   "toolCalls": [
     {
-      "toolCallId": "call_00_ET_zUkATLd1JlsRlJO5yCtH2250",
+      "toolCallId": "call_00_ET_VH0hKdPc1G98R8kogdwd7520",
       "name": "list_dir",
-      "startedAtMonoMs": 1390.788,
+      "startedAtMonoMs": 1549.49,
       "durationMs": 1,
       "isError": false,
       "toolOutputBytes": 205,
@@ -667,231 +475,110 @@
       "timedOut": false
     },
     {
-      "toolCallId": "call_01_ET_mNYcjcLteB7JBsXtjGkX8739",
+      "toolCallId": "call_01_ET_Kf2PrBhQXBVdi9YjwlZv6914",
       "name": "run_command",
-      "startedAtMonoMs": 1391.647,
-      "durationMs": 8,
+      "startedAtMonoMs": 1550.331,
+      "durationMs": 7,
       "isError": false,
-      "toolOutputBytes": 324,
+      "toolOutputBytes": 4747,
       "exitCode": 0,
       "timedOut": false
     },
     {
-      "toolCallId": "call_00_mhAcJx8t3NAjlJB15jJT0760",
+      "toolCallId": "call_00_8Xde7iYZgPmNUBle5QfR2144",
+      "name": "run_command",
+      "startedAtMonoMs": 3389.456,
+      "durationMs": 16,
+      "isError": false,
+      "toolOutputBytes": 1784,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_01_wRJTKEN6kHC2tSO6PPPB4651",
       "name": "read_file",
-      "startedAtMonoMs": 2844.61,
-      "durationMs": 2,
+      "startedAtMonoMs": 3406.189,
+      "durationMs": 1,
       "isError": false,
       "toolOutputBytes": 125,
       "exitCode": null,
       "timedOut": false
     },
     {
-      "toolCallId": "call_01_mXXEGRT5ucCkxUdqwCP55992",
+      "toolCallId": "call_00_BZmPsUgghfOq4YLMCCS25990",
+      "name": "run_command",
+      "startedAtMonoMs": 5739.169,
+      "durationMs": 10,
+      "isError": false,
+      "toolOutputBytes": 1061,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_01_4WOKHafnY36wlWImUpmP5154",
       "name": "read_file",
-      "startedAtMonoMs": 2847.478,
-      "durationMs": 3,
+      "startedAtMonoMs": 5748.569,
+      "durationMs": 1,
       "isError": false,
       "toolOutputBytes": 534,
       "exitCode": null,
       "timedOut": false
     },
     {
-      "toolCallId": "call_02_hPzWVc4Ja2GjsUnlaLmL6715",
+      "toolCallId": "call_00_8AJgaL6lYacNjOjlov2k8725",
       "name": "read_file",
-      "startedAtMonoMs": 2847.644,
-      "durationMs": 2,
+      "startedAtMonoMs": 8285.7,
+      "durationMs": 1,
       "isError": false,
       "toolOutputBytes": 620,
       "exitCode": null,
       "timedOut": false
     },
     {
-      "toolCallId": "call_03_uHnosnXpABmkIDLCnWnI7160",
+      "toolCallId": "call_01_MdZZBG2D90jhH6wipria3576",
       "name": "read_file",
-      "startedAtMonoMs": 2847.748,
-      "durationMs": 2,
+      "startedAtMonoMs": 8286.86,
+      "durationMs": 1,
       "isError": false,
       "toolOutputBytes": 358,
       "exitCode": null,
       "timedOut": false
     },
     {
-      "toolCallId": "call_00_ET_qSK96zS8U8r5UHlJfzsM7458",
+      "toolCallId": "call_00_ET_Yo7BlBbYDeYNQrYMyeXu6988",
       "name": "read_file",
-      "startedAtMonoMs": 4443.151,
-      "durationMs": 2,
+      "startedAtMonoMs": 9742.882,
+      "durationMs": 1,
       "isError": false,
       "toolOutputBytes": 301,
       "exitCode": null,
       "timedOut": false
     },
     {
-      "toolCallId": "call_01_ET_B5peT9a5fWwf1svfRGo00046",
-      "name": "read_file",
-      "startedAtMonoMs": 4444.74,
-      "durationMs": 1,
-      "isError": false,
-      "toolOutputBytes": 426,
-      "exitCode": null,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_02_ET_ZmxD1ETI13MpYiv2r1Z62049",
-      "name": "read_file",
-      "startedAtMonoMs": 4444.779,
-      "durationMs": 1,
-      "isError": false,
-      "toolOutputBytes": 109,
-      "exitCode": null,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_03_ET_Ix8w0b9cCPpPF0DV4dqX5357",
-      "name": "read_file",
-      "startedAtMonoMs": 4444.795,
-      "durationMs": 1,
-      "isError": false,
-      "toolOutputBytes": 90,
-      "exitCode": null,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_hCrcVNqMG0CcOjl69iCr1377",
-      "name": "run_command",
-      "startedAtMonoMs": 6622.035,
-      "durationMs": 1,
-      "isError": false,
-      "toolOutputBytes": 318,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_q6DApsC44gATmtCoIi5w9298",
-      "name": "run_command",
-      "startedAtMonoMs": 8968.594,
-      "durationMs": 10,
-      "isError": false,
-      "toolOutputBytes": 145,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_01_FZNecb9vGfPr7hZfoEcf5442",
-      "name": "run_command",
-      "startedAtMonoMs": 8979.436,
-      "durationMs": 8,
-      "isError": false,
-      "toolOutputBytes": 44,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_ET_cmCT0B9gYThjMciro2FL0622",
-      "name": "run_command",
-      "startedAtMonoMs": 10757.674,
-      "durationMs": 146,
-      "isError": false,
-      "toolOutputBytes": 141,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_47oOB52YO4GMkDVm7fNa6119",
-      "name": "run_command",
-      "startedAtMonoMs": 12726.187,
-      "durationMs": 28,
-      "isError": false,
-      "toolOutputBytes": 62,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_01_FEikbk9kYOoK8pKrMn3I9970",
-      "name": "run_command",
-      "startedAtMonoMs": 12753.685,
-      "durationMs": 270,
-      "isError": false,
-      "toolOutputBytes": 571,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_pG6gJheR1mZNUSSjGoZv1281",
-      "name": "run_command",
-      "startedAtMonoMs": 15449.803,
-      "durationMs": 0,
-      "isError": true,
-      "toolOutputBytes": 158,
-      "exitCode": 1,
-      "timedOut": false,
-      "errorPreview": "Blocked by policy (shell references a path outside the workspace). This action is never allowed; do not retry it in another form."
-    },
-    {
-      "toolCallId": "call_00_ET_7AzpJ0d4JENNlbJZLoyo7240",
-      "name": "run_command",
-      "startedAtMonoMs": 16915.496,
-      "durationMs": 11,
-      "isError": false,
-      "toolOutputBytes": 540,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_uWiVCxn78gMVRjche9bS9381",
-      "name": "run_command",
-      "startedAtMonoMs": 19517.728,
-      "durationMs": 256,
-      "isError": false,
-      "toolOutputBytes": 953,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_01_8EjoXHHwDuSidsBkqbg30124",
-      "name": "run_command",
-      "startedAtMonoMs": 19774.581,
-      "durationMs": 107,
-      "isError": false,
-      "toolOutputBytes": 717,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_JTtZmYsk7h82RijhAD6y9408",
-      "name": "read_file",
-      "startedAtMonoMs": 23183.171,
-      "durationMs": 1,
-      "isError": false,
-      "toolOutputBytes": 6891,
-      "exitCode": null,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_5w37AjBfB5NCtFP2gJ6T5701",
+      "toolCallId": "call_01_ET_3VwNFPvwCCBxWyNT0gws9661",
       "name": "run_tests",
-      "startedAtMonoMs": 25555.631,
-      "durationMs": 189,
+      "startedAtMonoMs": 9743.681,
+      "durationMs": 147,
       "isError": false,
       "toolOutputBytes": 1084,
       "exitCode": 1,
       "timedOut": false
     },
     {
-      "toolCallId": "call_00_MdjISRrEIl3hsBOrqicv0774",
+      "toolCallId": "call_00_ATFQ7wkhCwL9I5Z8W9682544",
       "name": "apply_patch",
-      "startedAtMonoMs": 29173.224,
-      "durationMs": 1,
+      "startedAtMonoMs": 16762.65,
+      "durationMs": 0,
       "isError": true,
-      "toolOutputBytes": 224,
+      "toolOutputBytes": 220,
       "exitCode": null,
       "timedOut": false,
-      "errorPreview": "Blocked by policy (cannot identify actions: invalid diff at line 3: hunk ends early: expected 0 old and 18 new lines, got 0 and 14). This action is never allowed; do not retry it in another form."
+      "errorPreview": "Blocked by policy (cannot identify actions: invalid diff at line 21: unexpected line in hunk (must start with ' ', '-' or '+')). This action is never allowed; do not retry it in another form."
     },
     {
-      "toolCallId": "call_00_6pJwKDjuE9vgp54gwap24316",
+      "toolCallId": "call_00_zNKLCxB0sbHYN7xxAxAf8464",
       "name": "apply_patch",
-      "startedAtMonoMs": 31857.768,
+      "startedAtMonoMs": 19387.01,
       "durationMs": 1,
       "isError": false,
       "toolOutputBytes": 59,
@@ -899,19 +586,19 @@
       "timedOut": false
     },
     {
-      "toolCallId": "call_00_ET_7hj3XqQce8nQOzYuha1H1753",
+      "toolCallId": "call_00_ET_cXqmAQ3kmgSZAwISpFBz4394",
       "name": "run_tests",
-      "startedAtMonoMs": 33468.068,
-      "durationMs": 181,
+      "startedAtMonoMs": 20810.828,
+      "durationMs": 149,
       "isError": false,
-      "toolOutputBytes": 2646,
+      "toolOutputBytes": 2612,
       "exitCode": 1,
       "timedOut": false
     },
     {
-      "toolCallId": "call_00_quwlmpDwES3ouoHlB5K74600",
+      "toolCallId": "call_00_LNnqD6olfLWzpeU6WXpG7837",
       "name": "apply_patch",
-      "startedAtMonoMs": 36606.937,
+      "startedAtMonoMs": 23880.069,
       "durationMs": 2,
       "isError": false,
       "toolOutputBytes": 38,
@@ -919,53 +606,53 @@
       "timedOut": false
     },
     {
-      "toolCallId": "call_00_ET_ifygzElzRoIq31tjEyUz4371",
+      "toolCallId": "call_00_ET_TCxt28ckYCzWYQUrldSj1909",
       "name": "run_tests",
-      "startedAtMonoMs": 38314.709,
-      "durationMs": 209,
+      "startedAtMonoMs": 25401.16,
+      "durationMs": 142,
       "isError": false,
-      "toolOutputBytes": 497,
+      "toolOutputBytes": 480,
       "exitCode": 0,
       "timedOut": false
     },
     {
-      "toolCallId": "call_01_ET_NTN7PImPvjTCOJJqYtEv7052",
-      "name": "run_tests",
-      "startedAtMonoMs": 38524.065,
-      "durationMs": 197,
+      "toolCallId": "call_00_hNxAOhGSEtpIbd7rd82S1090",
+      "name": "run_command",
+      "startedAtMonoMs": 27961.955,
+      "durationMs": 10,
       "isError": false,
-      "toolOutputBytes": 1346,
+      "toolOutputBytes": 63,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "call_01_zz9hlnbs7fPne2s7Z5xE5545",
+      "name": "run_tests",
+      "startedAtMonoMs": 27972.294,
+      "durationMs": 152,
+      "isError": false,
+      "toolOutputBytes": 1329,
       "exitCode": 1,
       "timedOut": false
     },
     {
-      "toolCallId": "call_00_81YTOv8xSao3o2qvkgn54683",
+      "toolCallId": "call_00_D22JxYMmUxIdT8Np1Pjd9295",
       "name": "run_command",
-      "startedAtMonoMs": 41514.75,
-      "durationMs": 55,
+      "startedAtMonoMs": 30411.823,
+      "durationMs": 37,
       "isError": false,
-      "toolOutputBytes": 23,
+      "toolOutputBytes": 95,
       "exitCode": 0,
       "timedOut": false
     },
     {
-      "toolCallId": "call_01_vbKCnX5c4senw8BNjcuv6689",
-      "name": "run_command",
-      "startedAtMonoMs": 41570.452,
-      "durationMs": 51,
+      "toolCallId": "call_00_7ybNQfXMuDrhnO7GVYos8594",
+      "name": "read_file",
+      "startedAtMonoMs": 32297.71,
+      "durationMs": 1,
       "isError": false,
-      "toolOutputBytes": 34,
-      "exitCode": 0,
-      "timedOut": false
-    },
-    {
-      "toolCallId": "call_00_2GBIhbXCOoNvNVtJhNJy2080",
-      "name": "run_command",
-      "startedAtMonoMs": 44572.244,
-      "durationMs": 13,
-      "isError": false,
-      "toolOutputBytes": 1033,
-      "exitCode": 0,
+      "toolOutputBytes": 158,
+      "exitCode": null,
       "timedOut": false
     }
   ],
@@ -973,6 +660,6 @@
     "tests/test_repro_missing_tags.py",
     "tinydb_demo/format.py"
   ],
-  "diffBytes": 1238,
+  "diffBytes": 1276,
   "diffTruncated": false
 }
