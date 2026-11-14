@@ -205,7 +205,11 @@ pub async fn exec_and_distill(
 
     let cleaned_lines = clean_and_collapse_lines(&combined);
     let kind = detect_command_kind(command_args, &cmd_display);
-    let failure_markers = has_failure_markers(&cleaned_lines);
+    let is_git_inspection = matches!(
+        kind,
+        CmdKind::GitStatus | CmdKind::GitDiff | CmdKind::GitLog
+    );
+    let failure_markers = !is_git_inspection && has_failure_markers(&cleaned_lines);
     let effective_passed = exit_code == 0 && !timed_out && !failure_markers;
     let body = if effective_passed && cleaned_lines.len() <= 15 && raw_bytes <= 800 {
         cleaned_lines
@@ -382,6 +386,8 @@ fn has_failure_markers(lines: &[String]) -> bool {
             || l.contains("AssertionError")
             || l.contains("panicked at")
             || l.contains("test result: FAILED")
+            || l.contains("ERROR collecting")
+            || l.contains("error TS")
             || t.starts_with("ERROR ")
             || t.starts_with("ERROR:")
             || NONZERO_FAIL_COUNT_RE.is_match(l)
@@ -521,15 +527,18 @@ fn distill_pytest(passed: bool, lines: &[String]) -> String {
             || l.starts_with("E   ")
             || l.starts_with("FAILED ")
             || l.contains("FAILED")
+            || l.contains("ERROR collecting")
             || t.starts_with("ERROR ")
             || t.starts_with("ERROR:")
             || t.starts_with("File \"")
+            || t.starts_with("> ")
             || l.contains("ModuleNotFoundError")
             || l.contains("ImportError")
             || l.contains("SyntaxError")
             || l.contains("AssertionError")
             || l.contains("panicked at")
             || l.contains("Error:")
+            || NONZERO_FAIL_COUNT_RE.is_match(l)
         {
             kept.push(l.clone());
         }
@@ -951,5 +960,61 @@ mod tests {
         assert!(res.distilled.contains("ModuleNotFoundError"));
         assert!(res.distilled.contains("--- context snippets ---"));
         assert!(res.distilled.contains("import missing_pkg"));
+    }
+
+    #[test]
+    fn piped_tsc_and_truncated_pytest_summary_are_not_misclassified() {
+        let tsc_lines = vec![
+            "src/index.ts(10,5): error TS2322: Type 'string' is not assignable to type 'number'."
+                .to_string(),
+        ];
+        let tsc_out = distill_by_kind(CmdKind::TscOrEslint, true, &tsc_lines);
+        assert_ne!(tsc_out, "0 errors");
+        assert!(tsc_out.contains("error TS2322"));
+
+        let tail_pytest_lines = vec![
+            ">       assert actual == expected".to_string(),
+            "E       AssertionError: assert 1 == 2".to_string(),
+            "=== 1 failed, 2 passed in 0.12s ===".to_string(),
+        ];
+        let pytest_out = distill_by_kind(CmdKind::Pytest, true, &tail_pytest_lines);
+        assert!(!pytest_out.contains("pytest passed"));
+        assert!(pytest_out.contains("assert actual == expected"));
+        assert!(pytest_out.contains("1 failed, 2 passed"));
+    }
+
+    #[tokio::test]
+    async fn exec_git_diff_with_test_keywords_stays_ok() {
+        let dir = tempfile::tempdir().unwrap();
+        let run_git = |args: &[&str]| {
+            let status = std::process::Command::new("git")
+                .args(args)
+                .current_dir(dir.path())
+                .status()
+                .unwrap();
+            assert!(status.success(), "git {args:?} failed");
+        };
+        run_git(&["init"]);
+        run_git(&["config", "user.email", "test@example.com"]);
+        run_git(&["config", "user.name", "Test"]);
+        std::fs::write(dir.path().join("t.py"), "def test_x():\n    pass\n").unwrap();
+        run_git(&["add", "t.py"]);
+        run_git(&["commit", "-m", "init"]);
+        std::fs::write(
+            dir.path().join("t.py"),
+            "def test_x():\n    raise AssertionError()\n",
+        )
+        .unwrap();
+
+        let res = exec_and_distill(dir.path(), &["git diff".to_string()], 5_000)
+            .await
+            .unwrap();
+        assert_eq!(res.exit_code, 0);
+        assert!(
+            res.distilled.starts_with("[OK | exit:0"),
+            "git diff should stay OK: {}",
+            res.distilled
+        );
+        assert!(!res.distilled.contains("--- context snippets ---"));
     }
 }

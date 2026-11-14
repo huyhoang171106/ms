@@ -765,6 +765,8 @@ export function hasFailureMarkers(lines: readonly string[]): boolean {
       l.includes("AssertionError") ||
       l.includes("panicked at") ||
       l.includes("test result: FAILED") ||
+      l.includes("ERROR collecting") ||
+      l.includes("error TS") ||
       t.startsWith("ERROR ") ||
       t.startsWith("ERROR:") ||
       NONZERO_FAIL_COUNT_RE.test(l)
@@ -805,15 +807,18 @@ function distillPytestLines(passed: boolean, lines: readonly string[]): string {
       l.startsWith("E   ") ||
       l.startsWith("FAILED ") ||
       l.includes("FAILED") ||
+      l.includes("ERROR collecting") ||
       t.startsWith("ERROR ") ||
       t.startsWith("ERROR:") ||
       t.startsWith('File "') ||
+      t.startsWith("> ") ||
       l.includes("ModuleNotFoundError") ||
       l.includes("ImportError") ||
       l.includes("SyntaxError") ||
       l.includes("AssertionError") ||
       l.includes("panicked at") ||
-      l.includes("Error:")
+      l.includes("Error:") ||
+      NONZERO_FAIL_COUNT_RE.test(l)
     ) {
       kept.push(l);
     }

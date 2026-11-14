@@ -412,6 +412,23 @@ describe('F3: Controlled Execution Parity', () => {
     expect(headPassRes.hasFailures).toBe(false);
     expect(headPassRes.output).not.toContain('pytest passed');
     expect(headPassRes.output).toContain('test_25 PASSED');
+
+    const tailTruncatedSummary = [
+      ...Array.from({ length: 18 }, (_, i) => `step ${i + 1}`),
+      '>       assert actual == expected',
+      'E       AssertionError: assert 1 == 2',
+      '=== 1 failed, 2 passed in 0.12s ===',
+    ].join('\n');
+    const tailSummaryRes = distillCommandOutput(tailTruncatedSummary, {
+      exitCode: 0,
+      timedOut: false,
+      durationMs: 30,
+      kind: 'pytest',
+    });
+    expect(tailSummaryRes.hasFailures).toBe(true);
+    expect(tailSummaryRes.output).not.toContain('pytest passed');
+    expect(tailSummaryRes.output).toContain('assert actual == expected');
+    expect(tailSummaryRes.output).toContain('1 failed, 2 passed');
   });
 
   test('MsAxiomAdapter.exec runs in-process, handles shell metacharacters, and attaches hashline snippets even via symlinked root', async () => {
