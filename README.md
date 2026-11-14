@@ -25,10 +25,18 @@ cargo test --workspace
 cargo build --release
 ```
 
-Run the server over stdio:
+Run the NDJSON RPC server, MCP server, or Smart Command Distiller:
 
 ```bash
+# NDJSON RPC server (Protocol v1)
 ./target/release/ms --root /path/to/workspace --state-dir /path/to/state --allow-write
+
+# Universal MCP (JSON-RPC 2.0 over stdio) server for Claude Code, Pi, Cursor, etc.
+./target/release/ms mcp --allow-write
+
+# Smart Command Distiller + on-demand raw log inspection
+./target/release/ms exec -- cargo test --workspace
+./target/release/ms log --id <log_id> --tail 100 --grep error
 ```
 
 ## Axiom & Coding Agent Integration
@@ -39,10 +47,15 @@ Coding agents and orchestrators (such as Axiom) spawn `ms` as a subprocess and e
 - **Python Client**: [`examples/python_client.py`](examples/python_client.py) — end-to-end NDJSON stdio example.
 - See [`examples/README.md`](examples/README.md) for usage details.
 
-## Verification & Benchmarks (MVP K2)
+## Verification & Benchmarks
 
-- **Unit & Integration Tests**: `cargo test --workspace` — **25/25 passed** (`ms-protocol`: 8, `ms-runtime`: 10, `ms-rpc`: 4, `ms-cli`: 3).
-- **E2E & Fault-Injection Suite** (`python3 tests/e2e/run_e2e.py`): **12/12 passed** against `target/release/ms` (covering T01–T13b: traversal/symlink/FIFO/hardlink rejection, framing/cancellation, stale BLAKE3 revision `E_CONFLICT`, CRLF/BOM/Unicode preservation, `SIGKILL` crash recovery, `tx.undo` / `E_UNDO_CONFLICT`, `operationId` deduplication, and single-writer workspace lease).
+- **Unit & Integration Tests**: `cargo test --workspace` — **26/26 passed** (`ms-protocol`: 8, `ms-runtime`: 11, `ms-rpc`: 4, `ms-cli`: 3).
+- **E2E & Fault-Injection Suite** (`python3 tests/e2e/run_e2e.py`): **15/15 passed** against `target/release/ms` (covering T01–T16: traversal/symlink/FIFO/hardlink rejection, framing/cancellation, stale BLAKE3 revision & self-healing `E_CONFLICT`, `hashline` read & `edit`, `write_file`/`delete_file`/`rename_file` + `tx.undo`, `outline` & `context_bundle`, `ms exec` + `ms log`, and `ms mcp` stdio JSON-RPC 2.0).
+- **Measured Token & Latency Wins** (see [`benchmarks/REPORT.md`](benchmarks/REPORT.md)):
+  - `ms search` (warm): **3.94 ms** vs `rg` **6.46 ms**
+  - `ms read` compact `hashline` (200 lines): **8,065 B (0.84 ms)** vs old JSON `24,210 B (1.50 ms)` (**66.7% smaller**)
+  - `ms exec -- cargo test --workspace`: **2 lines / 136 B** vs raw **87 lines / 3,327 B** (**95.9% smaller**)
+  - `ms exec -- git diff`: **83 lines / 4,409 B** vs raw **4,736 lines / 178,017 B** (**97.5% smaller**)
 - **Benchmarks** ([`benchmarks/REPORT.md`](benchmarks/REPORT.md), [`benchmarks/results.json`](benchmarks/results.json)):
   - `list_large_repo_501_files`: `ms` warm 2.904 ms (7148 KB RSS) vs `fdfind` 5.945 ms (5252 KB RSS)
   - `read_bounded_20_lines`: `ms` warm 0.238 ms (5152 KB RSS) vs `python3` 21.090 ms (12236 KB RSS)

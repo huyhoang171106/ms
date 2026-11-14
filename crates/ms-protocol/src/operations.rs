@@ -8,6 +8,16 @@ pub enum Operation {
     Search(SearchParams),
     Read(ReadParams),
     Patch(PatchParams),
+    Edit(EditParams),
+    #[serde(rename = "write_file")]
+    WriteFile(WriteFileParams),
+    #[serde(rename = "delete_file")]
+    DeleteFile(DeleteFileParams),
+    #[serde(rename = "rename_file")]
+    RenameFile(RenameFileParams),
+    Outline(OutlineParams),
+    #[serde(rename = "context_bundle")]
+    ContextBundle(ContextBundleParams),
     #[serde(rename = "tx.list")]
     TxList(TxListParams),
     #[serde(rename = "tx.undo")]
@@ -24,6 +34,12 @@ impl Operation {
             Self::Search(_) => "search",
             Self::Read(_) => "read",
             Self::Patch(_) => "patch",
+            Self::Edit(_) => "edit",
+            Self::WriteFile(_) => "write_file",
+            Self::DeleteFile(_) => "delete_file",
+            Self::RenameFile(_) => "rename_file",
+            Self::Outline(_) => "outline",
+            Self::ContextBundle(_) => "context_bundle",
             Self::TxList(_) => "tx.list",
             Self::TxUndo(_) => "tx.undo",
             Self::Schema(_) => "schema",
@@ -33,7 +49,15 @@ impl Operation {
     /// Returns true if this operation can mutate workspace files.
     #[must_use]
     pub const fn is_mutation(&self) -> bool {
-        matches!(self, Self::Patch(_) | Self::TxUndo(_))
+        matches!(
+            self,
+            Self::Patch(_)
+                | Self::Edit(_)
+                | Self::WriteFile(_)
+                | Self::DeleteFile(_)
+                | Self::RenameFile(_)
+                | Self::TxUndo(_)
+        )
     }
 }
 
@@ -70,6 +94,15 @@ pub struct SearchParams {
     pub context_lines: Option<usize>,
 }
 
+/// Output format for `read`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ReadFormat {
+    #[default]
+    Json,
+    Hashline,
+}
+
 /// Parameters for `read`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -81,6 +114,113 @@ pub struct ReadParams {
     /// Maximum number of lines to return.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub line_count: Option<u64>,
+    /// Output format (`json` default, or `hashline` for compact LLM context).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format: Option<ReadFormat>,
+}
+
+/// Parameters for `edit` (LLM-friendly multi-mode file mutation).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EditParams {
+    pub path: String,
+    /// Optional full 64-char hex BLAKE3 digest of the entire file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_revision: Option<String>,
+    pub edits: Vec<EditSpec>,
+    /// When true, validates and returns a preview without modifying the file or journal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dry_run: Option<bool>,
+}
+
+/// Flexible edit specification: line-range+tag, unique `oldText`/`newText`, or byte-range.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum EditSpec {
+    Line {
+        #[serde(rename = "startLine")]
+        start_line: u64,
+        #[serde(rename = "endLine")]
+        end_line: u64,
+        #[serde(default, rename = "startTag", skip_serializing_if = "Option::is_none")]
+        start_tag: Option<String>,
+        #[serde(default, rename = "endTag", skip_serializing_if = "Option::is_none")]
+        end_tag: Option<String>,
+        replacement: String,
+    },
+    Text {
+        #[serde(rename = "oldText")]
+        old_text: String,
+        #[serde(rename = "newText")]
+        new_text: String,
+    },
+    Byte(TextEdit),
+}
+
+/// Parameters for `write_file`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WriteFileParams {
+    pub path: String,
+    pub content: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub create_if_missing: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub overwrite: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_revision: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dry_run: Option<bool>,
+}
+
+/// Parameters for `delete_file`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteFileParams {
+    pub path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_revision: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dry_run: Option<bool>,
+}
+
+/// Parameters for `rename_file`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenameFileParams {
+    pub from: String,
+    pub to: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_revision: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub overwrite: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dry_run: Option<bool>,
+}
+
+/// Parameters for `outline` (multi-language repo map & symbol extractor).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutlineParams {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_files: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_symbols_per_file: Option<usize>,
+}
+
+/// Parameters for `context_bundle` (1-shot target snippet + imports + symbols + tests).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextBundleParams {
+    pub path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub radius: Option<u64>,
 }
 
 /// Parameters for `patch`.
@@ -212,6 +352,84 @@ pub struct ReadResult {
     pub eol: EolKind,
     pub has_bom: bool,
     pub has_trailing_newline: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hashline: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WriteFileResult {
+    pub path: String,
+    pub dry_run: bool,
+    pub created: bool,
+    pub before_revision: String,
+    pub after_revision: String,
+    pub bytes_written: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operation_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteFileResult {
+    pub path: String,
+    pub dry_run: bool,
+    pub before_revision: String,
+    pub bytes_deleted: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operation_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenameFileResult {
+    pub from: String,
+    pub to: String,
+    pub dry_run: bool,
+    pub file_revision: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operation_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutlineSymbol {
+    pub line: u64,
+    pub kind: String,
+    pub signature: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutlineFile {
+    pub path: String,
+    pub lines: u64,
+    pub symbols: Vec<OutlineSymbol>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextTestMatch {
+    pub path: String,
+    pub snippet: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextBundleResult {
+    pub path: String,
+    pub file_revision: String,
+    pub target_line: u64,
+    pub hashline_snippet: String,
+    pub imports: Vec<String>,
+    pub local_symbols: Vec<OutlineSymbol>,
+    pub related_tests: Vec<ContextTestMatch>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -235,6 +453,9 @@ pub struct PatchResult {
 #[serde(rename_all = "lowercase")]
 pub enum TxKind {
     Patch,
+    Write,
+    Delete,
+    Rename,
     Undo,
 }
 
@@ -370,6 +591,87 @@ pub fn builtin_operation_schemas() -> Vec<OperationSchema> {
                 field("transactionId", FieldType::String, true),
                 field("operationId", FieldType::String, true),
                 field("diffPreview", FieldType::String, true),
+            ],
+        },
+        OperationSchema {
+            name: "edit".to_string(),
+            description: "Atomically and durably edit a file via line-range+tag, oldText/newText, or byte-range.".to_string(),
+            mutates: true,
+            fields: vec![
+                field("path", FieldType::String, false),
+                field("dryRun", FieldType::Bool, false),
+                field("beforeRevision", FieldType::String, false),
+                field("afterRevision", FieldType::String, false),
+                field("editsApplied", FieldType::Usize, false),
+                field("bytesDelta", FieldType::I64, false),
+                field("transactionId", FieldType::String, true),
+                field("operationId", FieldType::String, true),
+                field("diffPreview", FieldType::String, true),
+            ],
+        },
+        OperationSchema {
+            name: "write_file".to_string(),
+            description: "Atomically create or overwrite a regular file with WAL journaling and undo.".to_string(),
+            mutates: true,
+            fields: vec![
+                field("path", FieldType::String, false),
+                field("dryRun", FieldType::Bool, false),
+                field("created", FieldType::Bool, false),
+                field("beforeRevision", FieldType::String, false),
+                field("afterRevision", FieldType::String, false),
+                field("bytesWritten", FieldType::U64, false),
+                field("transactionId", FieldType::String, true),
+                field("operationId", FieldType::String, true),
+            ],
+        },
+        OperationSchema {
+            name: "delete_file".to_string(),
+            description: "Atomically delete a regular file with WAL preimage and undo.".to_string(),
+            mutates: true,
+            fields: vec![
+                field("path", FieldType::String, false),
+                field("dryRun", FieldType::Bool, false),
+                field("beforeRevision", FieldType::String, false),
+                field("bytesDeleted", FieldType::U64, false),
+                field("transactionId", FieldType::String, true),
+                field("operationId", FieldType::String, true),
+            ],
+        },
+        OperationSchema {
+            name: "rename_file".to_string(),
+            description: "Atomically rename/move a regular file within the workspace with WAL journaling and undo.".to_string(),
+            mutates: true,
+            fields: vec![
+                field("from", FieldType::String, false),
+                field("to", FieldType::String, false),
+                field("dryRun", FieldType::Bool, false),
+                field("fileRevision", FieldType::String, false),
+                field("transactionId", FieldType::String, true),
+                field("operationId", FieldType::String, true),
+            ],
+        },
+        OperationSchema {
+            name: "outline".to_string(),
+            description: "Extract multi-language file tree and key symbol signatures in 1 call.".to_string(),
+            mutates: false,
+            fields: vec![
+                field("path", FieldType::String, false),
+                field("lines", FieldType::U64, false),
+                field("symbols", FieldType::Enum, false),
+            ],
+        },
+        OperationSchema {
+            name: "context_bundle".to_string(),
+            description: "Return target hashline snippet, local imports/symbols, and related tests in 1 call.".to_string(),
+            mutates: false,
+            fields: vec![
+                field("path", FieldType::String, false),
+                field("fileRevision", FieldType::String, false),
+                field("targetLine", FieldType::U64, false),
+                field("hashlineSnippet", FieldType::String, false),
+                field("imports", FieldType::Enum, false),
+                field("localSymbols", FieldType::Enum, false),
+                field("relatedTests", FieldType::Enum, false),
             ],
         },
         OperationSchema {

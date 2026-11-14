@@ -63,6 +63,7 @@ async fn t01_path_traversal_and_symlinks_denied() {
                     path: "../secret.txt".into(),
                     start_line: None,
                     line_count: None,
+                    format: None,
                 }),
                 None,
             ),
@@ -81,6 +82,7 @@ async fn t01_path_traversal_and_symlinks_denied() {
                     path: "/etc/passwd".into(),
                     start_line: None,
                     line_count: None,
+                    format: None,
                 }),
                 None,
             ),
@@ -99,6 +101,7 @@ async fn t01_path_traversal_and_symlinks_denied() {
                     path: "link.txt".into(),
                     start_line: None,
                     line_count: None,
+                    format: None,
                 }),
                 None,
             ),
@@ -117,6 +120,7 @@ async fn t01_path_traversal_and_symlinks_denied() {
                     path: "linkdir/secret.txt".into(),
                     start_line: None,
                     line_count: None,
+                    format: None,
                 }),
                 None,
             ),
@@ -187,6 +191,7 @@ async fn t02_secret_paths_fifo_and_oversized_file() {
                     path: ".env".into(),
                     start_line: None,
                     line_count: None,
+                    format: None,
                 }),
                 None,
             ),
@@ -205,6 +210,7 @@ async fn t02_secret_paths_fifo_and_oversized_file() {
                     path: "my_fifo".into(),
                     start_line: None,
                     line_count: None,
+                    format: None,
                 }),
                 None,
             ),
@@ -223,6 +229,7 @@ async fn t02_secret_paths_fifo_and_oversized_file() {
                     path: "big.txt".into(),
                     start_line: None,
                     line_count: None,
+                    format: None,
                 }),
                 None,
             ),
@@ -276,6 +283,7 @@ async fn policy_narrowing_cannot_widen() {
                     path: "docs/b.md".into(),
                     start_line: None,
                     line_count: None,
+                    format: None,
                 }),
                 None,
             ),
@@ -303,6 +311,7 @@ async fn t05_t06_stale_revision_and_collision_rejected() {
                     path: "f.txt".into(),
                     start_line: None,
                     line_count: None,
+                    format: None,
                 }),
                 None,
             ),
@@ -367,6 +376,7 @@ async fn t07_t08_eol_bom_unicode_empty_and_multi_edits() {
                     path: "bom_crlf.txt".into(),
                     start_line: None,
                     line_count: None,
+                    format: None,
                 }),
                 None,
             ),
@@ -587,6 +597,8 @@ async fn t10_crash_recovery_before_after_conflict_and_tail_truncation() {
         payload_hash: Some("h1".into()),
         kind: ms_protocol::TxKind::Patch,
         path: "a.txt".into(),
+        dest_path: None,
+        existed_before: true,
         target_dev: 0,
         target_ino: 0,
         target_mode: 0o644,
@@ -610,6 +622,8 @@ async fn t10_crash_recovery_before_after_conflict_and_tail_truncation() {
         payload_hash: Some("h2".into()),
         kind: ms_protocol::TxKind::Patch,
         path: "b.txt".into(),
+        dest_path: None,
+        existed_before: true,
         target_dev: 0,
         target_ino: 0,
         target_mode: 0o644,
@@ -692,6 +706,8 @@ async fn t10_crash_recovery_before_after_conflict_and_tail_truncation() {
         payload_hash: None,
         kind: ms_protocol::TxKind::Patch,
         path: "c.txt".into(),
+        dest_path: None,
+        existed_before: true,
         target_dev: 0,
         target_ino: 0,
         target_mode: 0o644,
@@ -976,4 +992,272 @@ async fn search_and_cancel_work_properly() {
         .await
         .unwrap_err();
     assert_eq!(err.error_code(), ErrorCode::ECancelled);
+}
+
+#[tokio::test]
+async fn hashline_edit_self_healing_and_file_mutations_undo() {
+    let ws = TempDir::new().unwrap();
+    let state = TempDir::new().unwrap();
+    write_file(
+        ws.path(),
+        "src/lib.rs",
+        b"use std::fmt;\n\npub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n",
+    );
+    write_file(
+        ws.path(),
+        "tests/lib_test.rs",
+        b"#[test]\nfn test_add() {\n    assert_eq!(add(1, 2), 3);\n}\n",
+    );
+
+    let cfg = HostConfig::new(ws.path(), state.path()).with_allow_write(true);
+    let rt = Runtime::new(cfg).unwrap();
+    let sess = rt
+        .open_session(&SessionOpenParams {
+            capabilities: Some(SessionCapabilities {
+                allow_write: Some(true),
+                ..Default::default()
+            }),
+        })
+        .unwrap();
+
+    // 1. Hashline read
+    let read_out = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::Read(ReadParams {
+                    path: "src/lib.rs".into(),
+                    start_line: Some(1),
+                    line_count: Some(10),
+                    format: Some(ms_protocol::ReadFormat::Hashline),
+                }),
+                None,
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    assert!(read_out.records.is_empty());
+    let hl = read_out.result.as_ref().unwrap()["hashline"]
+        .as_str()
+        .unwrap();
+    assert!(hl.starts_with("rev:"));
+    assert!(hl.contains("3:"));
+
+    // Extract line 4 tag
+    let line4 = hl.lines().find(|l| l.starts_with("4:")).unwrap();
+    let tag4 = line4.split(':').nth(1).unwrap().split('|').next().unwrap();
+
+    // 2. Self-healing conflict on wrong tag
+    let conflict_err = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::Edit(ms_protocol::EditParams {
+                    path: "src/lib.rs".into(),
+                    expected_revision: None,
+                    edits: vec![ms_protocol::EditSpec::Line {
+                        start_line: 4,
+                        end_line: 4,
+                        start_tag: Some("0000".into()),
+                        end_tag: None,
+                        replacement: "    a + b + 1".into(),
+                    }],
+                    dry_run: None,
+                }),
+                None,
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(conflict_err.error_code(), ErrorCode::EConflict);
+    let info = conflict_err.to_error_info();
+    assert!(info.details.is_some());
+    assert!(
+        info.details.unwrap()["region"]
+            .as_str()
+            .unwrap()
+            .contains("4:")
+    );
+
+    // 3. Valid line-range + tag edit
+    rt.execute_call(
+        &make_call(
+            &sess.session_id,
+            Operation::Edit(ms_protocol::EditParams {
+                path: "src/lib.rs".into(),
+                expected_revision: None,
+                edits: vec![ms_protocol::EditSpec::Line {
+                    start_line: 4,
+                    end_line: 4,
+                    start_tag: Some(tag4.into()),
+                    end_tag: None,
+                    replacement: "    a.saturating_add(b)".into(),
+                }],
+                dry_run: None,
+            }),
+            Some("edit-line"),
+        ),
+        CancelToken::new(),
+    )
+    .await
+    .unwrap();
+    assert!(
+        fs::read_to_string(ws.path().join("src/lib.rs"))
+            .unwrap()
+            .contains("saturating_add")
+    );
+
+    // 4. oldText/newText edit
+    rt.execute_call(
+        &make_call(
+            &sess.session_id,
+            Operation::Edit(ms_protocol::EditParams {
+                path: "src/lib.rs".into(),
+                expected_revision: None,
+                edits: vec![ms_protocol::EditSpec::Text {
+                    old_text: "a.saturating_add(b)".into(),
+                    new_text: "a.wrapping_add(b)".into(),
+                }],
+                dry_run: None,
+            }),
+            Some("edit-text"),
+        ),
+        CancelToken::new(),
+    )
+    .await
+    .unwrap();
+    assert!(
+        fs::read_to_string(ws.path().join("src/lib.rs"))
+            .unwrap()
+            .contains("wrapping_add")
+    );
+
+    // 5. write_file (create new in nested dir) + tx.undo
+    rt.execute_call(
+        &make_call(
+            &sess.session_id,
+            Operation::WriteFile(ms_protocol::WriteFileParams {
+                path: "src/new/mod.rs".into(),
+                content: "pub fn hi() {}\n".into(),
+                create_if_missing: Some(true),
+                overwrite: Some(false),
+                expected_revision: None,
+                dry_run: None,
+            }),
+            Some("write-new"),
+        ),
+        CancelToken::new(),
+    )
+    .await
+    .unwrap();
+    assert!(ws.path().join("src/new/mod.rs").exists());
+
+    rt.execute_call(
+        &make_call(
+            &sess.session_id,
+            Operation::TxUndo(ms_protocol::TxUndoParams::default()),
+            Some("undo-create"),
+        ),
+        CancelToken::new(),
+    )
+    .await
+    .unwrap();
+    assert!(!ws.path().join("src/new/mod.rs").exists());
+
+    // 6. rename_file + tx.undo
+    rt.execute_call(
+        &make_call(
+            &sess.session_id,
+            Operation::RenameFile(ms_protocol::RenameFileParams {
+                from: "src/lib.rs".into(),
+                to: "src/math.rs".into(),
+                expected_revision: None,
+                overwrite: Some(false),
+                dry_run: None,
+            }),
+            Some("rename-1"),
+        ),
+        CancelToken::new(),
+    )
+    .await
+    .unwrap();
+    assert!(!ws.path().join("src/lib.rs").exists());
+    assert!(ws.path().join("src/math.rs").exists());
+
+    rt.execute_call(
+        &make_call(
+            &sess.session_id,
+            Operation::TxUndo(ms_protocol::TxUndoParams::default()),
+            Some("undo-rename"),
+        ),
+        CancelToken::new(),
+    )
+    .await
+    .unwrap();
+    assert!(ws.path().join("src/lib.rs").exists());
+
+    // 7. delete_file + tx.undo
+    rt.execute_call(
+        &make_call(
+            &sess.session_id,
+            Operation::DeleteFile(ms_protocol::DeleteFileParams {
+                path: "src/lib.rs".into(),
+                expected_revision: None,
+                dry_run: None,
+            }),
+            Some("del-1"),
+        ),
+        CancelToken::new(),
+    )
+    .await
+    .unwrap();
+    assert!(!ws.path().join("src/lib.rs").exists());
+
+    rt.execute_call(
+        &make_call(
+            &sess.session_id,
+            Operation::TxUndo(ms_protocol::TxUndoParams::default()),
+            Some("undo-del"),
+        ),
+        CancelToken::new(),
+    )
+    .await
+    .unwrap();
+    assert!(ws.path().join("src/lib.rs").exists());
+
+    // 8. outline + context_bundle
+    let outline_out = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::Outline(ms_protocol::OutlineParams::default()),
+                None,
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    assert!(outline_out.records.len() >= 2);
+
+    let ctx_out = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::ContextBundle(ms_protocol::ContextBundleParams {
+                    path: "src/lib.rs".into(),
+                    line: Some(3),
+                    symbol: None,
+                    radius: Some(5),
+                }),
+                None,
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    let ctx_res = ctx_out.result.unwrap();
+    assert_eq!(ctx_res["imports"][0], "use std::fmt;");
+    assert_eq!(ctx_res["relatedTests"][0]["path"], "tests/lib_test.rs");
 }

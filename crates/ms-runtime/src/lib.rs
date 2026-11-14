@@ -26,8 +26,9 @@ pub use policy::{DEFAULT_MAX_STATE_BYTES, EffectivePolicy, HostConfig, default_s
 use journal::WorkspaceJournal;
 use lock::WorkspaceLease;
 use ops::{
-    compute_state_rel_prefix, exec_list, exec_patch, exec_read, exec_schema, exec_search,
-    exec_tx_list, exec_tx_undo,
+    compute_state_rel_prefix, exec_context_bundle, exec_delete_file, exec_edit, exec_list,
+    exec_outline, exec_patch, exec_read, exec_rename_file, exec_schema, exec_search, exec_tx_list,
+    exec_tx_undo, exec_write_file,
 };
 use text::blake3_hex;
 use workspace_fs::WorkspaceFs;
@@ -158,11 +159,17 @@ impl Runtime {
             "list".to_string(),
             "search".to_string(),
             "read".to_string(),
+            "outline".to_string(),
+            "context_bundle".to_string(),
             "tx.list".to_string(),
             "schema".to_string(),
         ];
         if self.host_policy.allow_write {
             ops.push("patch".to_string());
+            ops.push("edit".to_string());
+            ops.push("write_file".to_string());
+            ops.push("delete_file".to_string());
+            ops.push("rename_file".to_string());
             ops.push("tx.undo".to_string());
         }
         Capabilities {
@@ -334,6 +341,114 @@ impl Runtime {
                             },
                         })
                     }
+                    Operation::Edit(p) => {
+                        let res = exec_edit(
+                            &fs,
+                            &policy,
+                            &mut j,
+                            p,
+                            operation_id.as_deref(),
+                            &payload_hash,
+                        )?;
+                        let val = serde_json::to_value(&res)
+                            .map_err(|e| RuntimeError::Internal(e.to_string()))?;
+                        let bytes = serde_json::to_vec(&val)
+                            .map(|v| v.len() as u64)
+                            .unwrap_or(0);
+                        Ok(ExecutionOutput {
+                            records: Vec::new(),
+                            schema_version: Some(PROTOCOL_VERSION.to_string()),
+                            result: Some(val),
+                            diagnostics: Vec::new(),
+                            truncated: false,
+                            counters: CompletionCounters {
+                                records_emitted: 0,
+                                bytes_emitted: bytes,
+                                duration_ms: started.elapsed().as_millis() as u64,
+                            },
+                        })
+                    }
+                    Operation::WriteFile(p) => {
+                        let res = exec_write_file(
+                            &fs,
+                            &policy,
+                            &mut j,
+                            p,
+                            operation_id.as_deref(),
+                            &payload_hash,
+                        )?;
+                        let val = serde_json::to_value(&res)
+                            .map_err(|e| RuntimeError::Internal(e.to_string()))?;
+                        let bytes = serde_json::to_vec(&val)
+                            .map(|v| v.len() as u64)
+                            .unwrap_or(0);
+                        Ok(ExecutionOutput {
+                            records: Vec::new(),
+                            schema_version: Some(PROTOCOL_VERSION.to_string()),
+                            result: Some(val),
+                            diagnostics: Vec::new(),
+                            truncated: false,
+                            counters: CompletionCounters {
+                                records_emitted: 0,
+                                bytes_emitted: bytes,
+                                duration_ms: started.elapsed().as_millis() as u64,
+                            },
+                        })
+                    }
+                    Operation::DeleteFile(p) => {
+                        let res = exec_delete_file(
+                            &fs,
+                            &policy,
+                            &mut j,
+                            p,
+                            operation_id.as_deref(),
+                            &payload_hash,
+                        )?;
+                        let val = serde_json::to_value(&res)
+                            .map_err(|e| RuntimeError::Internal(e.to_string()))?;
+                        let bytes = serde_json::to_vec(&val)
+                            .map(|v| v.len() as u64)
+                            .unwrap_or(0);
+                        Ok(ExecutionOutput {
+                            records: Vec::new(),
+                            schema_version: Some(PROTOCOL_VERSION.to_string()),
+                            result: Some(val),
+                            diagnostics: Vec::new(),
+                            truncated: false,
+                            counters: CompletionCounters {
+                                records_emitted: 0,
+                                bytes_emitted: bytes,
+                                duration_ms: started.elapsed().as_millis() as u64,
+                            },
+                        })
+                    }
+                    Operation::RenameFile(p) => {
+                        let res = exec_rename_file(
+                            &fs,
+                            &policy,
+                            &mut j,
+                            p,
+                            operation_id.as_deref(),
+                            &payload_hash,
+                        )?;
+                        let val = serde_json::to_value(&res)
+                            .map_err(|e| RuntimeError::Internal(e.to_string()))?;
+                        let bytes = serde_json::to_vec(&val)
+                            .map(|v| v.len() as u64)
+                            .unwrap_or(0);
+                        Ok(ExecutionOutput {
+                            records: Vec::new(),
+                            schema_version: Some(PROTOCOL_VERSION.to_string()),
+                            result: Some(val),
+                            diagnostics: Vec::new(),
+                            truncated: false,
+                            counters: CompletionCounters {
+                                records_emitted: 0,
+                                bytes_emitted: bytes,
+                                duration_ms: started.elapsed().as_millis() as u64,
+                            },
+                        })
+                    }
                     Operation::TxUndo(p) => {
                         let res = exec_tx_undo(
                             &fs,
@@ -422,6 +537,43 @@ impl Runtime {
                         result: Some(result),
                         diagnostics: Vec::new(),
                         truncated: out.truncated,
+                    })
+                }
+                Operation::Outline(p) => {
+                    let out = exec_outline(&fs, &policy, p, &cancel)?;
+                    let records = to_json_values(&out.files)?;
+                    let bytes = estimate_records_bytes(&records);
+                    Ok(ExecutionOutput {
+                        counters: CompletionCounters {
+                            records_emitted: records.len() as u64,
+                            bytes_emitted: bytes,
+                            duration_ms: started.elapsed().as_millis() as u64,
+                        },
+                        records,
+                        schema_version: Some(PROTOCOL_VERSION.to_string()),
+                        result: None,
+                        diagnostics: Vec::new(),
+                        truncated: out.truncated,
+                    })
+                }
+                Operation::ContextBundle(p) => {
+                    let res = exec_context_bundle(&fs, &policy, p, &cancel)?;
+                    let val = serde_json::to_value(&res)
+                        .map_err(|e| RuntimeError::Internal(e.to_string()))?;
+                    let bytes = serde_json::to_vec(&val)
+                        .map(|v| v.len() as u64)
+                        .unwrap_or(0);
+                    Ok(ExecutionOutput {
+                        counters: CompletionCounters {
+                            records_emitted: 0,
+                            bytes_emitted: bytes,
+                            duration_ms: started.elapsed().as_millis() as u64,
+                        },
+                        records: Vec::new(),
+                        schema_version: Some(PROTOCOL_VERSION.to_string()),
+                        result: Some(val),
+                        diagnostics: Vec::new(),
+                        truncated: false,
                     })
                 }
                 Operation::TxList(p) => {

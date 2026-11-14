@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 
 use ms_protocol::validate_relative_path;
 use rustix::fs::{
-    AtFlags, FileType, Mode, OFlags, ResolveFlags, Stat, fchmod, fstat, fsync, openat2, renameat,
-    unlinkat,
+    AtFlags, FileType, Mode, OFlags, ResolveFlags, Stat, fchmod, fstat, fsync, mkdirat, openat2,
+    renameat, unlinkat,
 };
 use rustix::io::Errno;
 
@@ -265,6 +265,183 @@ impl WorkspaceFs {
         if let Ok((parent_fd, _)) = self.open_parent_dir(rel_path) {
             let _ = unlinkat(&parent_fd, temp_name, AtFlags::empty());
         }
+    }
+
+    /// Creates missing parent directories for `rel_path` safely under `root_fd` using `openat2(BENEATH | NO_SYMLINKS)`.
+    pub fn ensure_parent_dirs(&self, rel_path: &str) -> Result<(), RuntimeError> {
+        validate_relative_path(rel_path)?;
+        let Some((parent, _)) = rel_path.rsplit_once('/') else {
+            return Ok(());
+        };
+        let mut cur_fd = self.open_dir(".")?;
+        for seg in parent.split('/') {
+            if seg.is_empty() || seg == "." {
+                continue;
+            }
+            match openat2(
+                &cur_fd,
+                seg,
+                OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+                Mode::empty(),
+                ResolveFlags::BENEATH | ResolveFlags::NO_SYMLINKS,
+            ) {
+                Ok(next_fd) => {
+                    cur_fd = next_fd;
+                }
+                Err(Errno::NOENT) => {
+                    mkdirat(&cur_fd, seg, Mode::from_raw_mode(0o755))
+                        .map_err(|e| map_errno("mkdirat parent dir", e))?;
+                    fsync(&cur_fd).map_err(|e| map_errno("fsync parent dir after mkdir", e))?;
+                    cur_fd = openat2(
+                        &cur_fd,
+                        seg,
+                        OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+                        Mode::empty(),
+                        ResolveFlags::BENEATH | ResolveFlags::NO_SYMLINKS,
+                    )
+                    .map_err(|e| map_open_errno(seg, e))?;
+                }
+                Err(e) => return Err(map_open_errno(seg, e)),
+            }
+        }
+        Ok(())
+    }
+
+    /// Atomically creates a new regular file at `rel_path` (which must not already exist).
+    pub fn atomic_create_new(
+        &self,
+        rel_path: &str,
+        new_bytes: &[u8],
+        temp_name: &str,
+    ) -> Result<WriteTargetMeta, RuntimeError> {
+        self.ensure_parent_dirs(rel_path)?;
+        let (parent_fd, leaf_name) = self.open_parent_dir(rel_path)?;
+        let mode = Mode::from_raw_mode(0o644);
+
+        let tmp_fd = openat2(
+            &parent_fd,
+            temp_name,
+            OFlags::CREATE | OFlags::EXCL | OFlags::WRONLY | OFlags::CLOEXEC,
+            mode,
+            ResolveFlags::BENEATH | ResolveFlags::NO_SYMLINKS,
+        )
+        .map_err(|e| map_open_errno(temp_name, e))?;
+
+        let stage_res = (|| -> Result<(), RuntimeError> {
+            fchmod(&tmp_fd, mode).map_err(|e| map_errno("fchmod temp file", e))?;
+            write_all_fd(tmp_fd.as_fd(), new_bytes)?;
+            fsync(&tmp_fd).map_err(|e| map_errno("fsync temp file", e))?;
+            Ok(())
+        })();
+        drop(tmp_fd);
+
+        if let Err(e) = stage_res {
+            let _ = unlinkat(&parent_fd, temp_name, AtFlags::empty());
+            return Err(e);
+        }
+
+        // Ensure target still does not exist before rename.
+        match openat2(
+            &parent_fd,
+            leaf_name.as_str(),
+            OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
+            Mode::empty(),
+            ResolveFlags::BENEATH | ResolveFlags::NO_SYMLINKS,
+        ) {
+            Err(Errno::NOENT) => {}
+            Ok(_) => {
+                let _ = unlinkat(&parent_fd, temp_name, AtFlags::empty());
+                return Err(RuntimeError::conflict(
+                    format!("target '{rel_path}' already exists"),
+                    "Set overwrite=true or pass expectedRevision.",
+                ));
+            }
+            Err(e) => {
+                let _ = unlinkat(&parent_fd, temp_name, AtFlags::empty());
+                return Err(map_open_errno(rel_path, e));
+            }
+        }
+
+        if let Err(e) = renameat(&parent_fd, temp_name, &parent_fd, leaf_name.as_str()) {
+            let _ = unlinkat(&parent_fd, temp_name, AtFlags::empty());
+            return Err(map_errno("rename temp file to new target", e));
+        }
+        fsync(&parent_fd).map_err(|e| map_errno("fsync parent directory", e))?;
+
+        self.validate_write_target(rel_path)
+    }
+
+    /// Atomically deletes an existing regular file after revalidating `(dev, ino)`.
+    pub fn atomic_delete(
+        &self,
+        rel_path: &str,
+        expected_meta: &WriteTargetMeta,
+    ) -> Result<(), RuntimeError> {
+        let (parent_fd, leaf_name) = self.open_parent_dir(rel_path)?;
+        let (_fd, st) = self.open_file_read(rel_path)?;
+        let current_meta = check_writable_stat(rel_path, &st)?;
+        if current_meta.dev != expected_meta.dev || current_meta.ino != expected_meta.ino {
+            return Err(RuntimeError::conflict(
+                "target file was replaced externally before delete",
+                "Re-read the file and retry.",
+            ));
+        }
+        unlinkat(&parent_fd, leaf_name.as_str(), AtFlags::empty())
+            .map_err(|e| map_errno("unlink target file", e))?;
+        fsync(&parent_fd).map_err(|e| map_errno("fsync parent directory", e))?;
+        Ok(())
+    }
+
+    /// Atomically renames `from_rel` to `to_rel` after revalidating `(dev, ino)`.
+    pub fn atomic_rename(
+        &self,
+        from_rel: &str,
+        to_rel: &str,
+        expected_meta: &WriteTargetMeta,
+        overwrite: bool,
+    ) -> Result<(), RuntimeError> {
+        self.ensure_parent_dirs(to_rel)?;
+        let (from_parent, from_leaf) = self.open_parent_dir(from_rel)?;
+        let (to_parent, to_leaf) = self.open_parent_dir(to_rel)?;
+
+        let (_fd, st) = self.open_file_read(from_rel)?;
+        let current_meta = check_writable_stat(from_rel, &st)?;
+        if current_meta.dev != expected_meta.dev || current_meta.ino != expected_meta.ino {
+            return Err(RuntimeError::conflict(
+                "source file was replaced externally before rename",
+                "Re-read the file and retry.",
+            ));
+        }
+
+        if !overwrite {
+            match openat2(
+                &to_parent,
+                to_leaf.as_str(),
+                OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
+                Mode::empty(),
+                ResolveFlags::BENEATH | ResolveFlags::NO_SYMLINKS,
+            ) {
+                Err(Errno::NOENT) => {}
+                Ok(_) => {
+                    return Err(RuntimeError::conflict(
+                        format!("destination '{to_rel}' already exists"),
+                        "Set overwrite=true to replace the destination file.",
+                    ));
+                }
+                Err(e) => return Err(map_open_errno(to_rel, e)),
+            }
+        }
+
+        renameat(
+            &from_parent,
+            from_leaf.as_str(),
+            &to_parent,
+            to_leaf.as_str(),
+        )
+        .map_err(|e| map_errno("rename file", e))?;
+        fsync(&from_parent).map_err(|e| map_errno("fsync source parent directory", e))?;
+        fsync(&to_parent).map_err(|e| map_errno("fsync destination parent directory", e))?;
+        Ok(())
     }
 
     fn open_parent_dir(&self, rel_path: &str) -> Result<(OwnedFd, String), RuntimeError> {

@@ -32,6 +32,7 @@ pub enum RuntimeError {
     Conflict {
         message: String,
         hint: Option<String>,
+        details: Option<serde_json::Value>,
     },
 
     #[error("undo conflict: {0}")]
@@ -87,6 +88,20 @@ impl RuntimeError {
         Self::Conflict {
             message: message.into(),
             hint: Some(hint.into()),
+            details: None,
+        }
+    }
+
+    #[must_use]
+    pub fn conflict_with_details(
+        message: impl Into<String>,
+        hint: impl Into<String>,
+        details: serde_json::Value,
+    ) -> Self {
+        Self::Conflict {
+            message: message.into(),
+            hint: Some(hint.into()),
+            details: Some(details),
         }
     }
 
@@ -130,10 +145,17 @@ impl RuntimeError {
                 }
                 info
             }
-            Self::Conflict { message, hint } => {
+            Self::Conflict {
+                message,
+                hint,
+                details,
+            } => {
                 let mut info = ErrorInfo::new(ErrorCode::EConflict, message);
                 if let Some(h) = hint {
                     info = info.with_hint(h);
+                }
+                if let Some(d) = details {
+                    info = info.with_details(d.clone());
                 }
                 info
             }

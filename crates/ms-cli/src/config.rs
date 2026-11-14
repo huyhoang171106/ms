@@ -42,9 +42,19 @@ pub struct JsonHostConfig {
     pub limits: Option<JsonLimits>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CliMode {
+    #[default]
+    Serve,
+    Mcp,
+    Exec,
+    Log,
+}
+
 /// Parsed and validated CLI + JSON host configuration for `ms`.
 #[derive(Debug, Clone)]
 pub struct CliConfig {
+    pub mode: CliMode,
     pub root: PathBuf,
     pub state_dir: Option<PathBuf>,
     pub allow_write: bool,
@@ -54,6 +64,11 @@ pub struct CliConfig {
     pub replace_secret_patterns: Option<Vec<String>>,
     pub max_state_bytes: Option<u64>,
     pub limits: HardLimits,
+    pub exec_command: Vec<String>,
+    pub exec_timeout_ms: u64,
+    pub log_id: Option<String>,
+    pub log_tail: Option<usize>,
+    pub log_grep: Option<String>,
     pub show_help: bool,
     pub show_version: bool,
 }
@@ -61,6 +76,7 @@ pub struct CliConfig {
 impl Default for CliConfig {
     fn default() -> Self {
         Self {
+            mode: CliMode::Serve,
             root: PathBuf::from("."),
             state_dir: None,
             allow_write: false,
@@ -70,6 +86,11 @@ impl Default for CliConfig {
             replace_secret_patterns: None,
             max_state_bytes: None,
             limits: HardLimits::default(),
+            exec_command: Vec::new(),
+            exec_timeout_ms: 60_000,
+            log_id: None,
+            log_tail: None,
+            log_grep: None,
             show_help: false,
             show_version: false,
         }
@@ -78,16 +99,19 @@ impl Default for CliConfig {
 
 pub fn help_text() -> &'static str {
     "\
-ms - Managed Workspace NDJSON RPC Server (Protocol v1)
+ms - Managed Workspace NDJSON RPC & MCP Server + Smart Command Distiller
 
 USAGE:
   ms [serve] [OPTIONS]
+  ms mcp [OPTIONS]
+  ms exec [--root <DIR>] [--timeout <MS>] [--] <CMD...>
+  ms log --id <ID> [--tail <N>] [--grep <PATTERN>]
 
 OPTIONS:
   --config <PATH>                  Load base host configuration from JSON file
   --root <DIR>                     Workspace root directory (default: .)
   --state-dir <DIR>                State/journal directory outside writable root
-  --allow-write                    Enable write operations (patch, tx.undo)
+  --allow-write                    Enable write operations (patch, edit, write_file, delete_file, rename_file, tx.undo)
   --read-only                      Disable write operations (default)
   --read-subpath <PATH>            Restrict reads to subpath (repeatable)
   --write-subpath <PATH>           Restrict writes to subpath (repeatable)
@@ -151,15 +175,59 @@ where
     let mut cli_write_subpaths: Vec<String> = Vec::new();
 
     i = 0;
+    if let Some(first) = raw.first().map(String::as_str) {
+        match first {
+            "serve" => {
+                cfg.mode = CliMode::Serve;
+                i = 1;
+            }
+            "mcp" => {
+                cfg.mode = CliMode::Mcp;
+                i = 1;
+            }
+            "exec" => {
+                cfg.mode = CliMode::Exec;
+                i = 1;
+            }
+            "log" => {
+                cfg.mode = CliMode::Log;
+                i = 1;
+            }
+            _ => {}
+        }
+    }
+
     while i < raw.len() {
         let arg = raw[i].as_str();
-        if i == 0 && arg == "serve" {
-            i += 1;
-            continue;
+        if cfg.mode == CliMode::Exec {
+            if arg == "--" {
+                cfg.exec_command = raw[i + 1..].to_vec();
+                break;
+            } else if arg == "--root" {
+                cfg.root = PathBuf::from(next_val(&raw, &mut i, "--root")?);
+                i += 1;
+                continue;
+            } else if arg == "--timeout" {
+                cfg.exec_timeout_ms = parse_u64(&raw, &mut i, "--timeout")?;
+                i += 1;
+                continue;
+            } else if !arg.starts_with('-') {
+                cfg.exec_command = raw[i..].to_vec();
+                break;
+            }
         }
         match arg {
             "--config" => {
                 i += 1; // already processed
+            }
+            "--id" if cfg.mode == CliMode::Log => {
+                cfg.log_id = Some(next_val(&raw, &mut i, "--id")?);
+            }
+            "--tail" if cfg.mode == CliMode::Log => {
+                cfg.log_tail = Some(parse_usize(&raw, &mut i, "--tail")?);
+            }
+            "--grep" if cfg.mode == CliMode::Log => {
+                cfg.log_grep = Some(next_val(&raw, &mut i, "--grep")?);
             }
             "--root" => {
                 cfg.root = PathBuf::from(next_val(&raw, &mut i, "--root")?);
@@ -226,6 +294,14 @@ where
         cfg.write_subpaths = Some(cli_write_subpaths);
     }
 
+    if cfg.mode == CliMode::Mcp && cfg.allow_write && cfg.state_dir.is_none() {
+        let base = std::env::var_os("XDG_CACHE_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache")))
+            .unwrap_or_else(std::env::temp_dir);
+        cfg.state_dir = Some(base.join("ms").join("state"));
+    }
+
     validate_config(&cfg)?;
     Ok(cfg)
 }
@@ -281,6 +357,26 @@ fn apply_json_config(cfg: &mut CliConfig, json_cfg: JsonHostConfig) {
 }
 
 fn validate_config(cfg: &CliConfig) -> Result<(), ConfigError> {
+    if cfg.mode == CliMode::Exec {
+        if cfg.exec_command.is_empty() {
+            return Err(ConfigError::InvalidArgs(
+                "ms exec requires a command after '--'".into(),
+            ));
+        }
+        if !cfg.root.exists() || !cfg.root.is_dir() {
+            return Err(ConfigError::Validation(format!(
+                "workspace root does not exist or is not a directory: {}",
+                cfg.root.display()
+            )));
+        }
+        return Ok(());
+    }
+    if cfg.mode == CliMode::Log {
+        if cfg.log_id.as_deref().is_none_or(str::is_empty) {
+            return Err(ConfigError::InvalidArgs("ms log requires --id <ID>".into()));
+        }
+        return Ok(());
+    }
     if !cfg.root.exists() || !cfg.root.is_dir() {
         return Err(ConfigError::Validation(format!(
             "workspace root does not exist or is not a directory: {}",

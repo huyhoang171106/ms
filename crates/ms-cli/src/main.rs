@@ -4,7 +4,11 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use ms_rpc::{RpcServerConfig, RuntimeAdapter, run_stdio_server};
+use config::CliMode;
+use ms_rpc::{
+    RpcServerConfig, RuntimeAdapter, exec::exec_and_distill, exec::read_log,
+    mcp::run_mcp_stdio_server, run_stdio_server,
+};
 use ms_runtime::{HostConfig, Runtime};
 
 #[tokio::main]
@@ -24,6 +28,36 @@ async fn main() -> ExitCode {
     if cfg.show_version {
         println!("ms {}", env!("CARGO_PKG_VERSION"));
         return ExitCode::SUCCESS;
+    }
+
+    match cfg.mode {
+        CliMode::Exec => {
+            match exec_and_distill(&cfg.root, &cfg.exec_command, cfg.exec_timeout_ms).await {
+                Ok(res) => {
+                    println!("{}", res.distilled);
+                    let code = u8::try_from(res.exit_code.clamp(0, 255)).unwrap_or(1);
+                    return ExitCode::from(code);
+                }
+                Err(err) => {
+                    eprintln!("ms exec: {err}");
+                    return ExitCode::from(1);
+                }
+            }
+        }
+        CliMode::Log => {
+            let id = cfg.log_id.as_deref().unwrap_or("");
+            match read_log(id, cfg.log_tail, cfg.log_grep.as_deref()) {
+                Ok(text) => {
+                    println!("{text}");
+                    return ExitCode::SUCCESS;
+                }
+                Err(err) => {
+                    eprintln!("ms log: {err}");
+                    return ExitCode::from(1);
+                }
+            }
+        }
+        CliMode::Serve | CliMode::Mcp => {}
     }
 
     // Read-only runs do not write to state_dir, but HostConfig expects a PathBuf.
@@ -53,6 +87,14 @@ async fn main() -> ExitCode {
             return ExitCode::from(1);
         }
     };
+
+    if cfg.mode == CliMode::Mcp {
+        if let Err(err) = run_mcp_stdio_server(runtime, cfg.root).await {
+            eprintln!("ms: mcp server error: {}", err.kind());
+            return ExitCode::from(1);
+        }
+        return ExitCode::SUCCESS;
+    }
 
     let rpc_cfg = RpcServerConfig {
         max_frame_bytes: cfg.limits.max_frame_bytes,

@@ -1,6 +1,8 @@
 pub mod backend;
 pub mod dispatcher;
+pub mod exec;
 pub mod framing;
+pub mod mcp;
 
 pub use backend::{
     CancelToken, EffectiveSession, ExecuteFuture, ExecutionContext, OperationOutcome, RpcBackend,

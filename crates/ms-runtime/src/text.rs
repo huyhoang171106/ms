@@ -1,4 +1,4 @@
-use ms_protocol::{EolKind, ReadLine, TextEdit, validate_patch_edits};
+use ms_protocol::{EditSpec, EolKind, ReadLine, TextEdit, validate_patch_edits};
 
 use crate::error::RuntimeError;
 
@@ -143,6 +143,267 @@ pub struct ComputedPatch {
     pub diff_preview: String,
 }
 
+/// Formats lines in compact `hashline` mode:
+/// `rev:<blake3> eol:<LF|CRLF|NONE> lines:<start>-<end>/<total>\n<num>:<tag>| <text>`
+#[must_use]
+pub fn format_hashline(
+    file_revision: &str,
+    eol: EolKind,
+    total_lines: u64,
+    lines: &[ReadLine],
+) -> String {
+    let eol_str = match eol {
+        EolKind::Lf => "LF",
+        EolKind::Crlf => "CRLF",
+        EolKind::None => "NONE",
+    };
+    let (start, end) = match (lines.first(), lines.last()) {
+        (Some(f), Some(l)) => (f.line_number, l.line_number),
+        _ => (0, 0),
+    };
+    let mut out = format!("rev:{file_revision} eol:{eol_str} lines:{start}-{end}/{total_lines}");
+    for l in lines {
+        out.push('\n');
+        out.push_str(&format!("{}:{}| {}", l.line_number, l.line_tag, l.text));
+    }
+    out
+}
+
+/// Formats up to `2*radius + 1` lines (~15 lines when radius=7) around `target_line` (1-based)
+/// for self-healing conflict diagnostics.
+#[must_use]
+pub fn format_hashline_region(
+    analyzed: &AnalyzedText,
+    file_revision: &str,
+    target_line: u64,
+    radius: usize,
+) -> String {
+    let total = analyzed.lines.len();
+    if total == 0 {
+        return format!("rev:{file_revision} eol:NONE lines:0-0/0");
+    }
+    let idx = usize::try_from(target_line.saturating_sub(1))
+        .unwrap_or(0)
+        .min(total - 1);
+    let start = idx.saturating_sub(radius);
+    let end = (idx + radius + 1).min(total);
+    format_hashline(
+        file_revision,
+        analyzed.eol,
+        total as u64,
+        &analyzed.lines[start..end],
+    )
+}
+
+fn self_healing_conflict(
+    original_bytes: &[u8],
+    target_line: u64,
+    message: String,
+    hint_prefix: &str,
+) -> RuntimeError {
+    let rev = blake3_hex(original_bytes);
+    if let Ok(analyzed) = analyze_text(original_bytes, false) {
+        let region = format_hashline_region(&analyzed, &rev, target_line, 7);
+        let details = serde_json::json!({
+            "fileRevision": rev,
+            "targetLine": target_line,
+            "region": region,
+        });
+        RuntimeError::conflict_with_details(message, format!("{hint_prefix}\n{region}"), details)
+    } else {
+        RuntimeError::conflict_with_details(
+            message,
+            hint_prefix.to_string(),
+            serde_json::json!({ "fileRevision": rev }),
+        )
+    }
+}
+
+fn line_for_offset(analyzed: &AnalyzedText, offset: u64) -> u64 {
+    for l in &analyzed.lines {
+        if offset >= l.start_byte && offset <= l.end_byte {
+            return l.line_number;
+        }
+    }
+    analyzed.lines.last().map_or(1, |l| l.line_number)
+}
+
+/// Resolves multi-mode `EditSpec`s (`Line`, `Text`, `Byte`) into byte-range `TextEdit`s
+/// and computes the atomic patch.
+pub fn resolve_and_compute_edit(
+    original_bytes: &[u8],
+    expected_revision: Option<&str>,
+    specs: &[EditSpec],
+) -> Result<ComputedPatch, RuntimeError> {
+    let before_revision = blake3_hex(original_bytes);
+    let first_target_line = specs
+        .first()
+        .and_then(|s| match s {
+            EditSpec::Line { start_line, .. } => Some(*start_line),
+            _ => None,
+        })
+        .unwrap_or(1);
+
+    if let Some(exp_rev) = expected_revision
+        && before_revision != exp_rev
+    {
+        return Err(self_healing_conflict(
+            original_bytes,
+            first_target_line,
+            format!("stale expectedRevision: expected {exp_rev}, actual {before_revision}"),
+            "Use the current fileRevision and hashline region below:",
+        ));
+    }
+
+    let analyzed = analyze_text(original_bytes, true)?;
+    let text = std::str::from_utf8(original_bytes)
+        .map_err(|e| RuntimeError::InvalidRequest(format!("file is not valid UTF-8: {e}")))?;
+    let total_lines = analyzed.lines.len() as u64;
+
+    let mut resolved: Vec<TextEdit> = Vec::with_capacity(specs.len());
+    for (idx, spec) in specs.iter().enumerate() {
+        match spec {
+            EditSpec::Line {
+                start_line,
+                end_line,
+                start_tag,
+                end_tag,
+                replacement,
+            } => {
+                if *start_line == 0 || *end_line < *start_line || *end_line > total_lines {
+                    return Err(RuntimeError::InvalidRequest(format!(
+                        "edit[{idx}] line range [{start_line}, {end_line}] out of bounds (1..={total_lines})"
+                    )));
+                }
+                if replacement.contains('\r') {
+                    return Err(RuntimeError::InvalidRequest(format!(
+                        "edit[{idx}] replacement must use LF ('\\n'), not CR ('\\r')"
+                    )));
+                }
+                let s_line = &analyzed.lines[(*start_line - 1) as usize];
+                let e_line = &analyzed.lines[(*end_line - 1) as usize];
+
+                if let Some(exp_s) = start_tag
+                    && s_line.line_tag != *exp_s
+                {
+                    return Err(self_healing_conflict(
+                        original_bytes,
+                        *start_line,
+                        format!(
+                            "edit[{idx}] startTag mismatch at line {start_line}: expected '{exp_s}', actual '{}'",
+                            s_line.line_tag
+                        ),
+                        "Line content changed; current region:",
+                    ));
+                }
+                if let Some(exp_e) = end_tag
+                    && e_line.line_tag != *exp_e
+                {
+                    return Err(self_healing_conflict(
+                        original_bytes,
+                        *end_line,
+                        format!(
+                            "edit[{idx}] endTag mismatch at line {end_line}: expected '{exp_e}', actual '{}'",
+                            e_line.line_tag
+                        ),
+                        "Line content changed; current region:",
+                    ));
+                }
+
+                resolved.push(TextEdit {
+                    start_byte: s_line.start_byte,
+                    end_byte: e_line.end_byte,
+                    expected_text: None,
+                    expected_tag: None,
+                    replacement: replacement.clone(),
+                });
+            }
+            EditSpec::Text { old_text, new_text } => {
+                if old_text.is_empty() {
+                    return Err(RuntimeError::InvalidRequest(format!(
+                        "edit[{idx}] oldText cannot be empty"
+                    )));
+                }
+                let norm_old = normalize_crlf_to_lf(old_text);
+                let norm_new = normalize_crlf_to_lf(new_text);
+
+                // Build LF-normalized view with offset mapping back to original_bytes.
+                let (lf_text, lf_to_orig) = build_lf_map(text);
+                let matches: Vec<usize> = lf_text
+                    .match_indices(&norm_old)
+                    .map(|(pos, _)| pos)
+                    .collect();
+
+                if matches.is_empty() {
+                    return Err(self_healing_conflict(
+                        original_bytes,
+                        1,
+                        format!("edit[{idx}] oldText not found in file"),
+                        "oldText did not match; current file snippet:",
+                    ));
+                }
+                if matches.len() > 1 {
+                    let first_orig = lf_to_orig[matches[0]];
+                    let first_line = line_for_offset(&analyzed, first_orig as u64);
+                    return Err(self_healing_conflict(
+                        original_bytes,
+                        first_line,
+                        format!(
+                            "edit[{idx}] oldText matched {} times (must be unique)",
+                            matches.len()
+                        ),
+                        "Provide more surrounding context or use line-range+tag edit:",
+                    ));
+                }
+
+                let lf_start = matches[0];
+                let lf_end = lf_start + norm_old.len();
+                let orig_start = lf_to_orig[lf_start] as u64;
+                let orig_end = lf_to_orig[lf_end] as u64;
+
+                resolved.push(TextEdit {
+                    start_byte: orig_start,
+                    end_byte: orig_end,
+                    expected_text: None,
+                    expected_tag: None,
+                    replacement: norm_new,
+                });
+            }
+            EditSpec::Byte(te) => {
+                resolved.push(te.clone());
+            }
+        }
+    }
+
+    compute_patch(original_bytes, &before_revision, &resolved)
+}
+
+/// Maps each byte offset in LF-normalized `lf_text` (including `lf_text.len()`)
+/// to its corresponding byte offset in `orig_text`.
+fn build_lf_map(orig_text: &str) -> (String, Vec<usize>) {
+    let bytes = orig_text.as_bytes();
+    let mut lf = String::with_capacity(orig_text.len());
+    let mut map = Vec::with_capacity(orig_text.len() + 1);
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'\r' && i + 1 < bytes.len() && bytes[i + 1] == b'\n' {
+            lf.push('\n');
+            map.push(i);
+            i += 2;
+        } else {
+            let ch_len = orig_text[i..].chars().next().map_or(1, char::len_utf8);
+            let s = &orig_text[i..i + ch_len];
+            lf.push_str(s);
+            for offset in 0..ch_len {
+                map.push(i + offset);
+            }
+            i += ch_len;
+        }
+    }
+    map.push(bytes.len());
+    (lf, map)
+}
+
 /// Validates `expected_revision` and `edits` against `original_bytes`, then applies
 /// edits in descending byte-offset order while preserving BOM, EOL, and trailing newline.
 pub fn compute_patch(
@@ -152,11 +413,17 @@ pub fn compute_patch(
 ) -> Result<ComputedPatch, RuntimeError> {
     let before_revision = blake3_hex(original_bytes);
     if before_revision != expected_revision {
-        return Err(RuntimeError::conflict(
+        let first_offset = edits.first().map_or(0, |e| e.start_byte);
+        let target_line = analyze_text(original_bytes, false)
+            .map(|a| line_for_offset(&a, first_offset))
+            .unwrap_or(1);
+        return Err(self_healing_conflict(
+            original_bytes,
+            target_line,
             format!(
                 "stale expectedRevision: expected {expected_revision}, actual {before_revision}"
             ),
-            "Re-read the file to obtain the current fileRevision and byte offsets.",
+            "Use the current fileRevision and hashline region below:",
         ));
     }
 
@@ -197,9 +464,12 @@ pub fn compute_patch(
         if let Some(exp_text) = &edit.expected_text {
             let actual_lf = normalize_crlf_to_lf(&text[start..end]);
             if actual_lf != *exp_text {
-                return Err(RuntimeError::conflict(
+                let target_line = line_for_offset(&analyzed, edit.start_byte);
+                return Err(self_healing_conflict(
+                    original_bytes,
+                    target_line,
                     format!("edit[{idx}] expectedText mismatch at [{start}, {end})"),
-                    "Re-read the file to verify current content before patching.",
+                    "Content changed; current region:",
                 ));
             }
         }
@@ -207,11 +477,14 @@ pub fn compute_patch(
         if let Some(exp_tag) = &edit.expected_tag {
             let actual_tag = find_line_tag_at(&analyzed, start as u64);
             if actual_tag != *exp_tag {
-                return Err(RuntimeError::conflict(
+                let target_line = line_for_offset(&analyzed, edit.start_byte);
+                return Err(self_healing_conflict(
+                    original_bytes,
+                    target_line,
                     format!(
                         "edit[{idx}] expectedTag mismatch at offset {start}: expected '{exp_tag}', actual '{actual_tag}'"
                     ),
-                    "Re-read the file to verify current line tags.",
+                    "Line tag changed; current region:",
                 ));
             }
         }

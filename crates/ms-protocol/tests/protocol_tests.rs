@@ -221,7 +221,19 @@ fn builtin_schemas_cover_all_operations() {
     assert_eq!(
         names,
         vec![
-            "list", "search", "read", "patch", "tx.list", "tx.undo", "schema"
+            "list",
+            "search",
+            "read",
+            "patch",
+            "edit",
+            "write_file",
+            "delete_file",
+            "rename_file",
+            "outline",
+            "context_bundle",
+            "tx.list",
+            "tx.undo",
+            "schema"
         ]
     );
 }

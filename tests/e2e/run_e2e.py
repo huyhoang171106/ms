@@ -809,6 +809,162 @@ def test_t10b_journal_state_fault_injection() -> None:
             assert pcomp2["error"]["code"] == "E_RECOVERY_CONFLICT"
 
 
+# ---------------------------------------------------------------------------
+# T14: Smart Command Distiller (ms exec + ms log)
+# ---------------------------------------------------------------------------
+def test_t14_exec_distill_and_log() -> None:
+    import re
+    import subprocess
+
+    with TempWorkspace("small-repo") as ws:
+        # 1. Passing command with ANSI + \r spinner + duplicate lines
+        cmd_pass = [
+            str(DEFAULT_BIN),
+            "exec",
+            "--root",
+            str(ws.root),
+            "--",
+            "python3",
+            "-c",
+            "import sys; print('\\x1b[32mok line\\x1b[0m'); print('dup'); print('dup'); print('spin1\\rspin2')",
+        ]
+        res = subprocess.run(cmd_pass, capture_output=True, text=True, timeout=10)
+        assert res.returncode == 0, f"T14 pass failed: {res.stderr}"
+        assert "[OK | exit:0" in res.stdout
+        assert "\x1b[" not in res.stdout
+        m = re.search(r"log:(log-[0-9-]+)", res.stdout)
+        assert m, f"T14 missing log_id in: {res.stdout}"
+        log_id = m.group(1)
+
+        # Inspect raw log with ms log --id --tail --grep
+        log_res = subprocess.run(
+            [str(DEFAULT_BIN), "log", "--id", log_id, "--tail", "10", "--grep", "dup"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        assert log_res.returncode == 0
+        assert "dup" in log_res.stdout
+
+        # 2. Failing command referencing an in-workspace file:line -> auto-attaches hashline snippet
+        cmd_fail = [
+            str(DEFAULT_BIN),
+            "exec",
+            "--root",
+            str(ws.root),
+            "--",
+            "python3",
+            "-c",
+            "import sys; sys.stderr.write('error: boom at src/lib.rs:2:1\\n'); sys.exit(1)",
+        ]
+        f_res = subprocess.run(cmd_fail, capture_output=True, text=True, timeout=10)
+        assert f_res.returncode == 1
+        assert "[FAILED | exit:1" in f_res.stdout
+        assert "--- context snippets ---" in f_res.stdout
+        assert "@ src/lib.rs:2" in f_res.stdout
+        assert "rev:" in f_res.stdout
+
+
+# ---------------------------------------------------------------------------
+# T15: Universal MCP Server (ms mcp stdio JSON-RPC 2.0)
+# ---------------------------------------------------------------------------
+def test_t15_mcp_stdio_jsonrpc() -> None:
+    import subprocess
+
+    with TempWorkspace("small-repo") as ws:
+        msgs = [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "e2e", "version": "1.0"}}},
+            {"jsonrpc": "2.0", "method": "notifications/initialized"},
+            {"jsonrpc": "2.0", "id": 2, "method": "ping"},
+            {"jsonrpc": "2.0", "id": 3, "method": "tools/list"},
+            {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "ms_read", "arguments": {"path": "src/lib.rs", "startLine": 1, "lineCount": 20}}},
+            {"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "ms_write", "arguments": {"path": "mcp_created.txt", "content": "hello mcp\n"}}},
+            {"jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": {"name": "ms_undo", "arguments": {}}},
+            {"jsonrpc": "2.0", "id": 7, "method": "tools/call", "params": {"name": "ms_outline", "arguments": {}}},
+        ]
+        proc = subprocess.Popen(
+            [str(DEFAULT_BIN), "mcp", "--root", str(ws.root), "--state-dir", str(ws.state_dir), "--allow-write"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        out, err = proc.communicate("\n".join(json.dumps(m) for m in msgs) + "\n", timeout=10)
+        assert proc.returncode == 0, f"T15 mcp exited {proc.returncode}: {err}"
+        resps = [json.loads(l) for l in out.strip().splitlines()]
+        assert len(resps) == 7, f"T15 expected 7 responses, got {len(resps)}"
+        tool_names = {t["name"] for t in resps[2]["result"]["tools"]}
+        assert {"ms_exec", "ms_log", "ms_read", "ms_search", "ms_edit", "ms_write", "ms_delete", "ms_undo", "ms_outline", "ms_context"} <= tool_names
+        assert resps[3]["result"]["content"][0]["text"].startswith("rev:")
+        assert not (ws.root / "mcp_created.txt").exists(), "T15 ms_undo should have removed mcp_created.txt"
+
+
+# ---------------------------------------------------------------------------
+# T16: Hashline read, edit + self-healing, write/delete/rename + undo, outline, context_bundle
+# ---------------------------------------------------------------------------
+def test_t16_hashline_edit_mutations_outline_context() -> None:
+    with TempWorkspace("small-repo") as ws:
+        with MsProcess(ws.root, ws.state_dir, allow_write=True) as ms:
+            ms.initialize()
+            sid = ms.open_session(allow_write=True)
+
+            # 1. Compact hashline read
+            evs, comp = ms.call_op(sid, {"kind": "read", "path": "src/lib.rs", "startLine": 1, "lineCount": 50, "format": "hashline"})
+            assert comp["status"] == "ok"
+            assert collect_lines(evs) == []
+            hl = comp["result"]["hashline"]
+            assert hl.startswith("rev:")
+            line1 = [l for l in hl.splitlines() if l.startswith("1:")][0]
+            tag1 = line1.split(":")[1].split("|")[0]
+
+            # 2. Self-healing conflict on wrong tag
+            _, cerr = ms.call_op(sid, {
+                "kind": "edit",
+                "path": "src/lib.rs",
+                "edits": [{"startLine": 1, "endLine": 1, "startTag": "zzzz", "replacement": "// bad"}],
+            })
+            assert cerr["status"] == "error"
+            assert cerr["error"]["code"] == "E_CONFLICT"
+            assert "1:" in cerr["error"]["hint"]
+
+            # 3. Valid line-range + tag edit
+            _, eok = ms.call_op(sid, {
+                "kind": "edit",
+                "path": "src/lib.rs",
+                "edits": [{"startLine": 1, "endLine": 1, "startTag": tag1, "replacement": "// updated via hashline"}],
+            }, operation_id="t16-edit-1")
+            assert eok["status"] == "ok"
+
+            # 4. write_file -> delete_file -> tx.undo
+            _, wok = ms.call_op(sid, {
+                "kind": "write_file",
+                "path": "extra/hello.rs",
+                "content": "pub fn hello() {}\n",
+            }, operation_id="t16-write-1")
+            assert wok["status"] == "ok"
+            assert (ws.root / "extra/hello.rs").exists()
+
+            _, dok = ms.call_op(sid, {
+                "kind": "delete_file",
+                "path": "extra/hello.rs",
+            }, operation_id="t16-del-1")
+            assert dok["status"] == "ok"
+            assert not (ws.root / "extra/hello.rs").exists()
+
+            _, uok = ms.call_op(sid, {"kind": "tx.undo"}, operation_id="t16-undo-1")
+            assert uok["status"] == "ok"
+            assert (ws.root / "extra/hello.rs").exists()
+
+            # 5. outline & context_bundle
+            oevs, ocomp = ms.call_op(sid, {"kind": "outline"})
+            assert ocomp["status"] == "ok"
+            assert len(collect_lines(oevs)) >= 1
+
+            _, ccomp = ms.call_op(sid, {"kind": "context_bundle", "path": "src/lib.rs", "line": 1})
+            assert ccomp["status"] == "ok"
+            assert ccomp["result"]["hashlineSnippet"].startswith("rev:")
+
+
 TESTS: list[tuple[str, Callable[[], None]]] = [
     ("T01_path_traversal_and_symlinks", test_t01_path_traversal_and_symlinks),
     ("T02_secrets_fifo_and_bounds", test_t02_secrets_fifo_and_bounds),
@@ -822,6 +978,9 @@ TESTS: list[tuple[str, Callable[[], None]]] = [
     ("T10_T11_T12_T13b_recovery_undo_idempotency", test_t10_t11_t12_t13b_journal_recovery_undo_idempotency),
     ("T10b_journal_state_fault_injection", test_t10b_journal_state_fault_injection),
     ("T13_workspace_lease_across_instances", test_t13_workspace_lease_across_instances),
+    ("T14_exec_distill_and_log", test_t14_exec_distill_and_log),
+    ("T15_mcp_stdio_jsonrpc", test_t15_mcp_stdio_jsonrpc),
+    ("T16_hashline_edit_mutations_outline_context", test_t16_hashline_edit_mutations_outline_context),
 ]
 
 

@@ -1,6 +1,6 @@
 use crate::error::ProtocolError;
 use crate::messages::{Request, RequestBody};
-use crate::operations::{Operation, TextEdit};
+use crate::operations::{EditSpec, Operation, TextEdit};
 
 /// Validates a workspace-relative UTF-8 path at the protocol boundary.
 ///
@@ -184,6 +184,91 @@ pub fn validate_operation(op: &Operation) -> Result<(), ProtocolError> {
             validate_relative_path(&p.path)?;
             validate_revision_hex(&p.expected_revision)?;
             validate_patch_edits(&p.edits)?;
+            Ok(())
+        }
+        Operation::Edit(p) => {
+            validate_relative_path(&p.path)?;
+            if let Some(rev) = &p.expected_revision {
+                validate_revision_hex(rev)?;
+            }
+            if p.edits.is_empty() {
+                return Err(ProtocolError::InvalidEdit(
+                    "edits list cannot be empty".into(),
+                ));
+            }
+            let mut byte_edits = Vec::new();
+            for (idx, spec) in p.edits.iter().enumerate() {
+                match spec {
+                    EditSpec::Line {
+                        start_line,
+                        end_line,
+                        ..
+                    } => {
+                        if *start_line == 0 || *end_line < *start_line {
+                            return Err(ProtocolError::InvalidEdit(format!(
+                                "edit[{idx}] invalid line range [{start_line}, {end_line}] (1-based, startLine <= endLine)"
+                            )));
+                        }
+                    }
+                    EditSpec::Text { old_text, .. } => {
+                        if old_text.is_empty() {
+                            return Err(ProtocolError::InvalidEdit(format!(
+                                "edit[{idx}] oldText cannot be empty"
+                            )));
+                        }
+                    }
+                    EditSpec::Byte(te) => {
+                        byte_edits.push(te.clone());
+                    }
+                }
+            }
+            if !byte_edits.is_empty() {
+                validate_patch_edits(&byte_edits)?;
+            }
+            Ok(())
+        }
+        Operation::WriteFile(p) => {
+            validate_relative_path(&p.path)?;
+            if let Some(rev) = &p.expected_revision {
+                validate_revision_hex(rev)?;
+            }
+            Ok(())
+        }
+        Operation::DeleteFile(p) => {
+            validate_relative_path(&p.path)?;
+            if let Some(rev) = &p.expected_revision {
+                validate_revision_hex(rev)?;
+            }
+            Ok(())
+        }
+        Operation::RenameFile(p) => {
+            validate_relative_path(&p.from)?;
+            validate_relative_path(&p.to)?;
+            if p.from == p.to {
+                return Err(ProtocolError::InvalidRequest(
+                    "rename_file 'from' and 'to' paths must differ".into(),
+                ));
+            }
+            if let Some(rev) = &p.expected_revision {
+                validate_revision_hex(rev)?;
+            }
+            Ok(())
+        }
+        Operation::Outline(p) => {
+            if let Some(path) = &p.path
+                && path != "."
+            {
+                validate_relative_path(path)?;
+            }
+            Ok(())
+        }
+        Operation::ContextBundle(p) => {
+            validate_relative_path(&p.path)?;
+            if p.line == Some(0) {
+                return Err(ProtocolError::InvalidRequest(
+                    "line is 1-based and must be >= 1".into(),
+                ));
+            }
             Ok(())
         }
         Operation::TxList(_) | Operation::TxUndo(_) | Operation::Schema(_) => Ok(()),

@@ -69,6 +69,8 @@ pub struct ErrorInfo {
     pub message: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hint: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub details: Option<serde_json::Value>,
     pub retryable: bool,
 }
 
@@ -79,6 +81,7 @@ impl ErrorInfo {
             code,
             message: message.into(),
             hint: None,
+            details: None,
             retryable: code.is_retryable(),
         }
     }
@@ -86,6 +89,12 @@ impl ErrorInfo {
     #[must_use]
     pub fn with_hint(mut self, hint: impl Into<String>) -> Self {
         self.hint = Some(hint.into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_details(mut self, details: serde_json::Value) -> Self {
+        self.details = Some(details);
         self
     }
 }

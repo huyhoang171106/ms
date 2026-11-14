@@ -5,7 +5,10 @@ use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ms_protocol::{PatchResult, TxKind, TxListParams, TxRecord, TxState, TxUndoResult};
+use ms_protocol::{
+    DeleteFileResult, PatchResult, RenameFileResult, TxKind, TxListParams, TxRecord, TxState,
+    TxUndoResult, WriteFileResult,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::error::RuntimeError;
@@ -22,6 +25,10 @@ struct JournalEnvelope {
     payload: String,
 }
 
+const fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "entryType", rename_all = "camelCase")]
 #[allow(clippy::large_enum_variant)]
@@ -32,6 +39,10 @@ pub enum JournalEntry {
         payload_hash: Option<String>,
         kind: TxKind,
         path: String,
+        #[serde(default)]
+        dest_path: Option<String>,
+        #[serde(default = "default_true")]
+        existed_before: bool,
         target_dev: u64,
         target_ino: u64,
         target_mode: u32,
@@ -80,6 +91,8 @@ pub struct StoredTx {
     pub kind: TxKind,
     pub state: TxState,
     pub path: String,
+    pub dest_path: Option<String>,
+    pub existed_before: bool,
     pub temp_name: String,
     pub before_revision: String,
     pub after_revision: String,
@@ -131,6 +144,44 @@ impl StoredTx {
             path: self.path.clone(),
             before_revision: self.before_revision.clone(),
             restored_revision: self.after_revision.clone(),
+            operation_id: self.operation_id.clone(),
+        }
+    }
+
+    #[must_use]
+    pub fn to_write_result(&self) -> WriteFileResult {
+        WriteFileResult {
+            path: self.path.clone(),
+            dry_run: false,
+            created: !self.existed_before,
+            before_revision: self.before_revision.clone(),
+            after_revision: self.after_revision.clone(),
+            bytes_written: self.bytes_delta.max(0) as u64,
+            transaction_id: Some(self.tx_id.clone()),
+            operation_id: self.operation_id.clone(),
+        }
+    }
+
+    #[must_use]
+    pub fn to_delete_result(&self) -> DeleteFileResult {
+        DeleteFileResult {
+            path: self.path.clone(),
+            dry_run: false,
+            before_revision: self.before_revision.clone(),
+            bytes_deleted: (-self.bytes_delta).max(0) as u64,
+            transaction_id: Some(self.tx_id.clone()),
+            operation_id: self.operation_id.clone(),
+        }
+    }
+
+    #[must_use]
+    pub fn to_rename_result(&self) -> RenameFileResult {
+        RenameFileResult {
+            from: self.path.clone(),
+            to: self.dest_path.clone().unwrap_or_default(),
+            dry_run: false,
+            file_revision: self.after_revision.clone(),
+            transaction_id: Some(self.tx_id.clone()),
             operation_id: self.operation_id.clone(),
         }
     }
@@ -361,7 +412,7 @@ impl WorkspaceJournal {
         self.txs
             .iter()
             .rev()
-            .find(|tx| tx.kind == TxKind::Patch && tx.state == TxState::Committed)
+            .find(|tx| tx.kind != TxKind::Undo && tx.state == TxState::Committed)
     }
 
     fn load_journal(&mut self) -> Result<(), RuntimeError> {
@@ -450,13 +501,45 @@ impl WorkspaceJournal {
             // Clean up any orphaned staging temp file.
             fs.cleanup_temp_file(&tx.path, &tx.temp_name);
 
-            let current_digest = match fs.read_file_bytes(&tx.path, max_file_bytes) {
+            let check_path = if tx.kind == TxKind::Rename {
+                tx.dest_path.as_deref().unwrap_or(&tx.path)
+            } else {
+                &tx.path
+            };
+
+            let current_digest = match fs.read_file_bytes(check_path, max_file_bytes) {
                 Ok((bytes, _)) => Some(blake3_hex(&bytes)),
                 Err(_) => None,
             };
 
-            match current_digest.as_deref() {
-                Some(d) if d == tx.after_revision => {
+            match (tx.kind, current_digest.as_deref()) {
+                (TxKind::Delete, None) => {
+                    self.append_entry(JournalEntry::Committed {
+                        tx_id: tx.tx_id.clone(),
+                        committed_at_ms: now_ms(),
+                    })?;
+                }
+                (TxKind::Write, None) if !tx.existed_before => {
+                    self.append_entry(JournalEntry::Aborted {
+                        tx_id: tx.tx_id.clone(),
+                        reason: "startup recovery: newly created file not present".to_string(),
+                        aborted_at_ms: now_ms(),
+                    })?;
+                }
+                (TxKind::Undo, None) if !tx.existed_before => {
+                    self.append_entry(JournalEntry::Committed {
+                        tx_id: tx.tx_id.clone(),
+                        committed_at_ms: now_ms(),
+                    })?;
+                    if let Some(target_id) = tx.target_tx_id.clone() {
+                        self.append_entry(JournalEntry::Undone {
+                            tx_id: target_id,
+                            undone_by_tx_id: tx.tx_id.clone(),
+                            undone_at_ms: now_ms(),
+                        })?;
+                    }
+                }
+                (_, Some(d)) if d == tx.after_revision => {
                     self.append_entry(JournalEntry::Committed {
                         tx_id: tx.tx_id.clone(),
                         committed_at_ms: now_ms(),
@@ -471,7 +554,7 @@ impl WorkspaceJournal {
                         })?;
                     }
                 }
-                Some(d) if d == tx.before_revision => {
+                (_, Some(d)) if d == tx.before_revision => {
                     self.append_entry(JournalEntry::Aborted {
                         tx_id: tx.tx_id.clone(),
                         reason: "startup recovery: target unchanged (before_revision)".to_string(),
@@ -500,6 +583,8 @@ impl WorkspaceJournal {
                 payload_hash,
                 kind,
                 path,
+                dest_path,
+                existed_before,
                 target_dev: _,
                 target_ino: _,
                 target_mode: _,
@@ -525,6 +610,8 @@ impl WorkspaceJournal {
                     kind,
                     state: TxState::Prepared,
                     path,
+                    dest_path,
+                    existed_before,
                     temp_name,
                     before_revision,
                     after_revision,
