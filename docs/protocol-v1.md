@@ -1,10 +1,10 @@
 # Protocol v1 Specification (`ms`)
 
-**Status:** Active (MVP K1/K2)  
-**Wire Format:** Newline-Delimited JSON (NDJSON) over `stdin` / `stdout`  
+**Status:** Active (v1.0)  
+**Wire Format:** Newline-Delimited JSON (NDJSON) over `stdin` / `stdout` (plus MCP JSON-RPC 2.0 over stdio via `ms mcp`)  
 **Protocol Version:** `"1.0"`
 
-> Note: Protocol v1 is an explicit, versioned NDJSON protocol. It is not JSON-RPC 2.0.
+> Note: Protocol v1 is an explicit, versioned NDJSON protocol. For MCP clients (Claude Code, Pi, Cursor, Antigravity), use `ms mcp` which translates MCP JSON-RPC 2.0 tool calls onto the same `Runtime` and security/journal guarantees.
 
 ## 1. Transport & Framing
 
@@ -39,7 +39,10 @@ Returns `completed.result`:
   "serverName": "ms",
   "serverVersion": "0.1.0",
   "capabilities": {
-    "operations": ["list", "search", "read", "patch", "tx.list", "tx.undo", "schema"],
+    "operations": [
+      "list", "search", "read", "outline", "context_bundle", "tx.list", "schema",
+      "patch", "patch.batch", "edit", "write_file", "delete_file", "rename_file", "tx.undo"
+    ],
     "allowWrite": true,
     "allowExternalExec": false,
     "supportsCancellation": true,
@@ -84,14 +87,15 @@ Clients must inspect `capabilities` and must not infer capabilities from `server
       "kind": "read",
       "path": "src/main.rs",
       "startLine": 1,
-      "lineCount": 40
+      "lineCount": 40,
+      "format": "hashline"
     }
   }
 }
 ```
 
 - `operationId`: Optional (recommended for all mutations). Stable across reconnects/restarts.
-  - Same `operationId` + same payload hash → returns stored outcome without re-applying.
+  - Same `operationId` + same payload hash → returns stored outcome without re-applying (supported for single-file mutations and `patch.batch`).
   - Same `operationId` + different payload hash → `E_IDEMPOTENCY_CONFLICT`.
   - Expired epoch → `E_IDEMPOTENCY_EXPIRED`.
 - `deadlineMs`: Applies to both queue wait time and execution time, clamped to `maxLimits.maxDeadlineMs`.
@@ -108,20 +112,26 @@ Clients must inspect `capabilities` and must not infer capabilities from `server
 |---|---|---|
 | `list` | No | `path?`, `recursive?`, `maxEntries?`, `includeHidden?`, `respectIgnore?` |
 | `search` | No | `query`, `path?`, `regex?`, `caseSensitive?`, `maxMatches?`, `contextLines?` |
-| `read` | No | `path`, `startLine?` (1-based), `lineCount?` |
+| `read` | No | `path`, `startLine?` (1-based), `lineCount?`, `format?` (`"json"` \| `"hashline"`) |
+| `outline` | No | `path`, `maxSymbols?` |
+| `context_bundle` | No | `query`, `path?`, `maxFiles?`, `maxLinesPerFile?`, `includeTests?` |
 | `patch` | Yes | `path`, `expectedRevision` (64-hex BLAKE3), `edits[]` (`startByte`, `endByte`, `expectedText?`, `expectedTag?`, `replacement`), `dryRun?` |
+| `edit` | Yes | `path`, `expectedRevision?`, `edits[]` (line-range `startLine`/`endLine` + optional `startTag`/`endTag`, `oldText`, or byte-range), `dryRun?` |
+| `write_file` | Yes | `path`, `content`, `createIfMissing?`, `overwrite?`, `expectedRevision?`, `dryRun?` |
+| `delete_file` | Yes | `path`, `expectedRevision?`, `dryRun?` |
+| `rename_file` | Yes | `from`, `to`, `overwrite?`, `expectedRevision?`, `dryRun?` |
+| `patch.batch` | Yes | `operations[]` (`patch` \| `write_file` \| `delete_file`), `dryRun?` |
 | `tx.list` | No | `operationId?`, `limit?`, `includeUndone?` |
 | `tx.undo` | Yes | `transactionId?` (must be latest un-undone tx if provided) |
 | `schema` | No | `operation?` |
 
-### `patch` Semantics
+### `patch`, `edit`, and `patch.batch` Semantics
 
-- Targets a single existing regular UTF-8 file (no symlinks, FIFOs, or multi-link hardlinks).
-- `edits` are byte offsets `[startByte, endByte)` against the **original snapshot** (`expectedRevision`).
-- Overlapping ranges and duplicate point inserts are rejected before any write.
-- Edits are applied in descending offset order.
+- Target regular UTF-8 files only (no symlinks, FIFOs, or multi-link hardlinks).
+- `patch` uses byte offsets `[startByte, endByte)` against `expectedRevision`.
+- `edit` supports 1-based line ranges (`startLine`/`endLine` with optional hashline tags `startTag`/`endTag`), exact `oldText` matching, or byte ranges. On stale revision or tag mismatch, `E_CONFLICT` includes self-healing `currentRevision` and fresh `hashline` context around the target lines.
+- `patch.batch` validates all items up-front via dry-run, executes sequentially with per-item journaled transactions, rolls back earlier items in reverse order on any mid-batch failure, and records a `BatchCommitted` journal entry for batch-level `operationId` idempotency.
 - Preserves uniform `LF` or `CRLF`, UTF-8 BOM, and absence/presence of trailing newline; mixed EOL or invalid UTF-8 is rejected.
-- `expectedText` and `replacement` use `LF` on the wire; the runtime converts `replacement` to the file's EOL.
 
 ## 4. Event Envelope (Server → Client)
 
@@ -134,3 +144,9 @@ Every accepted request with a valid `id` receives zero or more `records` / `byte
 
 - `completed.status`: `"ok" | "error" | "cancelled" | "timeout" | "limit_exceeded"`.
 - Invalid JSON without a valid `id` emits `{"seq":0,"type":"protocol_error","code":"E_PROTOCOL","message":"...","fatal":false}`.
+
+## 5. CLI Modes (`ms mcp`, `ms exec`, `ms log`)
+
+- `ms mcp [OPTIONS]`: Runs an MCP JSON-RPC 2.0 server over stdio exposing `ms_list`, `ms_search`, `ms_read`, `ms_outline`, `ms_context_bundle`, `ms_edit`, `ms_write_file`, `ms_delete_file`, `ms_rename_file`, `ms_patch_batch`, `ms_tx_list`, `ms_tx_undo`, and (when `--allow-write` or enabled) `ms_exec` / `ms_log`.
+- `ms exec [--root <DIR>] [--timeout <MS>] [--] <CMD...>`: Executes a command, distills noisy output (pytest, jest/vitest, tsc, eslint, git diff/status), attaches `hashline` failure snippets, and saves raw logs under `/tmp/ms-logs` (with automatic TTL/count GC).
+- `ms log --id <ID> [--tail <N>] [--grep <PATTERN>]`: Reads/filters saved raw logs from `/tmp/ms-logs`.

@@ -22,12 +22,13 @@ pub use messages::{
     SessionCloseResult, SessionOpenParams, SessionOpenResult,
 };
 pub use operations::{
-    ContextBundleParams, ContextBundleResult, ContextTestMatch, DeleteFileParams, DeleteFileResult,
-    EditParams, EditSpec, EntryKind, EolKind, FieldSchema, FieldType, ListEntry, ListParams,
-    Operation, OperationSchema, OutlineFile, OutlineParams, OutlineSymbol, PatchParams,
-    PatchResult, ReadFormat, ReadLine, ReadParams, ReadResult, RenameFileParams, RenameFileResult,
-    SchemaParams, SearchMatch, SearchParams, TextEdit, TxKind, TxListParams, TxRecord, TxState,
-    TxUndoParams, TxUndoResult, WriteFileParams, WriteFileResult, builtin_operation_schemas,
+    BatchFileOp, BatchItemResult, ContextBundleParams, ContextBundleResult, ContextTestMatch,
+    DeleteFileParams, DeleteFileResult, EditParams, EditSpec, EntryKind, EolKind, FieldSchema,
+    FieldType, ListEntry, ListParams, Operation, OperationSchema, OutlineFile, OutlineParams,
+    OutlineSymbol, PatchBatchParams, PatchBatchResult, PatchParams, PatchResult, ReadFormat,
+    ReadLine, ReadParams, ReadResult, RenameFileParams, RenameFileResult, SchemaParams,
+    SearchMatch, SearchParams, TextEdit, TxKind, TxListParams, TxRecord, TxState, TxUndoParams,
+    TxUndoResult, WriteFileParams, WriteFileResult, builtin_operation_schemas,
 };
 pub use validate::{
     normalize_relative_path, validate_operation, validate_patch_edits, validate_relative_path,

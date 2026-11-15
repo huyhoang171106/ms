@@ -1,6 +1,6 @@
-# ms — Structured Shell Runtime for Coding Agents
+# ms — Structured Shell & File Runtime for Coding Agents
 
-`ms` is a standalone, Linux-first Rust runtime providing a structured NDJSON-over-stdio RPC for coding agents to **list, search, read, patch, and durably undo** files in a managed workspace without shell quoting, terminal table parsing, or unguarded writes.
+`ms` is a standalone, Linux-first Rust runtime providing a structured NDJSON-over-stdio RPC, an MCP JSON-RPC 2.0 stdio server, and a smart command distiller (`ms exec` / `ms log`) for coding agents to **list, search, read, outline, edit, batch-patch, and durably undo** files in a managed workspace without shell quoting, terminal table parsing, or unguarded writes.
 
 ## Architecture
 
@@ -12,14 +12,14 @@ ms-cli ──▶ ms-rpc ──▶ ms-runtime ──▶ ms-protocol
 ```
 
 - **`crates/ms-protocol`**: Pure DTOs, Protocol v1 NDJSON request/event envelopes, `ErrorCode`, capabilities, hard limits, and operation schemas. Zero filesystem or process dependencies.
-- **`crates/ms-runtime`**: `WorkspaceFs` (root directory FD + `openat2` `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS`), host capability enforcement, bounded `list`/`search`/`read`/`patch`, single-writer `flock` workspace lease keyed by `(dev, ino)`, durable write-ahead journal, crash recovery, `operationId` idempotency, and conflict-aware `tx.undo`.
-- **`crates/ms-rpc`**: NDJSON stdio framing (1 MiB max frame), concurrent `tokio` dispatcher with non-blocking `cancel`, bounded channels/backpressure, output quotas, and guaranteed `completed` terminal events.
-- **`crates/ms-cli`**: Host configuration (CLI flags / `--config <JSON>`), `ms` binary entrypoint.
+- **`crates/ms-runtime`**: `WorkspaceFs` (root directory FD + `openat2` `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS`), host capability enforcement, bounded `list`/`search`/`read` (with compact `hashline`), `outline`, `context_bundle`, `patch`, `edit` (line-range / `oldText` / byte-range + self-healing `E_CONFLICT`), `write_file`, `delete_file`, `rename_file`, atomic `patch.batch` (with rollback and batch-level `operationId` idempotency), single-writer `flock` workspace lease keyed by `(dev, ino)`, durable write-ahead journal, crash recovery, and conflict-aware `tx.undo`.
+- **`crates/ms-rpc`**: NDJSON stdio framing (1 MiB max frame), concurrent `tokio` dispatcher with non-blocking `cancel`, bounded channels/backpressure, output quotas, guaranteed `completed` terminal events, `ms mcp` (MCP JSON-RPC 2.0 over stdio), and `ms exec` / `ms log` (smart command distiller with failure context snippets and automatic `/tmp/ms-logs` TTL/count GC).
+- **`crates/ms-cli`**: Host configuration (CLI flags / `--config <JSON>`), `ms` binary entrypoint (`serve`, `mcp`, `exec`, `log`).
 
 ## Quick Start
 
 ```bash
-cargo fmt --check
+cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo build --release
@@ -31,35 +31,48 @@ Run the NDJSON RPC server, MCP server, or Smart Command Distiller:
 # NDJSON RPC server (Protocol v1)
 ./target/release/ms --root /path/to/workspace --state-dir /path/to/state --allow-write
 
-# Universal MCP (JSON-RPC 2.0 over stdio) server for Claude Code, Pi, Cursor, etc.
-./target/release/ms mcp --allow-write
+# Universal MCP (JSON-RPC 2.0 over stdio) server for Claude Code, Pi, Cursor, Antigravity
+./target/release/ms mcp --root /path/to/workspace --allow-write --state-dir /path/to/state
 
 # Smart Command Distiller + on-demand raw log inspection
 ./target/release/ms exec -- cargo test --workspace
 ./target/release/ms log --id <log_id> --tail 100 --grep error
 ```
 
+### One-Command MCP Integration Installer
+
+Wire `ms mcp` into Pi (`~/.pi/agent/mcp.json`) and/or Claude Code (`~/.claude.json`) safely (creates timestamped backups of existing configs and preserves all other keys):
+
+```bash
+bash scripts/install_integrations.sh --dry-run --all
+bash scripts/install_integrations.sh --all        # or --pi / --claude
+```
+
 ## Axiom & Coding Agent Integration
 
-Coding agents and orchestrators (such as Axiom) spawn `ms` as a subprocess and exchange NDJSON messages over `stdin`/`stdout` (with `stderr` reserved for sanitized operational diagnostics):
+Coding agents and orchestrators (such as Axiom) spawn `ms` as a subprocess or use the typed adapter:
 
-- **TypeScript / Axiom Adapter**: [`examples/axiom_adapter.ts`](examples/axiom_adapter.ts) — typed `MsClient` wrapper (`initialize`, `openSession`, `list`, `search`, `read`, `patch`, `txList`, `txUndo`, `cancel`, `closeSession`) with `operationId` idempotency and `deadlineMs`.
+- **TypeScript / Axiom Adapter**: [`examples/axiom_adapter.ts`](examples/axiom_adapter.ts) — typed `MsClient` and `MsAxiomAdapter` (preserving `test-guard` protections, in-process `exec` + `readLog`, `hashline` snippets, and `operationId` idempotency).
 - **Python Client**: [`examples/python_client.py`](examples/python_client.py) — end-to-end NDJSON stdio example.
 - See [`examples/README.md`](examples/README.md) for usage details.
 
 ## Verification & Benchmarks
 
-- **Unit & Integration Tests**: `cargo test --workspace` — **26/26 passed** (`ms-protocol`: 8, `ms-runtime`: 11, `ms-rpc`: 4, `ms-cli`: 3).
+- **Unit & Integration Tests** (`cargo test --workspace`): **41/41 passed** (`ms-cli`: 3, `ms-protocol`: 8, `ms-rpc`: 16, `ms-runtime`: 14 — including `patch.batch` atomic rollback and batch-level idempotency/conflict tests).
 - **E2E & Fault-Injection Suite** (`python3 tests/e2e/run_e2e.py`): **15/15 passed** against `target/release/ms` (covering T01–T16: traversal/symlink/FIFO/hardlink rejection, framing/cancellation, stale BLAKE3 revision & self-healing `E_CONFLICT`, `hashline` read & `edit`, `write_file`/`delete_file`/`rename_file` + `tx.undo`, `outline` & `context_bundle`, `ms exec` + `ms log`, and `ms mcp` stdio JSON-RPC 2.0).
-- **Measured Token & Latency Wins** (see [`benchmarks/REPORT.md`](benchmarks/REPORT.md)):
+- **MCP E2E Suite** (`python3 tests/e2e/test_mcp_e2e.py`): **passed** against `target/release/ms mcp` (initialize, tools/list, read/edit/patch.batch/exec/log/undo over JSON-RPC 2.0 stdio).
+- **Axiom Adapter & Harness Tests** (`bun test benchmarks/ab_axiom_uc01.test.ts`): **29/29 passed** (223 assertions).
+- **Measured Token & Latency Wins** ([`benchmarks/REPORT.md`](benchmarks/REPORT.md), [`benchmarks/results.json`](benchmarks/results.json)):
   - `ms search` (warm): **3.94 ms** vs `rg` **6.46 ms**
   - `ms read` compact `hashline` (200 lines): **8,065 B (0.84 ms)** vs old JSON `24,210 B (1.50 ms)` (**66.7% smaller**)
   - `ms exec -- cargo test --workspace`: **2 lines / 136 B** vs raw **87 lines / 3,327 B** (**95.9% smaller**)
   - `ms exec -- git diff`: **83 lines / 4,409 B** vs raw **4,736 lines / 178,017 B** (**97.5% smaller**)
-- **Benchmarks** ([`benchmarks/REPORT.md`](benchmarks/REPORT.md), [`benchmarks/results.json`](benchmarks/results.json)):
-  - `list_large_repo_501_files`: `ms` warm 2.904 ms (7148 KB RSS) vs `fdfind` 5.945 ms (5252 KB RSS)
-  - `read_bounded_20_lines`: `ms` warm 0.238 ms (5152 KB RSS) vs `python3` 21.090 ms (12236 KB RSS)
-  - `read_plus_patch_small_repo`: `ms` cold 4.492 ms (5208 KB RSS, with BLAKE3 + journal + atomic rename) vs `python3` 19.667 ms (12132 KB RSS)
+  - `list_large_repo_501_files`: `ms` warm **2.904 ms** vs `fdfind` **5.945 ms**
+  - `read_bounded_20_lines`: `ms` warm **0.238 ms** vs `python3` **21.090 ms**
+  - `read_plus_patch_small_repo`: `ms` cold **4.492 ms** (with BLAKE3 + journal + atomic rename) vs `python3` **19.667 ms**
+- **Controlled Agent A/B Evaluations** (honest findings on `evals/uc01/`):
+  - [`benchmarks/AB_AXIOM_REPORT.md`](benchmarks/AB_AXIOM_REPORT.md) (`claude-haiku-5-5`, `N=1` smoke): **3/3** verified pass in both arms; `-60.5%` tool output bytes (`9,659 B` vs `24,424 B`), `+53.7%` estimated cost in smoke run due to extra tool turns.
+  - [`benchmarks/AB_DEEPSEEK_WEAKNESS_REPORT.md`](benchmarks/AB_DEEPSEEK_WEAKNESS_REPORT.md) (`deepseek-v4-1-flash`, `N=3` paired = 18 runs): **9/9 (100%)** verified pass in both arms; `-51.7%` tool output bytes and `-11.7%` total tokens (`550,334` vs `622,966`), `0%` edit errors (`17/17` vs `13.3%` malformed diffs in baseline), while identifying areas improved in subsequent work (`..` path normalization, read-only `ms exec` false positives, `readLog` + GC, and `patch.batch` idempotency).
 
 ## Documentation
 
@@ -67,9 +80,9 @@ Coding agents and orchestrators (such as Axiom) spawn `ms` as a subprocess and e
 - [Threat Model](docs/threat-model.md)
 - [Architecture Decision Records (ADR-01..10)](docs/adr/)
 
-## Scope & Guarantees (MVP K2)
+## Scope & Guarantees
 
 - **Linux-first**: Relies on `openat2(RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS)` and `fsync` semantics; fails closed if unsupported.
-- **Single-file atomic + durable transactions**: Preimage + `PREPARED` journal + temp file in target directory + `fsync` + revalidate + atomic `rename` + dir `fsync` + `COMMITTED`.
-- **Cooperative single-writer lock**: Keyed by root `(dev, ino)` in host-managed `state_dir` (`0700`). Does not prevent concurrent external editors outside `ms`, though full BLAKE3 `expectedRevision` detects external modifications before commit.
-- **No arbitrary shell execution** in K1/K2 MVP (`allowExternalExec: false`).
+- **Single-file & batch atomic transactions**: Preimage + `PREPARED` journal + temp file in target directory + `fsync` + revalidate + atomic `rename` + dir `fsync` + `COMMITTED` (with automatic reverse-order rollback on `patch.batch` mid-batch failure and `BatchCommitted` idempotency records).
+- **Cooperative single-writer lock**: Keyed by root `(dev, ino)` in host-managed `state_dir` (`0700`). Full BLAKE3 `expectedRevision` detects external modifications before commit.
+- **No arbitrary shell execution over Protocol v1 RPC** (`allowExternalExec: false`); `ms exec` is an explicit CLI subcommand / MCP opt-in tool for distilled command execution with `/tmp/ms-logs` GC.

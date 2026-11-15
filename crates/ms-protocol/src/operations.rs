@@ -8,6 +8,8 @@ pub enum Operation {
     Search(SearchParams),
     Read(ReadParams),
     Patch(PatchParams),
+    #[serde(rename = "patch.batch")]
+    PatchBatch(PatchBatchParams),
     Edit(EditParams),
     #[serde(rename = "write_file")]
     WriteFile(WriteFileParams),
@@ -34,6 +36,7 @@ impl Operation {
             Self::Search(_) => "search",
             Self::Read(_) => "read",
             Self::Patch(_) => "patch",
+            Self::PatchBatch(_) => "patch.batch",
             Self::Edit(_) => "edit",
             Self::WriteFile(_) => "write_file",
             Self::DeleteFile(_) => "delete_file",
@@ -52,6 +55,7 @@ impl Operation {
         matches!(
             self,
             Self::Patch(_)
+                | Self::PatchBatch(_)
                 | Self::Edit(_)
                 | Self::WriteFile(_)
                 | Self::DeleteFile(_)
@@ -232,6 +236,27 @@ pub struct PatchParams {
     pub expected_revision: String,
     pub edits: Vec<TextEdit>,
     /// When true, validates and returns a preview without modifying the file or journal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dry_run: Option<bool>,
+}
+
+/// A single file operation inside `patch.batch`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum BatchFileOp {
+    Patch(PatchParams),
+    #[serde(rename = "write_file")]
+    WriteFile(WriteFileParams),
+    #[serde(rename = "delete_file")]
+    DeleteFile(DeleteFileParams),
+}
+
+/// Parameters for `patch.batch`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PatchBatchParams {
+    pub operations: Vec<BatchFileOp>,
+    /// When true, validates all operations and returns a preview without modifying files or journal.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dry_run: Option<bool>,
 }
@@ -449,6 +474,27 @@ pub struct PatchResult {
     pub diff_preview: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchItemResult {
+    pub kind: String,
+    pub path: String,
+    pub before_revision: String,
+    pub after_revision: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PatchBatchResult {
+    pub dry_run: bool,
+    pub operations_applied: usize,
+    pub results: Vec<BatchItemResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operation_id: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TxKind {
@@ -591,6 +637,17 @@ pub fn builtin_operation_schemas() -> Vec<OperationSchema> {
                 field("transactionId", FieldType::String, true),
                 field("operationId", FieldType::String, true),
                 field("diffPreview", FieldType::String, true),
+            ],
+        },
+        OperationSchema {
+            name: "patch.batch".to_string(),
+            description: "Atomically apply a batch of file mutations with up-front validation and automatic preimage rollback on failure.".to_string(),
+            mutates: true,
+            fields: vec![
+                field("dryRun", FieldType::Bool, false),
+                field("operationsApplied", FieldType::Usize, false),
+                field("results", FieldType::Enum, false),
+                field("operationId", FieldType::String, true),
             ],
         },
         OperationSchema {

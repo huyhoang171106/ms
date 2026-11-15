@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ms_protocol::{
-    DeleteFileResult, PatchResult, RenameFileResult, TxKind, TxListParams, TxRecord, TxState,
-    TxUndoResult, WriteFileResult,
+    DeleteFileResult, PatchBatchResult, PatchResult, RenameFileResult, TxKind, TxListParams,
+    TxRecord, TxState, TxUndoResult, WriteFileResult,
 };
 use serde::{Deserialize, Serialize};
 
@@ -74,6 +74,13 @@ pub enum JournalEntry {
         tx_id: String,
         undone_by_tx_id: String,
         undone_at_ms: u64,
+    },
+    BatchCommitted {
+        operation_id: String,
+        payload_hash: String,
+        result_json: String,
+        epoch: u64,
+        committed_at_ms: u64,
     },
 }
 
@@ -187,6 +194,13 @@ impl StoredTx {
     }
 }
 
+#[derive(Debug, Clone)]
+struct StoredBatchOp {
+    payload_hash: String,
+    result_json: String,
+    epoch: u64,
+}
+
 /// Durable per-workspace transaction journal, preimage store, and crash-recovery engine.
 #[derive(Debug)]
 pub struct WorkspaceJournal {
@@ -199,6 +213,7 @@ pub struct WorkspaceJournal {
     txs: Vec<StoredTx>,
     tx_index: HashMap<String, usize>,
     op_index: HashMap<String, usize>,
+    batch_ops: HashMap<String, StoredBatchOp>,
     next_seq: u64,
 }
 
@@ -236,6 +251,7 @@ impl WorkspaceJournal {
             txs: Vec::new(),
             tx_index: HashMap::new(),
             op_index: HashMap::new(),
+            batch_ops: HashMap::new(),
             next_seq: 1,
         };
 
@@ -277,6 +293,17 @@ impl WorkspaceJournal {
         operation_id: &str,
         payload_hash: &str,
     ) -> Result<Option<&StoredTx>, RuntimeError> {
+        if let Some(batch) = self.batch_ops.get(operation_id) {
+            if batch.epoch < self.current_epoch {
+                return Err(RuntimeError::IdempotencyExpired(format!(
+                    "operationId '{operation_id}' belongs to expired epoch {} (current {})",
+                    batch.epoch, self.current_epoch
+                )));
+            }
+            return Err(RuntimeError::IdempotencyConflict(format!(
+                "operationId '{operation_id}' was already used with a different payload"
+            )));
+        }
         let Some(&idx) = self.op_index.get(operation_id) else {
             return Ok(None);
         };
@@ -305,6 +332,46 @@ impl WorkspaceJournal {
                 Ok(None)
             }
         }
+    }
+
+    /// Checks batch-level idempotency for `operation_id` and `payload_hash`.
+    /// Returns `Ok(Some(result))` if the batch already committed and should be replayed.
+    pub fn check_batch_idempotency(
+        &self,
+        operation_id: &str,
+        payload_hash: &str,
+    ) -> Result<Option<PatchBatchResult>, RuntimeError> {
+        if let Some(batch) = self.batch_ops.get(operation_id) {
+            if batch.epoch < self.current_epoch {
+                return Err(RuntimeError::IdempotencyExpired(format!(
+                    "operationId '{operation_id}' belongs to expired epoch {} (current {})",
+                    batch.epoch, self.current_epoch
+                )));
+            }
+            if batch.payload_hash != payload_hash {
+                return Err(RuntimeError::IdempotencyConflict(format!(
+                    "operationId '{operation_id}' was already used with a different payload"
+                )));
+            }
+            let result: PatchBatchResult = serde_json::from_str(&batch.result_json)
+                .map_err(|e| RuntimeError::Internal(format!("corrupt cached batch result: {e}")))?;
+            return Ok(Some(result));
+        }
+
+        if let Some(&idx) = self.op_index.get(operation_id) {
+            let tx = &self.txs[idx];
+            if tx.epoch < self.current_epoch {
+                return Err(RuntimeError::IdempotencyExpired(format!(
+                    "operationId '{operation_id}' belongs to expired epoch {} (current {})",
+                    tx.epoch, self.current_epoch
+                )));
+            }
+            return Err(RuntimeError::IdempotencyConflict(format!(
+                "operationId '{operation_id}' was already used with a different payload"
+            )));
+        }
+
+        Ok(None)
     }
 
     /// Checks that writing `additional_bytes` to state dir will not exceed `max_state_bytes`.
@@ -695,6 +762,22 @@ impl WorkspaceJournal {
                 if let Some(&idx) = self.tx_index.get(&tx_id) {
                     self.txs[idx].state = TxState::Undone;
                 }
+            }
+            JournalEntry::BatchCommitted {
+                operation_id,
+                payload_hash,
+                result_json,
+                epoch,
+                ..
+            } => {
+                self.batch_ops.insert(
+                    operation_id,
+                    StoredBatchOp {
+                        payload_hash,
+                        result_json,
+                        epoch,
+                    },
+                );
             }
         }
     }

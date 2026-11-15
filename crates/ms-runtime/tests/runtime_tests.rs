@@ -1514,3 +1514,350 @@ async fn crash_recovery_write_delete_rename() {
         serde_json::to_value(TxState::Committed).unwrap()
     );
 }
+
+#[tokio::test]
+async fn patch_batch_applies_atomically_and_rolls_back_on_mid_batch_failure() {
+    let ws = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    fs::write(ws.path().join("a.txt"), "alpha\n").unwrap();
+    fs::write(ws.path().join("b.txt"), "beta\n").unwrap();
+    fs::write(ws.path().join("c.txt"), "gamma\n").unwrap();
+
+    let rev_a = blake3_hex(b"alpha\n");
+    let rev_b = blake3_hex(b"beta\n");
+    let rev_c = blake3_hex(b"gamma\n");
+
+    let cfg = HostConfig::new(ws.path(), state.path()).with_allow_write(true);
+    let rt = Runtime::new(cfg).unwrap();
+    let sess = rt.open_session(&SessionOpenParams::default()).unwrap();
+
+    // 1. Up-front validation failure: item 1 has a stale revision -> item 0 must NOT mutate a.txt
+    let upfront_err = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::PatchBatch(ms_protocol::PatchBatchParams {
+                    operations: vec![
+                        ms_protocol::BatchFileOp::Patch(PatchParams {
+                            path: "a.txt".into(),
+                            expected_revision: rev_a.clone(),
+                            edits: vec![TextEdit {
+                                start_byte: 0,
+                                end_byte: 5,
+                                expected_text: Some("alpha".into()),
+                                expected_tag: None,
+                                replacement: "ALPHA".into(),
+                            }],
+                            dry_run: None,
+                        }),
+                        ms_protocol::BatchFileOp::Patch(PatchParams {
+                            path: "b.txt".into(),
+                            expected_revision: "0".repeat(64),
+                            edits: vec![TextEdit {
+                                start_byte: 0,
+                                end_byte: 4,
+                                expected_text: Some("beta".into()),
+                                expected_tag: None,
+                                replacement: "BETA".into(),
+                            }],
+                            dry_run: None,
+                        }),
+                    ],
+                    dry_run: None,
+                }),
+                Some("batch-upfront-fail"),
+            ),
+            CancelToken::new(),
+        )
+        .await;
+    assert!(upfront_err.is_err());
+    assert_eq!(
+        fs::read_to_string(ws.path().join("a.txt")).unwrap(),
+        "alpha\n"
+    );
+    assert_eq!(
+        fs::read_to_string(ws.path().join("b.txt")).unwrap(),
+        "beta\n"
+    );
+
+    // 2. Mid-batch failure: item 0 patches a.txt, item 1 writes new.txt, item 2 deletes c.txt,
+    //    item 3 tries to patch a.txt using the *initial* rev_a (passes up-front validation against
+    //    initial disk state, then fails mid-batch because item 0 already changed a.txt).
+    //    Automatic rollback must undo item 2 (restore c.txt), item 1 (remove new.txt), item 0 (restore a.txt).
+    let mid_err = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::PatchBatch(ms_protocol::PatchBatchParams {
+                    operations: vec![
+                        ms_protocol::BatchFileOp::Patch(PatchParams {
+                            path: "a.txt".into(),
+                            expected_revision: rev_a.clone(),
+                            edits: vec![TextEdit {
+                                start_byte: 0,
+                                end_byte: 5,
+                                expected_text: Some("alpha".into()),
+                                expected_tag: None,
+                                replacement: "ALPHA".into(),
+                            }],
+                            dry_run: None,
+                        }),
+                        ms_protocol::BatchFileOp::WriteFile(ms_protocol::WriteFileParams {
+                            path: "new.txt".into(),
+                            content: "created\n".into(),
+                            create_if_missing: Some(true),
+                            overwrite: Some(false),
+                            expected_revision: None,
+                            dry_run: None,
+                        }),
+                        ms_protocol::BatchFileOp::DeleteFile(ms_protocol::DeleteFileParams {
+                            path: "c.txt".into(),
+                            expected_revision: Some(rev_c.clone()),
+                            dry_run: None,
+                        }),
+                        ms_protocol::BatchFileOp::Patch(PatchParams {
+                            path: "a.txt".into(),
+                            expected_revision: rev_a.clone(),
+                            edits: vec![TextEdit {
+                                start_byte: 0,
+                                end_byte: 5,
+                                expected_text: Some("alpha".into()),
+                                expected_tag: None,
+                                replacement: "SECOND".into(),
+                            }],
+                            dry_run: None,
+                        }),
+                    ],
+                    dry_run: None,
+                }),
+                Some("batch-mid-fail"),
+            ),
+            CancelToken::new(),
+        )
+        .await;
+    assert!(mid_err.is_err(), "expected mid-batch failure");
+    assert_eq!(
+        fs::read_to_string(ws.path().join("a.txt")).unwrap(),
+        "alpha\n"
+    );
+    assert!(
+        !ws.path().join("new.txt").exists(),
+        "new.txt must be rolled back"
+    );
+    assert_eq!(
+        fs::read_to_string(ws.path().join("c.txt")).unwrap(),
+        "gamma\n"
+    );
+
+    // 3. Successful multi-file batch: patch a.txt + patch b.txt + write new.txt + delete c.txt
+    let ok_res = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::PatchBatch(ms_protocol::PatchBatchParams {
+                    operations: vec![
+                        ms_protocol::BatchFileOp::Patch(PatchParams {
+                            path: "a.txt".into(),
+                            expected_revision: rev_a,
+                            edits: vec![TextEdit {
+                                start_byte: 0,
+                                end_byte: 5,
+                                expected_text: Some("alpha".into()),
+                                expected_tag: None,
+                                replacement: "ALPHA".into(),
+                            }],
+                            dry_run: None,
+                        }),
+                        ms_protocol::BatchFileOp::Patch(PatchParams {
+                            path: "b.txt".into(),
+                            expected_revision: rev_b,
+                            edits: vec![TextEdit {
+                                start_byte: 0,
+                                end_byte: 4,
+                                expected_text: Some("beta".into()),
+                                expected_tag: None,
+                                replacement: "BETA".into(),
+                            }],
+                            dry_run: None,
+                        }),
+                        ms_protocol::BatchFileOp::WriteFile(ms_protocol::WriteFileParams {
+                            path: "new.txt".into(),
+                            content: "created\n".into(),
+                            create_if_missing: Some(true),
+                            overwrite: Some(false),
+                            expected_revision: None,
+                            dry_run: None,
+                        }),
+                        ms_protocol::BatchFileOp::DeleteFile(ms_protocol::DeleteFileParams {
+                            path: "c.txt".into(),
+                            expected_revision: Some(rev_c),
+                            dry_run: None,
+                        }),
+                    ],
+                    dry_run: None,
+                }),
+                Some("batch-ok"),
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    let batch_out: ms_protocol::PatchBatchResult =
+        serde_json::from_value(ok_res.result.unwrap()).unwrap();
+    assert_eq!(batch_out.operations_applied, 4);
+    assert!(!batch_out.dry_run);
+    assert_eq!(
+        fs::read_to_string(ws.path().join("a.txt")).unwrap(),
+        "ALPHA\n"
+    );
+    assert_eq!(
+        fs::read_to_string(ws.path().join("b.txt")).unwrap(),
+        "BETA\n"
+    );
+    assert_eq!(
+        fs::read_to_string(ws.path().join("new.txt")).unwrap(),
+        "created\n"
+    );
+    assert!(!ws.path().join("c.txt").exists());
+}
+
+#[tokio::test]
+async fn patch_batch_idempotency_replay_and_conflict() {
+    let (ws, state) = setup_workspace();
+    write_file(ws.path(), "a.txt", b"alpha\n");
+    write_file(ws.path(), "b.txt", b"beta\n");
+
+    let rev_a = blake3_hex(b"alpha\n");
+    let rev_b = blake3_hex(b"beta\n");
+
+    let cfg = HostConfig::new(ws.path(), state.path()).with_allow_write(true);
+    let rt = Runtime::new(cfg).unwrap();
+    let sess = rt.open_session(&SessionOpenParams::default()).unwrap();
+
+    let batch_op = Operation::PatchBatch(ms_protocol::PatchBatchParams {
+        operations: vec![
+            ms_protocol::BatchFileOp::Patch(PatchParams {
+                path: "a.txt".into(),
+                expected_revision: rev_a.clone(),
+                edits: vec![TextEdit {
+                    start_byte: 0,
+                    end_byte: 5,
+                    expected_text: Some("alpha".into()),
+                    expected_tag: None,
+                    replacement: "ALPHA".into(),
+                }],
+                dry_run: None,
+            }),
+            ms_protocol::BatchFileOp::Patch(PatchParams {
+                path: "b.txt".into(),
+                expected_revision: rev_b.clone(),
+                edits: vec![TextEdit {
+                    start_byte: 0,
+                    end_byte: 4,
+                    expected_text: Some("beta".into()),
+                    expected_tag: None,
+                    replacement: "BETA".into(),
+                }],
+                dry_run: None,
+            }),
+        ],
+        dry_run: None,
+    });
+
+    let first = rt
+        .execute_call(
+            &make_call(&sess.session_id, batch_op.clone(), Some("batch-idem-1")),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    let first_res: ms_protocol::PatchBatchResult =
+        serde_json::from_value(first.result.unwrap()).unwrap();
+    assert_eq!(first_res.operations_applied, 2);
+    assert_eq!(first_res.operation_id.as_deref(), Some("batch-idem-1"));
+
+    // 1. Replay with identical operationId and payload -> returns cached result without E_CONFLICT
+    let replay = rt
+        .execute_call(
+            &make_call(&sess.session_id, batch_op.clone(), Some("batch-idem-1")),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    let replay_res: ms_protocol::PatchBatchResult =
+        serde_json::from_value(replay.result.unwrap()).unwrap();
+    assert_eq!(replay_res.operations_applied, first_res.operations_applied);
+    assert_eq!(replay_res.results.len(), first_res.results.len());
+    assert_eq!(
+        replay_res.results[0].transaction_id,
+        first_res.results[0].transaction_id
+    );
+    assert_eq!(
+        replay_res.results[1].after_revision,
+        first_res.results[1].after_revision
+    );
+
+    // 2. Replay with same operationId and DIFFERENT payload -> E_IDEMPOTENCY_CONFLICT
+    let different_batch = Operation::PatchBatch(ms_protocol::PatchBatchParams {
+        operations: vec![ms_protocol::BatchFileOp::WriteFile(
+            ms_protocol::WriteFileParams {
+                path: "other.txt".into(),
+                content: "different\n".into(),
+                create_if_missing: Some(true),
+                overwrite: Some(true),
+                expected_revision: None,
+                dry_run: None,
+            },
+        )],
+        dry_run: None,
+    });
+    let err = rt
+        .execute_call(
+            &make_call(&sess.session_id, different_batch, Some("batch-idem-1")),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(err.error_code(), ErrorCode::EIdempotencyConflict);
+
+    // 3. Reusing batch operationId for a single-file Patch -> E_IDEMPOTENCY_CONFLICT
+    let single_patch = Operation::Patch(PatchParams {
+        path: "a.txt".into(),
+        expected_revision: blake3_hex(b"ALPHA\n"),
+        edits: vec![TextEdit {
+            start_byte: 0,
+            end_byte: 5,
+            expected_text: None,
+            expected_tag: None,
+            replacement: "X".into(),
+        }],
+        dry_run: None,
+    });
+    let err_cross = rt
+        .execute_call(
+            &make_call(&sess.session_id, single_patch, Some("batch-idem-1")),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(err_cross.error_code(), ErrorCode::EIdempotencyConflict);
+
+    // 4. Persistence across Runtime restart
+    drop(rt);
+    let rt2 =
+        Runtime::new(HostConfig::new(ws.path(), state.path()).with_allow_write(true)).unwrap();
+    let sess2 = rt2.open_session(&SessionOpenParams::default()).unwrap();
+    let replay_after_restart = rt2
+        .execute_call(
+            &make_call(&sess2.session_id, batch_op, Some("batch-idem-1")),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    let restart_res: ms_protocol::PatchBatchResult =
+        serde_json::from_value(replay_after_restart.result.unwrap()).unwrap();
+    assert_eq!(
+        restart_res.results[0].transaction_id,
+        first_res.results[0].transaction_id
+    );
+}

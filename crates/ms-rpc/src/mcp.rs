@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use ms_protocol::{
     CallParams, ContextBundleParams, ContextBundleResult, DeleteFileParams, EditParams, ErrorCode,
-    Operation, OutlineFile, OutlineParams, PatchResult, ReadFormat, ReadParams, ReadResult,
-    SearchMatch, SearchParams, SessionCapabilities, SessionOpenParams, TxUndoParams,
+    Operation, OutlineFile, OutlineParams, PatchBatchParams, PatchResult, ReadFormat, ReadParams,
+    ReadResult, SearchMatch, SearchParams, SessionCapabilities, SessionOpenParams, TxUndoParams,
     WriteFileParams,
 };
 use ms_runtime::{CancelToken, Runtime};
@@ -207,6 +207,22 @@ fn tool_definitions() -> Vec<Value> {
             }
         }),
         json!({
+            "name": "ms_patch_batch",
+            "description": "Atomically apply a batch of file operations (patch, write_file, delete_file) with up-front validation and automatic preimage rollback on mid-batch failure.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "operations": {
+                        "type": "array",
+                        "description": "Ordered list of file operations ({kind: 'patch'|'write_file'|'delete_file', ...})",
+                        "items": { "type": "object" }
+                    },
+                    "dryRun": { "type": "boolean" }
+                },
+                "required": ["operations"]
+            }
+        }),
+        json!({
             "name": "ms_write",
             "description": "Atomically create or overwrite a workspace file with WAL journaling and undo.",
             "inputSchema": {
@@ -392,6 +408,22 @@ async fn dispatch_tool_call(
                         );
                     }
                     ("edited".to_string(), false)
+                }
+                Err(e) => (e, true),
+            }
+        }
+        "ms_patch_batch" => {
+            let params: PatchBatchParams = match serde_json::from_value(args) {
+                Ok(p) => p,
+                Err(e) => return (format!("invalid patch_batch params: {e}"), true),
+            };
+            match call_runtime(runtime, session_id, Operation::PatchBatch(params)).await {
+                Ok(out) => {
+                    let s = out
+                        .result
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| "ok".to_string());
+                    (s, false)
                 }
                 Err(e) => (e, true),
             }

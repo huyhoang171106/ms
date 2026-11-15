@@ -21,6 +21,7 @@ import {
 import {
   attachFailureSnippetsViaRpc,
   distillCommandOutput,
+  isReadOnlyInspectionCommand,
   MsAxiomAdapter,
   runProcessDirect,
   type EditSpec,
@@ -640,12 +641,13 @@ class MsExecTool extends BaseTool {
       env: scrubEnv(process.env),
       signal,
     });
-    const kind = /\bpytest\b/i.test(command) ? 'pytest' : 'generic';
+    const kind = !isReadOnlyInspectionCommand(command) && /\bpytest\b/i.test(command) ? 'pytest' : 'generic';
     const firstPass = distillCommandOutput(res.rawOutput, {
       exitCode: res.exitCode,
       timedOut: res.timedOut,
       durationMs: res.durationMs,
       kind,
+      command,
     });
     if (firstPass.hasFailures) {
       const snippets = await attachFailureSnippetsViaRpc(this.ms, this.sessionId, cwd, firstPass.cleanedLines);
@@ -655,6 +657,7 @@ class MsExecTool extends BaseTool {
           timedOut: res.timedOut,
           durationMs: res.durationMs,
           kind,
+          command,
           snippets,
         }).output;
       }

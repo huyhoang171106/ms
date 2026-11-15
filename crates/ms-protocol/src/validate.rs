@@ -1,6 +1,6 @@
 use crate::error::ProtocolError;
 use crate::messages::{Request, RequestBody};
-use crate::operations::{EditSpec, Operation, TextEdit};
+use crate::operations::{BatchFileOp, EditSpec, Operation, TextEdit};
 
 /// Lexically normalizes a workspace-relative UTF-8 path at the protocol boundary.
 ///
@@ -205,6 +205,35 @@ pub fn validate_operation(op: &Operation) -> Result<(), ProtocolError> {
             validate_relative_path(&p.path)?;
             validate_revision_hex(&p.expected_revision)?;
             validate_patch_edits(&p.edits)?;
+            Ok(())
+        }
+        Operation::PatchBatch(p) => {
+            if p.operations.is_empty() {
+                return Err(ProtocolError::InvalidRequest(
+                    "patch.batch operations list cannot be empty".into(),
+                ));
+            }
+            for item in &p.operations {
+                match item {
+                    BatchFileOp::Patch(pp) => {
+                        validate_relative_path(&pp.path)?;
+                        validate_revision_hex(&pp.expected_revision)?;
+                        validate_patch_edits(&pp.edits)?;
+                    }
+                    BatchFileOp::WriteFile(wp) => {
+                        validate_relative_path(&wp.path)?;
+                        if let Some(rev) = &wp.expected_revision {
+                            validate_revision_hex(rev)?;
+                        }
+                    }
+                    BatchFileOp::DeleteFile(dp) => {
+                        validate_relative_path(&dp.path)?;
+                        if let Some(rev) = &dp.expected_revision {
+                            validate_revision_hex(rev)?;
+                        }
+                    }
+                }
+            }
             Ok(())
         }
         Operation::Edit(p) => {

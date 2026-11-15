@@ -13,6 +13,7 @@
 
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as readline from "node:readline";
 
@@ -241,14 +242,22 @@ export class MsAxiomAdapter {
   private proc: ChildProcessWithoutNullStreams;
   private msBin: string;
   private workspaceRoot: string;
+  private logDir: string;
   private nextId = 1;
   private pending = new Map<string, PendingRequest>();
   private capabilities: Capabilities | null = null;
   private testGuardOpts: TestGuardOptions | false = {};
 
-  constructor(msBin: string, workspaceRoot: string, stateDir?: string, allowWrite = false) {
+  constructor(
+    msBin: string,
+    workspaceRoot: string,
+    stateDir?: string,
+    allowWrite = false,
+    opts?: { logDir?: string },
+  ) {
     this.msBin = msBin;
     this.workspaceRoot = workspaceRoot;
+    this.logDir = resolveLogDir(opts?.logDir);
 
     const args = ["--root", workspaceRoot];
     if (allowWrite) {
@@ -636,7 +645,7 @@ export class MsAxiomAdapter {
   async exec(
     command: string | string[],
     opts?: { timeoutMs?: number; signal?: AbortSignal; sessionId?: string; kind?: "pytest" | "generic" },
-  ): Promise<{ exitCode: number; output: string }> {
+  ): Promise<{ exitCode: number; output: string; logId?: string }> {
     const cmdArgs = Array.isArray(command) ? command : [command];
     const isStringCmd = !Array.isArray(command);
     const file = isStringCmd ? "/bin/sh" : cmdArgs[0]!;
@@ -646,42 +655,62 @@ export class MsAxiomAdapter {
       timeoutMs: opts?.timeoutMs ?? 60_000,
       signal: opts?.signal,
     });
-    const kind = opts?.kind ?? (cmdArgs.join(" ").toLowerCase().includes("pytest") ? "pytest" : "generic");
+    const isInspection = isReadOnlyInspectionCommand(command);
+    const kind =
+      opts?.kind ?? (!isInspection && cmdArgs.join(" ").toLowerCase().includes("pytest") ? "pytest" : "generic");
     const firstPass = distillCommandOutput(res.rawOutput, {
       exitCode: res.exitCode,
       timedOut: res.timedOut,
       durationMs: res.durationMs,
       kind,
+      command,
     });
+    const rawBytes = Buffer.byteLength(res.rawOutput, "utf8");
+    const shouldPersistLog = firstPass.hasFailures || firstPass.cleanedLines.length > 15 || rawBytes > 800;
+    const logId = shouldPersistLog
+      ? persistRawLog(this.logDir, cmdArgs.join(" "), res.rawOutput)
+      : undefined;
+
+    let snippets: string[] | undefined;
     if (firstPass.hasFailures && opts?.sessionId) {
-      const snippets = await attachFailureSnippetsViaRpc(
+      const found = await attachFailureSnippetsViaRpc(
         this,
         opts.sessionId,
         this.workspaceRoot,
         firstPass.cleanedLines,
       );
-      if (snippets.length > 0) {
-        const finalPass = distillCommandOutput(res.rawOutput, {
-          exitCode: res.exitCode,
-          timedOut: res.timedOut,
-          durationMs: res.durationMs,
-          kind,
-          snippets,
-        });
-        return { exitCode: res.exitCode, output: finalPass.output };
+      if (found.length > 0) {
+        snippets = found;
       }
+    }
+
+    if (logId || (snippets && snippets.length > 0)) {
+      const finalPass = distillCommandOutput(res.rawOutput, {
+        exitCode: res.exitCode,
+        timedOut: res.timedOut,
+        durationMs: res.durationMs,
+        kind,
+        command,
+        snippets,
+        logId,
+      });
+      return { exitCode: res.exitCode, output: finalPass.output, logId };
     }
     return { exitCode: res.exitCode, output: firstPass.output };
   }
 
   /** Reads persisted raw command log via `ms log`. */
   async readLog(id: string, opts?: { tail?: number; grep?: string }): Promise<string> {
-    const args = ["log", "--id", id];
+    const cleanId = id.startsWith("log:") ? id.slice(4) : id;
+    const args = ["log", "--id", cleanId];
     if (opts?.tail !== undefined) args.push("--tail", String(opts.tail));
     if (opts?.grep !== undefined) args.push("--grep", opts.grep);
 
     return new Promise((resolve, reject) => {
-      const child = spawn(this.msBin, args, { stdio: ["ignore", "pipe", "pipe"] });
+      const child = spawn(this.msBin, args, {
+        stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, MS_LOG_DIR: this.logDir },
+      });
       let out = "";
       let err = "";
       child.stdout.on("data", (d) => {
@@ -846,6 +875,174 @@ function distillGenericLines(passed: boolean, lines: readonly string[]): string 
   return nonEmpty.slice(-25).join("\n");
 }
 
+const LOG_RETENTION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const LOG_RETENTION_MAX_FILES = 200;
+let logSeq = 1;
+
+export function resolveLogDir(customLogDir?: string): string {
+  if (customLogDir && customLogDir.trim().length > 0) return customLogDir;
+  const envDir = process.env.MS_LOG_DIR;
+  if (envDir && envDir.trim().length > 0) return envDir;
+  return path.join(os.tmpdir(), "ms-logs");
+}
+
+export function gcLogDir(
+  dir: string,
+  maxAgeMs = LOG_RETENTION_MAX_AGE_MS,
+  maxFiles = LOG_RETENTION_MAX_FILES,
+): number {
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  const now = Date.now();
+  const kept: Array<{ mtimeMs: number; filePath: string }> = [];
+  let removed = 0;
+
+  for (const entry of entries) {
+    if (!entry.name.endsWith(".log") || !entry.isFile()) continue;
+    const filePath = path.join(dir, entry.name);
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(filePath);
+    } catch {
+      continue;
+    }
+    if (now - stat.mtimeMs > maxAgeMs) {
+      try {
+        fs.unlinkSync(filePath);
+        removed += 1;
+      } catch {
+        // ignore concurrent removal
+      }
+      continue;
+    }
+    kept.push({ mtimeMs: stat.mtimeMs, filePath });
+  }
+
+  if (kept.length > maxFiles) {
+    kept.sort((a, b) => b.mtimeMs - a.mtimeMs || b.filePath.localeCompare(a.filePath));
+    for (const old of kept.slice(maxFiles)) {
+      try {
+        fs.unlinkSync(old.filePath);
+        removed += 1;
+      } catch {
+        // ignore concurrent removal
+      }
+    }
+  }
+  return removed;
+}
+
+function persistRawLog(logDir: string, cmdDisplay: string, raw: string): string {
+  const logId = `log-${Date.now()}-${process.pid}-${logSeq++}`;
+  fs.mkdirSync(logDir, { recursive: true });
+  const logPath = path.join(logDir, `${logId}.log`);
+  fs.writeFileSync(logPath, `# cmd: ${cmdDisplay}\n${raw}`, "utf8");
+  try {
+    gcLogDir(logDir);
+  } catch {
+    // best-effort GC
+  }
+  return logId;
+}
+
+const READ_ONLY_INSPECTION_BINS = new Set([
+  "cat",
+  "head",
+  "tail",
+  "rg",
+  "ripgrep",
+  "grep",
+  "fd",
+  "find",
+  "ls",
+  "echo",
+  "printf",
+  "sed",
+  "awk",
+  "wc",
+  "sort",
+  "uniq",
+]);
+
+function hasUnquotedShellControl(cmd: string): boolean {
+  let inSingle = false;
+  let inDouble = false;
+  let escaped = false;
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i]!;
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\" && !inSingle) {
+      escaped = true;
+      continue;
+    }
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle;
+      continue;
+    }
+    if (ch === '"' && !inSingle) {
+      inDouble = !inDouble;
+      continue;
+    }
+    if (!inSingle) {
+      if (ch === "`" || (ch === "$" && cmd[i + 1] === "(")) {
+        return true;
+      }
+      if (!inDouble && (ch === "|" || ch === ";" || ch === "&" || ch === "\n")) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function extractFirstShellBin(cmd: string): string | null {
+  for (const tok of cmd.trim().split(/\s+/)) {
+    if (!tok) continue;
+    if (tok.includes("=") && !tok.startsWith("-") && !tok.startsWith("/")) continue;
+    const clean = tok.replace(/^['"]|['"]$/g, "");
+    return path.basename(clean).toLowerCase();
+  }
+  return null;
+}
+
+export function isReadOnlyInspectionCommand(command?: string | string[]): boolean {
+  if (!command) return false;
+  if (Array.isArray(command)) {
+    if (command.length === 0) return false;
+    if (command.length === 1) {
+      const single = command[0]!;
+      if (hasUnquotedShellControl(single)) return false;
+      const bin = extractFirstShellBin(single);
+      if (!bin) return false;
+      if (bin === "git") {
+        const low = single.toLowerCase();
+        return /\bgit\s+(?:status|diff|log)\b/.test(low);
+      }
+      return READ_ONLY_INSPECTION_BINS.has(bin);
+    }
+    const bin = path.basename(command[0]!).toLowerCase();
+    if (bin === "git") {
+      const sub = command[1]?.toLowerCase();
+      return sub === "status" || sub === "diff" || sub === "log";
+    }
+    return READ_ONLY_INSPECTION_BINS.has(bin);
+  }
+  if (hasUnquotedShellControl(command)) return false;
+  const bin = extractFirstShellBin(command);
+  if (!bin) return false;
+  if (bin === "git") {
+    return /\bgit\s+(?:status|diff|log)\b/.test(command.toLowerCase());
+  }
+  return READ_ONLY_INSPECTION_BINS.has(bin);
+}
+
 export function distillCommandOutput(
   raw: string,
   opts: {
@@ -854,12 +1051,15 @@ export function distillCommandOutput(
     durationMs: number;
     kind?: "pytest" | "generic";
     snippets?: readonly string[];
+    command?: string | string[];
+    logId?: string;
   },
-): { cleanedLines: string[]; output: string; hasFailures: boolean } {
+): { cleanedLines: string[]; output: string; hasFailures: boolean; logId?: string } {
   const rawBytes = Buffer.byteLength(raw, "utf8");
   const rawLines = raw.length === 0 ? 0 : raw.split("\n").length;
   const cleanedLines = cleanAndCollapseLines(raw);
-  const failureMarkers = hasFailureMarkers(cleanedLines);
+  const isInspection = isReadOnlyInspectionCommand(opts.command);
+  const failureMarkers = !isInspection && hasFailureMarkers(cleanedLines);
   const effectivePassed = opts.exitCode === 0 && !opts.timedOut && !failureMarkers;
 
   let body: string;
@@ -871,11 +1071,12 @@ export function distillCommandOutput(
     body = distillGenericLines(effectivePassed, cleanedLines);
   }
 
+  const logTag = opts.logId ? ` | log:${opts.logId}` : "";
   let out = opts.timedOut
-    ? `[TIMED OUT after ${opts.durationMs}ms | exit:${opts.exitCode} | raw:${rawLines}L/${rawBytes}B]`
+    ? `[TIMED OUT after ${opts.durationMs}ms | exit:${opts.exitCode}${logTag} | raw:${rawLines}L/${rawBytes}B]`
     : effectivePassed
-      ? `[OK | exit:0 | ${opts.durationMs}ms | raw:${rawLines}L/${rawBytes}B]`
-      : `[FAILED | exit:${opts.exitCode} | ${opts.durationMs}ms | raw:${rawLines}L/${rawBytes}B]`;
+      ? `[OK | exit:0 | ${opts.durationMs}ms${logTag} | raw:${rawLines}L/${rawBytes}B]`
+      : `[FAILED | exit:${opts.exitCode} | ${opts.durationMs}ms${logTag} | raw:${rawLines}L/${rawBytes}B]`;
 
   if (body.length > 0) {
     out += `\n${body}`;
@@ -883,7 +1084,7 @@ export function distillCommandOutput(
   if (!effectivePassed && opts.snippets && opts.snippets.length > 0) {
     out += `\n--- context snippets ---\n${opts.snippets.join("\n")}`;
   }
-  return { cleanedLines, output: out, hasFailures: !effectivePassed };
+  return { cleanedLines, output: out, hasFailures: !effectivePassed, logId: opts.logId };
 }
 
 export async function runProcessDirect(

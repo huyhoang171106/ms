@@ -35,7 +35,15 @@ pub struct ExecDistillResult {
     pub distilled: String,
 }
 
+const LOG_RETENTION_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
+const LOG_RETENTION_MAX_FILES: usize = 200;
+
 pub fn log_dir() -> PathBuf {
+    if let Some(dir) = std::env::var_os("MS_LOG_DIR")
+        && !dir.is_empty()
+    {
+        return PathBuf::from(dir);
+    }
     std::env::temp_dir().join("ms-logs")
 }
 
@@ -54,11 +62,60 @@ fn persist_raw_log(log_id: &str, cmd_display: &str, raw: &str) -> Result<PathBuf
     let path = dir.join(format!("{log_id}.log"));
     let content = format!("# cmd: {cmd_display}\n{raw}");
     std::fs::write(&path, content)?;
+    let _ = gc_log_dir(&dir, LOG_RETENTION_MAX_AGE, LOG_RETENTION_MAX_FILES);
     Ok(path)
+}
+
+/// Removes `.log` files older than `max_age` and caps retained `.log` files to `max_files` newest.
+pub fn gc_log_dir(dir: &Path, max_age: Duration, max_files: usize) -> std::io::Result<usize> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Ok(0);
+    };
+    let now = SystemTime::now();
+    let mut kept: Vec<(SystemTime, PathBuf)> = Vec::new();
+    let mut removed = 0usize;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("log") {
+            continue;
+        }
+        let Ok(meta) = entry.metadata() else {
+            continue;
+        };
+        if !meta.is_file() {
+            continue;
+        }
+        let mtime = meta.modified().unwrap_or(UNIX_EPOCH);
+        if now
+            .duration_since(mtime)
+            .ok()
+            .is_some_and(|age| age > max_age)
+        {
+            if std::fs::remove_file(&path).is_ok() {
+                removed += 1;
+            }
+            continue;
+        }
+        kept.push((mtime, path));
+    }
+
+    if kept.len() > max_files {
+        // Sort newest first; break ties deterministically by path descending.
+        kept.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)));
+        for (_, old_path) in kept.into_iter().skip(max_files) {
+            if std::fs::remove_file(&old_path).is_ok() {
+                removed += 1;
+            }
+        }
+    }
+
+    Ok(removed)
 }
 
 /// Reads a persisted raw log by `log_id`, optionally filtering with `grep` and taking last `tail` lines.
 pub fn read_log(log_id: &str, tail: Option<usize>, grep: Option<&str>) -> Result<String, String> {
+    let log_id = log_id.strip_prefix("log:").unwrap_or(log_id);
     if log_id.is_empty()
         || !log_id
             .bytes()
@@ -205,11 +262,8 @@ pub async fn exec_and_distill(
 
     let cleaned_lines = clean_and_collapse_lines(&combined);
     let kind = detect_command_kind(command_args, &cmd_display);
-    let is_git_inspection = matches!(
-        kind,
-        CmdKind::GitStatus | CmdKind::GitDiff | CmdKind::GitLog
-    );
-    let failure_markers = !is_git_inspection && has_failure_markers(&cleaned_lines);
+    let is_inspection = is_inspection_kind(kind);
+    let failure_markers = !is_inspection && has_failure_markers(&cleaned_lines);
     let effective_passed = exit_code == 0 && !timed_out && !failure_markers;
     let body = if effective_passed && cleaned_lines.len() <= 15 && raw_bytes <= 800 {
         cleaned_lines
@@ -271,7 +325,94 @@ enum CmdKind {
     GitStatus,
     GitDiff,
     GitLog,
+    ReadOnlyInspection,
     Generic,
+}
+
+const fn is_inspection_kind(kind: CmdKind) -> bool {
+    matches!(
+        kind,
+        CmdKind::GitStatus | CmdKind::GitDiff | CmdKind::GitLog | CmdKind::ReadOnlyInspection
+    )
+}
+
+fn is_readonly_inspection_bin(bin: &str) -> bool {
+    matches!(
+        bin,
+        "cat"
+            | "head"
+            | "tail"
+            | "rg"
+            | "ripgrep"
+            | "grep"
+            | "fd"
+            | "find"
+            | "ls"
+            | "echo"
+            | "printf"
+            | "sed"
+            | "awk"
+            | "wc"
+            | "sort"
+            | "uniq"
+    )
+}
+
+fn has_unquoted_shell_control(cmd: &str) -> bool {
+    let mut in_single = false;
+    let mut in_double = false;
+    let mut escaped = false;
+    let bytes = cmd.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if escaped {
+            escaped = false;
+            i += 1;
+            continue;
+        }
+        if b == b'\\' && !in_single {
+            escaped = true;
+            i += 1;
+            continue;
+        }
+        if b == b'\'' && !in_double {
+            in_single = !in_single;
+            i += 1;
+            continue;
+        }
+        if b == b'"' && !in_single {
+            in_double = !in_double;
+            i += 1;
+            continue;
+        }
+        if !in_single {
+            if b == b'`' || (b == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'(') {
+                return true;
+            }
+            if !in_double && matches!(b, b'|' | b';' | b'&' | b'\n') {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
+fn extract_first_shell_bin(cmd: &str) -> Option<&str> {
+    for tok in cmd.split_whitespace() {
+        // Skip leading KEY=VAL env assignments
+        if tok.contains('=') && !tok.starts_with('-') && !tok.starts_with('/') {
+            continue;
+        }
+        let clean = tok.trim_matches(|c| c == '\'' || c == '"');
+        let base = Path::new(clean)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(clean);
+        return Some(base);
+    }
+    None
 }
 
 fn detect_command_kind(args: &[String], display: &str) -> CmdKind {
@@ -286,6 +427,18 @@ fn detect_command_kind(args: &[String], display: &str) -> CmdKind {
         })
         .unwrap_or("")
         .to_ascii_lowercase();
+
+    if args.len() > 1 {
+        if is_readonly_inspection_bin(&first) {
+            return CmdKind::ReadOnlyInspection;
+        }
+    } else if args.len() == 1
+        && !has_unquoted_shell_control(&args[0])
+        && let Some(bin) = extract_first_shell_bin(&args[0])
+        && is_readonly_inspection_bin(&bin.to_ascii_lowercase())
+    {
+        return CmdKind::ReadOnlyInspection;
+    }
 
     if first == "cargo"
         || lower.contains("cargo test")
@@ -395,7 +548,7 @@ fn has_failure_markers(lines: &[String]) -> bool {
 }
 
 fn distill_by_kind(kind: CmdKind, passed: bool, lines: &[String]) -> String {
-    let effective_passed = passed && !has_failure_markers(lines);
+    let effective_passed = passed && (is_inspection_kind(kind) || !has_failure_markers(lines));
     match kind {
         CmdKind::CargoTest => distill_cargo_test(effective_passed, lines),
         CmdKind::CargoCheckOrBuild => distill_cargo_check(effective_passed, lines),
@@ -405,7 +558,7 @@ fn distill_by_kind(kind: CmdKind, passed: bool, lines: &[String]) -> String {
         CmdKind::GitStatus => distill_git_status(lines),
         CmdKind::GitDiff => distill_git_diff(lines),
         CmdKind::GitLog => distill_git_log(lines),
-        CmdKind::Generic => distill_generic(effective_passed, lines),
+        CmdKind::ReadOnlyInspection | CmdKind::Generic => distill_generic(effective_passed, lines),
     }
 }
 
@@ -1016,5 +1169,92 @@ mod tests {
             res.distilled
         );
         assert!(!res.distilled.contains("--- context snippets ---"));
+    }
+
+    #[tokio::test]
+    async fn readonly_inspection_commands_with_failure_words_stay_ok() {
+        let dir = tempfile::tempdir().unwrap();
+        let test_dir = dir.path().join("tests");
+        std::fs::create_dir_all(&test_dir).unwrap();
+        std::fs::write(
+            test_dir.join("test_sample.py"),
+            "def test_err():\n    # pytest FAILED ERROR Traceback\n    raise AssertionError('boom')\n",
+        )
+        .unwrap();
+
+        // `rg "AssertionError" tests/` (both single-string shell and argv forms) must stay [OK | exit:0 ...]
+        for cmd in [
+            vec!["rg \"AssertionError\" tests/".to_string()],
+            vec![
+                "rg".to_string(),
+                "AssertionError".to_string(),
+                "tests/".to_string(),
+            ],
+            vec!["rg \"pytest\" tests/".to_string()],
+            vec!["rg".to_string(), "pytest".to_string(), "tests/".to_string()],
+            vec!["rg \"FAILED|AssertionError\" tests/".to_string()],
+            vec!["cat tests/test_sample.py".to_string()],
+        ] {
+            let res = exec_and_distill(dir.path(), &cmd, 5_000).await.unwrap();
+            assert_eq!(res.exit_code, 0, "cmd={cmd:?} failed: {}", res.distilled);
+            assert!(
+                res.distilled.starts_with("[OK | exit:0"),
+                "read-only inspection cmd={cmd:?} should stay OK, got: {}",
+                res.distilled
+            );
+            assert!(!res.distilled.contains("--- context snippets ---"));
+        }
+
+        // Command substitution inside double quotes must NOT be treated as plain read-only inspection
+        let sub_res = exec_and_distill(
+            dir.path(),
+            &["echo \"$(printf 'FAILED: boom\\n')\"".to_string()],
+            5_000,
+        )
+        .await
+        .unwrap();
+        assert!(
+            sub_res.distilled.starts_with("[FAILED | exit:0"),
+            "command substitution inside double quotes should still detect failure markers, got: {}",
+            sub_res.distilled
+        );
+
+        // read_log accepts both `<id>` and `log:<id>`
+        let prefixed = read_log(&format!("log:{}", sub_res.log_id), Some(5), None).unwrap();
+        assert!(prefixed.contains("FAILED: boom"));
+    }
+
+    #[test]
+    fn gc_log_dir_removes_expired_and_excess_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let now = SystemTime::now();
+
+        // 2 expired (> 24h)
+        for i in 0..2 {
+            let p = dir.path().join(format!("old-{i}.log"));
+            let f = std::fs::File::create(&p).unwrap();
+            f.set_modified(now - Duration::from_secs(25 * 3600))
+                .unwrap();
+        }
+        // 5 fresh files with distinct mtimes
+        for i in 0..5 {
+            let p = dir.path().join(format!("fresh-{i}.log"));
+            let f = std::fs::File::create(&p).unwrap();
+            f.set_modified(now - Duration::from_secs((5 - i) * 60))
+                .unwrap();
+        }
+        // Non-.log file should be ignored by GC
+        std::fs::write(dir.path().join("keep.txt"), "keep").unwrap();
+
+        let removed = gc_log_dir(dir.path(), Duration::from_secs(24 * 3600), 3).unwrap();
+        assert_eq!(removed, 4); // 2 expired + 2 oldest fresh
+        assert!(!dir.path().join("old-0.log").exists());
+        assert!(!dir.path().join("old-1.log").exists());
+        assert!(!dir.path().join("fresh-0.log").exists());
+        assert!(!dir.path().join("fresh-1.log").exists());
+        assert!(dir.path().join("fresh-2.log").exists());
+        assert!(dir.path().join("fresh-3.log").exists());
+        assert!(dir.path().join("fresh-4.log").exists());
+        assert!(dir.path().join("keep.txt").exists());
     }
 }

@@ -2,9 +2,10 @@ use std::path::Path;
 
 use ignore::WalkBuilder;
 use ms_protocol::{
-    ContextBundleParams, ContextBundleResult, ContextTestMatch, DeleteFileParams, DeleteFileResult,
-    DiagnosticSeverity, EditParams, EntryKind, ErrorCode, ListEntry, ListParams, OperationSchema,
-    OutlineFile, OutlineParams, OutlineSymbol, PatchParams, PatchResult, ReadFormat, ReadParams,
+    BatchFileOp, BatchItemResult, ContextBundleParams, ContextBundleResult, ContextTestMatch,
+    DeleteFileParams, DeleteFileResult, DiagnosticSeverity, EditParams, EntryKind, ErrorCode,
+    ListEntry, ListParams, OperationSchema, OutlineFile, OutlineParams, OutlineSymbol,
+    PatchBatchParams, PatchBatchResult, PatchParams, PatchResult, ReadFormat, ReadParams,
     ReadResult, RenameFileParams, RenameFileResult, SchemaParams, SearchMatch, SearchParams,
     TxKind, TxListParams, TxRecord, TxUndoParams, TxUndoResult, WriteFileParams, WriteFileResult,
     builtin_operation_schemas, normalize_relative_path, validate_relative_path,
@@ -665,6 +666,205 @@ pub fn exec_patch(
         operation_id: operation_id.map(str::to_string),
         diff_preview: None,
     })
+}
+
+pub fn exec_patch_batch(
+    fs: &WorkspaceFs,
+    policy: &EffectivePolicy,
+    journal: &mut WorkspaceJournal,
+    params: &PatchBatchParams,
+    operation_id: Option<&str>,
+    payload_hash: &str,
+) -> Result<PatchBatchResult, RuntimeError> {
+    if params.operations.is_empty() {
+        return Err(RuntimeError::InvalidRequest(
+            "patch.batch operations list cannot be empty".to_string(),
+        ));
+    }
+    if journal.has_unresolved_conflict() {
+        return Err(RuntimeError::RecoveryConflict(
+            "workspace has an unresolved crash-recovery conflict in the journal".to_string(),
+        ));
+    }
+
+    let dry_run = params.dry_run.unwrap_or(false);
+    if !dry_run
+        && let Some(op_id) = operation_id
+        && let Some(cached) = journal.check_batch_idempotency(op_id, payload_hash)?
+    {
+        return Ok(cached);
+    }
+
+    // Phase 1: Up-front validation of all operations via dry-run before mutating any file.
+    let mut dry_results = Vec::with_capacity(params.operations.len());
+    let mut estimated_state_bytes: u64 = 0;
+
+    for item in &params.operations {
+        match item {
+            BatchFileOp::Patch(pp) => {
+                let mut dry_p = pp.clone();
+                dry_p.dry_run = Some(true);
+                let res = exec_patch(fs, policy, journal, &dry_p, None, payload_hash)?;
+                estimated_state_bytes = estimated_state_bytes
+                    .saturating_add(4096)
+                    .saturating_add(res.bytes_delta.unsigned_abs());
+                dry_results.push(BatchItemResult {
+                    kind: "patch".to_string(),
+                    path: res.path,
+                    before_revision: res.before_revision,
+                    after_revision: res.after_revision,
+                    transaction_id: None,
+                });
+            }
+            BatchFileOp::WriteFile(wp) => {
+                let mut dry_w = wp.clone();
+                dry_w.dry_run = Some(true);
+                let res = exec_write_file(fs, policy, journal, &dry_w, None, payload_hash)?;
+                estimated_state_bytes = estimated_state_bytes
+                    .saturating_add(4096)
+                    .saturating_add(res.bytes_written);
+                dry_results.push(BatchItemResult {
+                    kind: "write_file".to_string(),
+                    path: res.path,
+                    before_revision: res.before_revision,
+                    after_revision: res.after_revision,
+                    transaction_id: None,
+                });
+            }
+            BatchFileOp::DeleteFile(dp) => {
+                let mut dry_d = dp.clone();
+                dry_d.dry_run = Some(true);
+                let res = exec_delete_file(fs, policy, journal, &dry_d, None, payload_hash)?;
+                estimated_state_bytes = estimated_state_bytes
+                    .saturating_add(4096)
+                    .saturating_add(res.bytes_deleted);
+                dry_results.push(BatchItemResult {
+                    kind: "delete_file".to_string(),
+                    path: res.path,
+                    before_revision: res.before_revision,
+                    after_revision: String::new(),
+                    transaction_id: None,
+                });
+            }
+        }
+    }
+
+    journal.check_state_quota(estimated_state_bytes)?;
+
+    if dry_run {
+        return Ok(PatchBatchResult {
+            dry_run: true,
+            operations_applied: dry_results.len(),
+            results: dry_results,
+            operation_id: operation_id.map(str::to_string),
+        });
+    }
+
+    // Phase 2: Execute each operation in sequence, journaling each mutation and rolling back
+    // earlier items in reverse order if any later item fails mid-batch.
+    let mut applied_tx_ids: Vec<String> = Vec::with_capacity(params.operations.len());
+    let mut results: Vec<BatchItemResult> = Vec::with_capacity(params.operations.len());
+
+    for item in &params.operations {
+        let step_res: Result<(BatchItemResult, Option<String>), RuntimeError> = match item {
+            BatchFileOp::Patch(pp) => {
+                let mut p = pp.clone();
+                p.dry_run = Some(false);
+                exec_patch(fs, policy, journal, &p, None, payload_hash).map(|r| {
+                    let tx = r.transaction_id.clone();
+                    (
+                        BatchItemResult {
+                            kind: "patch".to_string(),
+                            path: r.path,
+                            before_revision: r.before_revision,
+                            after_revision: r.after_revision,
+                            transaction_id: r.transaction_id,
+                        },
+                        tx,
+                    )
+                })
+            }
+            BatchFileOp::WriteFile(wp) => {
+                let mut w = wp.clone();
+                w.dry_run = Some(false);
+                exec_write_file(fs, policy, journal, &w, None, payload_hash).map(|r| {
+                    let tx = r.transaction_id.clone();
+                    (
+                        BatchItemResult {
+                            kind: "write_file".to_string(),
+                            path: r.path,
+                            before_revision: r.before_revision,
+                            after_revision: r.after_revision,
+                            transaction_id: r.transaction_id,
+                        },
+                        tx,
+                    )
+                })
+            }
+            BatchFileOp::DeleteFile(dp) => {
+                let mut d = dp.clone();
+                d.dry_run = Some(false);
+                exec_delete_file(fs, policy, journal, &d, None, payload_hash).map(|r| {
+                    let tx = r.transaction_id.clone();
+                    (
+                        BatchItemResult {
+                            kind: "delete_file".to_string(),
+                            path: r.path,
+                            before_revision: r.before_revision,
+                            after_revision: String::new(),
+                            transaction_id: r.transaction_id,
+                        },
+                        tx,
+                    )
+                })
+            }
+        };
+
+        match step_res {
+            Ok((item_res, tx_opt)) => {
+                if let Some(tx_id) = tx_opt {
+                    applied_tx_ids.push(tx_id);
+                }
+                results.push(item_res);
+            }
+            Err(err) => {
+                for tx_id in applied_tx_ids.into_iter().rev() {
+                    let _ = exec_tx_undo(
+                        fs,
+                        policy,
+                        journal,
+                        &TxUndoParams {
+                            transaction_id: Some(tx_id),
+                        },
+                        None,
+                        "",
+                    );
+                }
+                return Err(err);
+            }
+        }
+    }
+
+    let batch_result = PatchBatchResult {
+        dry_run: false,
+        operations_applied: results.len(),
+        results,
+        operation_id: operation_id.map(str::to_string),
+    };
+
+    if let Some(op_id) = operation_id {
+        let result_json = serde_json::to_string(&batch_result)
+            .map_err(|e| RuntimeError::Internal(format!("serialize batch result: {e}")))?;
+        journal.append_entry(JournalEntry::BatchCommitted {
+            operation_id: op_id.to_string(),
+            payload_hash: payload_hash.to_string(),
+            result_json,
+            epoch: journal.current_epoch(),
+            committed_at_ms: now_ms(),
+        })?;
+    }
+
+    Ok(batch_result)
 }
 
 pub fn exec_edit(

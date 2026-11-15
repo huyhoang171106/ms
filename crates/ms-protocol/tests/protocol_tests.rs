@@ -247,6 +247,7 @@ fn builtin_schemas_cover_all_operations() {
             "search",
             "read",
             "patch",
+            "patch.batch",
             "edit",
             "write_file",
             "delete_file",

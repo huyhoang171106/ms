@@ -32,7 +32,7 @@ import {
   resolveAllowlistedBundledSkill,
   validatePytestTarget,
 } from './ab_axiom_tools.js';
-import { distillCommandOutput, MsAxiomAdapter } from '../examples/axiom_adapter.js';
+import { distillCommandOutput, gcLogDir, MsAxiomAdapter } from '../examples/axiom_adapter.js';
 import { ToolRegistry } from '../../nhom-30/src/tools/registry.js';
 import {
   buildInfraErrorRecord,
@@ -874,5 +874,123 @@ describe('v3a: Shared Bundled Skill Resolver (Workspace-First + Allowlist)', () 
       await msArm.adapter.closeSession(msArm.sessionId).catch(() => {});
       msArm.adapter.shutdown();
     }
+  });
+});
+
+describe('Stage 1: Read-only inspection false-positive fix & unified readLog + GC', () => {
+  const MS_BIN = '/home/hoang/ms/target/release/ms';
+
+  test('rg "AssertionError" tests/ (exit 0) stays [OK | exit:0 ...], while piped pytest with failure markers (exit 0) becomes [FAILED | exit:0 ...]', () => {
+    const rgOut = [
+      'tests/test_a.py:12:    raise AssertionError("boom")',
+      'tests/test_b.py:45:    # FAILED ERROR Traceback',
+    ].join('\n');
+
+    const rgRes = distillCommandOutput(rgOut, {
+      exitCode: 0,
+      timedOut: false,
+      durationMs: 14,
+      kind: 'generic',
+      command: 'rg "AssertionError" tests/',
+    });
+    expect(rgRes.hasFailures).toBe(false);
+    expect(rgRes.output).toContain('[OK | exit:0');
+    expect(rgRes.output).not.toContain('[FAILED | exit:0');
+
+    const rgPipePattern = distillCommandOutput(rgOut, {
+      exitCode: 0,
+      timedOut: false,
+      durationMs: 15,
+      kind: 'generic',
+      command: 'rg "FAILED|AssertionError" tests/',
+    });
+    expect(rgPipePattern.hasFailures).toBe(false);
+    expect(rgPipePattern.output).toContain('[OK | exit:0');
+
+    const pipedPytest = [
+      ...Array.from({ length: 18 }, (_, i) => `collecting ... item ${i + 1}`),
+      'E   AssertionError: 1 != 2',
+      'FAILED tests/test_a.py::test_1',
+    ].join('\n');
+    const pipedRes = distillCommandOutput(pipedPytest, {
+      exitCode: 0,
+      timedOut: false,
+      durationMs: 22,
+      kind: 'pytest',
+      command: 'pytest -q | tail -30',
+    });
+    expect(pipedRes.hasFailures).toBe(true);
+    expect(pipedRes.output).toContain('[FAILED | exit:0');
+
+    const cmdSubst = distillCommandOutput('FAILED: boom', {
+      exitCode: 0,
+      timedOut: false,
+      durationMs: 5,
+      kind: 'generic',
+      command: 'echo "$(printf FAILED)"',
+    });
+    expect(cmdSubst.hasFailures).toBe(true);
+    expect(cmdSubst.output).toContain('[FAILED | exit:0');
+  });
+
+  test('MsAxiomAdapter.exec persists raw logs on distilled/truncated output and adapter.readLog reads them + GC cleans old/excess logs', async () => {
+    const ws = makeTempDir('ab-log-ws-');
+    const stateDir = makeTempDir('ab-log-state-');
+    const logDir = makeTempDir('ab-log-dir-');
+
+    // Seed an expired log (>24h) to verify GC runs on persist
+    const oldLog = path.join(logDir, 'old-expired.log');
+    fs.writeFileSync(oldLog, '# cmd: old\nexpired\n', 'utf8');
+    const oldDate = new Date(Date.now() - 25 * 3600 * 1000);
+    fs.utimesSync(oldLog, oldDate, oldDate);
+
+    const adapter = new MsAxiomAdapter(MS_BIN, ws, stateDir, false, { logDir });
+    try {
+      await adapter.initialize();
+      const sessionId = await adapter.openSession({ allowWrite: false });
+
+      const execRes = await adapter.exec(
+        ['python3', '-c', 'for i in range(1, 35): print(f"row-{i:02d}")'],
+        { sessionId },
+      );
+      expect(execRes.exitCode).toBe(0);
+      expect(execRes.output).toContain('[OK | exit:0');
+      expect(execRes.output).toMatch(/\| log:(log-[^\s|\]]+) \|/);
+      expect(execRes.logId).toBeDefined();
+
+      // Expired log should have been GC'd when exec persisted the new log
+      expect(fs.existsSync(oldLog)).toBe(false);
+
+      const logContent = await adapter.readLog(execRes.logId!, { tail: 10, grep: 'row-30' });
+      expect(logContent).toContain('row-30');
+      expect(logContent).toContain(`log:${execRes.logId}`);
+
+      // Also verify `log:<id>` prefixed form works consistently
+      const prefixedLogContent = await adapter.readLog(`log:${execRes.logId!}`, { tail: 5, grep: 'row-30' });
+      expect(prefixedLogContent).toContain('row-30');
+
+      // Verify `rg "pytest" ...` via MsAxiomAdapter.exec is not misclassified as pytest
+      fs.writeFileSync(path.join(ws, 'sample.py'), '# pytest FAILED AssertionError\n', 'utf8');
+      const rgPytestRes = await adapter.exec(['rg', '--no-heading', 'pytest', 'sample.py'], { sessionId });
+      expect(rgPytestRes.exitCode).toBe(0);
+      expect(rgPytestRes.output).toContain('[OK | exit:0');
+      expect(rgPytestRes.output).not.toContain('[FAILED | exit:0');
+
+      await adapter.closeSession(sessionId);
+    } finally {
+      adapter.shutdown();
+    }
+
+    // Verify gcLogDir count cap
+    for (let i = 0; i < 6; i++) {
+      const p = path.join(logDir, `cap-${i}.log`);
+      fs.writeFileSync(p, `line ${i}\n`, 'utf8');
+      const t = new Date(Date.now() - (6 - i) * 1000);
+      fs.utimesSync(p, t, t);
+    }
+    const removed = gcLogDir(logDir, 24 * 3600 * 1000, 3);
+    expect(removed).toBeGreaterThanOrEqual(3);
+    const remainingLogs = fs.readdirSync(logDir).filter((f) => f.endsWith('.log'));
+    expect(remainingLogs.length).toBe(3);
   });
 });

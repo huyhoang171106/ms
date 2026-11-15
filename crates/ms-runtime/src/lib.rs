@@ -27,8 +27,8 @@ use journal::WorkspaceJournal;
 use lock::WorkspaceLease;
 use ops::{
     compute_state_rel_prefix, exec_context_bundle, exec_delete_file, exec_edit, exec_list,
-    exec_outline, exec_patch, exec_read, exec_rename_file, exec_schema, exec_search, exec_tx_list,
-    exec_tx_undo, exec_write_file,
+    exec_outline, exec_patch, exec_patch_batch, exec_read, exec_rename_file, exec_schema,
+    exec_search, exec_tx_list, exec_tx_undo, exec_write_file,
 };
 use text::blake3_hex;
 use workspace_fs::WorkspaceFs;
@@ -166,6 +166,7 @@ impl Runtime {
         ];
         if self.host_policy.allow_write {
             ops.push("patch".to_string());
+            ops.push("patch.batch".to_string());
             ops.push("edit".to_string());
             ops.push("write_file".to_string());
             ops.push("delete_file".to_string());
@@ -316,6 +317,33 @@ impl Runtime {
                 match &op {
                     Operation::Patch(p) => {
                         let res = exec_patch(
+                            &fs,
+                            &policy,
+                            &mut j,
+                            p,
+                            operation_id.as_deref(),
+                            &payload_hash,
+                        )?;
+                        let val = serde_json::to_value(&res)
+                            .map_err(|e| RuntimeError::Internal(e.to_string()))?;
+                        let bytes = serde_json::to_vec(&val)
+                            .map(|v| v.len() as u64)
+                            .unwrap_or(0);
+                        Ok(ExecutionOutput {
+                            records: Vec::new(),
+                            schema_version: Some(PROTOCOL_VERSION.to_string()),
+                            result: Some(val),
+                            diagnostics: Vec::new(),
+                            truncated: false,
+                            counters: CompletionCounters {
+                                records_emitted: 0,
+                                bytes_emitted: bytes,
+                                duration_ms: started.elapsed().as_millis() as u64,
+                            },
+                        })
+                    }
+                    Operation::PatchBatch(p) => {
+                        let res = exec_patch_batch(
                             &fs,
                             &policy,
                             &mut j,
