@@ -1861,3 +1861,110 @@ async fn patch_batch_idempotency_replay_and_conflict() {
         first_res.results[0].transaction_id
     );
 }
+
+#[tokio::test]
+async fn patch_batch_idempotency_expiry_and_retry_after_rollback() {
+    let (ws, state) = setup_workspace();
+    write_file(ws.path(), "a.txt", b"alpha\n");
+    write_file(ws.path(), "b.txt", b"beta\n");
+
+    let rev_a = blake3_hex(b"alpha\n");
+    let rev_b = blake3_hex(b"beta\n");
+
+    let cfg = HostConfig::new(ws.path(), state.path()).with_allow_write(true);
+    let rt = Runtime::new(cfg).unwrap();
+    let sess = rt.open_session(&SessionOpenParams::default()).unwrap();
+
+    // 1. Trigger a mid-batch Phase 2 failure & rollback with operationId "batch-retry-1":
+    //    Phase 1 dry-run sees rev_a on disk for both items, then Phase 2 mutates a.txt in item 1
+    //    so item 2 hits E_CONFLICT and rolls back item 1.
+    let failing_batch = Operation::PatchBatch(ms_protocol::PatchBatchParams {
+        operations: vec![
+            ms_protocol::BatchFileOp::Patch(PatchParams {
+                path: "a.txt".into(),
+                expected_revision: rev_a.clone(),
+                edits: vec![TextEdit {
+                    start_byte: 0,
+                    end_byte: 5,
+                    expected_text: Some("alpha".into()),
+                    expected_tag: None,
+                    replacement: "ALPHA".into(),
+                }],
+                dry_run: None,
+            }),
+            ms_protocol::BatchFileOp::Patch(PatchParams {
+                path: "a.txt".into(),
+                expected_revision: rev_a.clone(),
+                edits: vec![TextEdit {
+                    start_byte: 0,
+                    end_byte: 5,
+                    expected_text: Some("alpha".into()),
+                    expected_tag: None,
+                    replacement: "GAMMA".into(),
+                }],
+                dry_run: None,
+            }),
+        ],
+        dry_run: None,
+    });
+    let err = rt
+        .execute_call(
+            &make_call(&sess.session_id, failing_batch, Some("batch-retry-1")),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(err.error_code(), ErrorCode::EConflict);
+    assert_eq!(std::fs::read(ws.path().join("a.txt")).unwrap(), b"alpha\n");
+
+    // 2. Retrying with the same operationId after rollback succeeds (not poisoned)
+    let valid_batch = Operation::PatchBatch(ms_protocol::PatchBatchParams {
+        operations: vec![
+            ms_protocol::BatchFileOp::Patch(PatchParams {
+                path: "a.txt".into(),
+                expected_revision: rev_a,
+                edits: vec![TextEdit {
+                    start_byte: 0,
+                    end_byte: 5,
+                    expected_text: Some("alpha".into()),
+                    expected_tag: None,
+                    replacement: "ALPHA".into(),
+                }],
+                dry_run: None,
+            }),
+            ms_protocol::BatchFileOp::Patch(PatchParams {
+                path: "b.txt".into(),
+                expected_revision: rev_b,
+                edits: vec![TextEdit {
+                    start_byte: 0,
+                    end_byte: 4,
+                    expected_text: Some("beta".into()),
+                    expected_tag: None,
+                    replacement: "BETA".into(),
+                }],
+                dry_run: None,
+            }),
+        ],
+        dry_run: None,
+    });
+    let ok = rt
+        .execute_call(
+            &make_call(&sess.session_id, valid_batch.clone(), Some("batch-retry-1")),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    let ok_res: ms_protocol::PatchBatchResult = serde_json::from_value(ok.result.unwrap()).unwrap();
+    assert_eq!(ok_res.operations_applied, 2);
+
+    // 3. Advance epoch -> replaying the committed batch returns E_IDEMPOTENCY_EXPIRED
+    rt.advance_epoch().unwrap();
+    let expired_err = rt
+        .execute_call(
+            &make_call(&sess.session_id, valid_batch, Some("batch-retry-1")),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(expired_err.error_code(), ErrorCode::EIdempotencyExpired);
+}

@@ -58,7 +58,7 @@ Coding agents and orchestrators (such as Axiom) spawn `ms` as a subprocess or us
 
 ## Verification & Benchmarks
 
-- **Unit & Integration Tests** (`cargo test --workspace`): **41/41 passed** (`ms-cli`: 3, `ms-protocol`: 8, `ms-rpc`: 16, `ms-runtime`: 14 — including `patch.batch` atomic rollback and batch-level idempotency/conflict tests).
+- **Unit & Integration Tests** (`cargo test --workspace`): **42/42 passed** (`ms-cli`: 3, `ms-protocol`: 8, `ms-rpc`: 16, `ms-runtime`: 15 — including `patch.batch` atomic rollback, batch-level idempotency/conflict, rollback-retry, and epoch expiry tests).
 - **E2E & Fault-Injection Suite** (`python3 tests/e2e/run_e2e.py`): **15/15 passed** against `target/release/ms` (covering T01–T16: traversal/symlink/FIFO/hardlink rejection, framing/cancellation, stale BLAKE3 revision & self-healing `E_CONFLICT`, `hashline` read & `edit`, `write_file`/`delete_file`/`rename_file` + `tx.undo`, `outline` & `context_bundle`, `ms exec` + `ms log`, and `ms mcp` stdio JSON-RPC 2.0).
 - **MCP E2E Suite** (`python3 tests/e2e/test_mcp_e2e.py`): **passed** against `target/release/ms mcp` (initialize, tools/list, read/edit/patch.batch/exec/log/undo over JSON-RPC 2.0 stdio).
 - **Axiom Adapter & Harness Tests** (`bun test benchmarks/ab_axiom_uc01.test.ts`): **29/29 passed** (223 assertions).
