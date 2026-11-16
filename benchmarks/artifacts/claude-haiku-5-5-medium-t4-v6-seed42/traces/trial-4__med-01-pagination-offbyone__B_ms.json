@@ -1,0 +1,416 @@
+{
+  "schemaVersion": "2.0.0",
+  "experimentId": "medium-repo-eval",
+  "runId": "trial-4__med-01-pagination-offbyone__B_ms",
+  "arm": "B_ms",
+  "caseId": "med-01-pagination-offbyone",
+  "trial": 4,
+  "pairOrder": "BA",
+  "durationsMs": {
+    "setupMs": 0,
+    "agentMs": 13147.517913999967,
+    "verifyMs": 218.23116200004006,
+    "cleanupMs": 0,
+    "wallClockMs": 13373.865235999983
+  },
+  "requests": [
+    {
+      "turn": 1,
+      "usage": {
+        "uncachedInput": 158,
+        "cacheRead": 2216,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 180,
+        "totalInputAll": 2374,
+        "totalTokens": 2554
+      },
+      "cost": {
+        "costDollars": 0.00015,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0.000016,
+          "cacheReadUsd": 0.000044,
+          "cacheWriteUsd": 0,
+          "outputUsd": 0.00009
+        }
+      }
+    },
+    {
+      "turn": 2,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 2216,
+        "cacheWrite": 1316,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 110,
+        "totalInputAll": 3534,
+        "totalTokens": 3644
+      },
+      "cost": {
+        "costDollars": 0.000264,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000044,
+          "cacheWriteUsd": 0.000164,
+          "outputUsd": 0.000055
+        }
+      }
+    },
+    {
+      "turn": 3,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 3532,
+        "cacheWrite": 753,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 233,
+        "totalInputAll": 4287,
+        "totalTokens": 4520
+      },
+      "cost": {
+        "costDollars": 0.000281,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000071,
+          "cacheWriteUsd": 0.000094,
+          "outputUsd": 0.000116
+        }
+      }
+    },
+    {
+      "turn": 4,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 4285,
+        "cacheWrite": 1707,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 280,
+        "totalInputAll": 5994,
+        "totalTokens": 6274
+      },
+      "cost": {
+        "costDollars": 0.000439,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000086,
+          "cacheWriteUsd": 0.000213,
+          "outputUsd": 0.00014
+        }
+      }
+    },
+    {
+      "turn": 5,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 5992,
+        "cacheWrite": 537,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 320,
+        "totalInputAll": 6531,
+        "totalTokens": 6851
+      },
+      "cost": {
+        "costDollars": 0.000347,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.00012,
+          "cacheWriteUsd": 0.000067,
+          "outputUsd": 0.00016
+        }
+      }
+    },
+    {
+      "turn": 6,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 6529,
+        "cacheWrite": 344,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 134,
+        "totalInputAll": 6875,
+        "totalTokens": 7009
+      },
+      "cost": {
+        "costDollars": 0.000241,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000131,
+          "cacheWriteUsd": 0.000043,
+          "outputUsd": 0.000067
+        }
+      }
+    },
+    {
+      "turn": 7,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 6873,
+        "cacheWrite": 317,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 764,
+        "totalInputAll": 7192,
+        "totalTokens": 7956
+      },
+      "cost": {
+        "costDollars": 0.000559,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000137,
+          "cacheWriteUsd": 0.00004,
+          "outputUsd": 0.000382
+        }
+      }
+    }
+  ],
+  "toolCalls": [
+    {
+      "toolCallId": "toolu_0199QP4PbWnCru3KpgpoUbKN",
+      "turnIndex": 1,
+      "name": "search_code",
+      "startedAtMonoMs": 1216.43,
+      "durationMs": 2,
+      "isError": false,
+      "argsPreview": "{\"pattern\":\"paginate_items|handle_list_tasks\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 46,
+      "argsSha256": "8a4d9b0435b565bd4896af3a958ae4e32712be45d592d4e56b9c3ffdfcc56ac3",
+      "outputPreview": "taskflow/api/router.py:3:bea4| from taskflow.storage.query import paginate_items\ntaskflow/api/router.py:6:878e| def handle_list_tasks(store: MemoryStore, page: int = 1, page_size: int = 10) -> Dict[str, Any]:\ntaskflow/api/router.py:8:80e2|     page_items = paginate_items(all_tasks, page=page, page_size=page_size)\ntaskflow/storage/query.py:6:d4c2| def paginate_items(items: Sequence[T], page: int, page_size: int) -> List[T]:\ntests/test_api_pagination.py:4:7947| from taskflow.api.router import handle_list_tasks\ntests/test_api_pagination.py:16:37f9|     res = handle_list_tasks(s, page=1, page_size=10)\ntests/test_api_pagination.py:22:28e7|     res = handle_list_tasks(s, page=2, page_size=10)",
+      "outputTruncated": false,
+      "outputOriginalBytes": 695,
+      "outputSha256": "7e6c08042588087ca6c76a089f7819dd27a44eeec31f2bedcf60f6b61b8b4fd7",
+      "toolOutputBytes": 695,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01Pk61vJv7W8tCUEGHJycpRp",
+      "turnIndex": 1,
+      "name": "read_file",
+      "startedAtMonoMs": 1218.845,
+      "durationMs": 1,
+      "isError": false,
+      "argsPreview": "{\"path\":\"tests/test_api_pagination.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 39,
+      "argsSha256": "52cfccd108469f1bb0ebdb8954e10a4660aaf9cd8ff96bcbbbae8cedca033c58",
+      "outputPreview": "rev:1036ed34 eol:LF lines:1-32/32\n1:c3b5| import pytest\n2:7cfb| from taskflow.core.models import Task\n3:396a| from taskflow.storage.memory_store import MemoryStore\n4:7947| from taskflow.api.router import handle_list_tasks\n5:af13| \n6:af13| \n7:9a80| def _seed_store(n=25):\n8:1516|     s = MemoryStore()\n9:949b|     for i in range(1, n + 1):\n10:5214|         s.put(Task(id=f\"t-{i:02d}\", title=f\"Task {i}\"))\n11:cf38|     return s\n12:af13| \n13:af13| \n14:6f1d| def test_pagination_first_page():\n15:89d1|     s = _seed_store(25)\n16:37f9|     res = handle_list_tasks(s, page=1, page_size=10)\n17:abd4|     assert res[\"items\"] == [f\"t-{i:02d}\" for i in range(1, 11)]\n18:af13| \n19:af13| \n20:b8e2| def test_pagination_second_page():\n21:89d1|     s = _seed_store(25)\n22:28e7|     res = handle_list_tasks(s, page=2, page_size=10)\n23:b451|     assert res[\"items\"] == [f\"t-{i:02d}\" for i in range(11, 21)]\n24:af13| \n25:af13| \n26:6c18| @pytest.mark.parametrize(\"idx\", range(40))\n27:5984| def test_store_put_get_bulk(idx):\n28:1516|     s = Me",
+      "outputTruncated": true,
+      "outputOriginalBytes": 1234,
+      "outputSha256": "1b758343c3f4c86b922e98f9b7a8f452057c116c3323c1558f975a3fecdfd452",
+      "toolOutputBytes": 1234,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01QDmjBvYJBu6ranYvHtJjQG",
+      "turnIndex": 2,
+      "name": "read_file",
+      "startedAtMonoMs": 2335.795,
+      "durationMs": 1,
+      "isError": false,
+      "argsPreview": "{\"path\":\"taskflow/storage/query.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 36,
+      "argsSha256": "bbbee6258e51167420d66070b05d1cb474dec9cc224e4f06c3a6b3ce7f008e8d",
+      "outputPreview": "rev:b1ea8be1 eol:LF lines:1-13/13\n1:8fbd| from typing import List, Sequence, TypeVar\n2:af13| \n3:881b| T = TypeVar(\"T\")\n4:af13| \n5:af13| \n6:d4c2| def paginate_items(items: Sequence[T], page: int, page_size: int) -> List[T]:\n7:3d3e|     \"\"\"Return 1-based page slice of items.\"\"\"\n8:901e|     if page < 1 or page_size < 1:\n9:ab45|         raise ValueError(\"page and page_size must be >= 1\")\n10:414e|     # BUG med-01: off-by-one uses `page * page_size` instead of `(page - 1) * page_size`\n11:f39f|     start = page * page_size\n12:2bd3|     end = start + page_size\n13:240f|     return list(items[start:end])",
+      "outputTruncated": false,
+      "outputOriginalBytes": 602,
+      "outputSha256": "f285f95e5273617c4a1aa0e11a22cad7967470472adb768651e3e23594cd133a",
+      "toolOutputBytes": 602,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_018NNAtqc3H3DGG1Q64QwEpL",
+      "turnIndex": 2,
+      "name": "read_file",
+      "startedAtMonoMs": 2336.993,
+      "durationMs": 0,
+      "isError": false,
+      "argsPreview": "{\"path\":\"taskflow/api/router.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 33,
+      "argsSha256": "978a07c572f368cc76e047ead313d32900bddcdf07dd0eccd68335455be17080",
+      "outputPreview": "rev:595b5c83 eol:LF lines:1-14/14\n1:eeba| from typing import Any, Dict, List\n2:396a| from taskflow.storage.memory_store import MemoryStore\n3:bea4| from taskflow.storage.query import paginate_items\n4:af13| \n5:af13| \n6:878e| def handle_list_tasks(store: MemoryStore, page: int = 1, page_size: int = 10) -> Dict[str, Any]:\n7:c38b|     all_tasks = store.list_all()\n8:80e2|     page_items = paginate_items(all_tasks, page=page, page_size=page_size)\n9:0233|     return {\n10:3620|         \"page\": page,\n11:2f91|         \"page_size\": page_size,\n12:5bae|         \"total\": len(all_tasks),\n13:4003|         \"items\": [t.id for t in page_items],\n14:9699|     }",
+      "outputTruncated": false,
+      "outputOriginalBytes": 647,
+      "outputSha256": "99d52bf1ef935b4f3b9e3d1027773f13945c12c92287200f315c5de31297edcc",
+      "toolOutputBytes": 647,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_012j6yG4iMSfm5YRB85rsdFo",
+      "turnIndex": 3,
+      "name": "edit",
+      "startedAtMonoMs": 3780.803,
+      "durationMs": 2,
+      "isError": false,
+      "argsPreview": "{\"path\":\"taskflow/storage/query.py\",\"oldText\":\"    # BUG med-01: off-by-one uses `page * page_size` instead of `(page - 1) * page_size`\\n    start = page * page_size\",\"newText\":\"    start = (page - 1) * page_size\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 214,
+      "argsSha256": "00a3f1639bfcd85700dac466a70eaa2e8a4907693df39b0e4009d9e10bcbedb6",
+      "outputPreview": "Edited taskflow/storage/query.py (rev:a10b8b11, tx:tx-1794725777259-000001)\neol:LF lines:8-12/12\n8:901e|     if page < 1 or page_size < 1:\n9:ab45|         raise ValueError(\"page and page_size must be >= 1\")\n10:1eab|     start = (page - 1) * page_size\n11:2bd3|     end = start + page_size\n12:240f|     return list(items[start:end])",
+      "outputTruncated": false,
+      "outputOriginalBytes": 330,
+      "outputSha256": "034d2278f5fa5e03e11922d82b7f0e4c9ae8c4d7b4a227e4d2daaea7c3681749",
+      "toolOutputBytes": 330,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01AUafffHzdS5XXEAUn84M4Y",
+      "turnIndex": 3,
+      "name": "run_tests",
+      "startedAtMonoMs": 3782.812,
+      "durationMs": 226,
+      "isError": false,
+      "argsPreview": "{}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 2,
+      "argsSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "outputPreview": "[FAILED | exit:1 | 224ms | raw:526L/34918B]\n=================================== FAILURES ===================================\n____________________ test_csv_export_handles_none_metadata _____________________\n\n    def test_csv_export_handles_none_metadata():\n        tasks = [\n            Task(id=\"1\", title=\"Alpha\", priority=2, metadata=None),\n            Task(id=\"2\", title=\"Beta\", priority=1, metadata={\"source\": \"cli\"}),\n        ]\n>       out = export_tasks_csv(tasks)\n              ^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_export.py:11:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\ntasks = [Task(id='1', title='Alpha', priority=2, tags=[], metadata=None, completed=False), Task(id='2', title='Beta', priority=1, tags=[], metadata={'source': 'cli'}, completed=False)]\n\n    def export_tasks_csv(tasks: Iterable[Task]) -> str:\n        buf = io.StringIO()\n        writer = csv.writer(buf, lineterminator=\"\\n\")\n        writer.writerow([\"id\", \"title\", \"priority\", \"source\"])\n        for t in tasks",
+      "outputTruncated": true,
+      "outputOriginalBytes": 3455,
+      "outputSha256": "a8c7866249071029b464282c3770e3f2a7f05240fb7ded38e6ef3aaec7b1c2a8",
+      "toolOutputBytes": 3455,
+      "exitCode": 1,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01WNDHzJxMpBrZEGsaGMPddR",
+      "turnIndex": 4,
+      "name": "run_command",
+      "startedAtMonoMs": 5728.054,
+      "durationMs": 11,
+      "isError": false,
+      "argsPreview": "{\"command\":\"git stash && python -m pytest -q tests/test_export.py tests/test_scheduler.py 2>&1 | tail -5; git stash pop && python -m pytest -q tests/test_api_pagination.py 2>&1 | tail -3; git status --short\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 208,
+      "argsSha256": "dfbd78144c3acced84feaf0c1de420242ac85ac3b1b1920f3bf9898acf75f62a",
+      "outputPreview": "[FAILED | exit:128 | 9ms | raw:7L/615B]\nfatal: not a git repository (or any parent up to mount point /dev/shm/hoang-agent-tmp/med-B_ms-med-01-pagination-offbyone-w760OZ)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\nfatal: not a git repository (or any parent up to mount point /dev/shm/hoang-agent-tmp/med-B_ms-med-01-pagination-offbyone-w760OZ)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\nfatal: not a git repository (or any parent up to mount point /dev/shm/hoang-agent-tmp/med-B_ms-med-01-pagination-offbyone-w760OZ)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).",
+      "outputTruncated": false,
+      "outputOriginalBytes": 654,
+      "outputSha256": "80358361783ae1a459c954f0257cf9f96673081b823047e3b0607dedb6808a6e",
+      "toolOutputBytes": 654,
+      "exitCode": 128,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01BEbpawPvWyPuPhwMX8NpDH",
+      "turnIndex": 5,
+      "name": "run_command",
+      "startedAtMonoMs": 7665.717,
+      "durationMs": 13,
+      "isError": false,
+      "argsPreview": "{\"command\":\"grep -rn \\\"paginate_items\\\\|query import\\\" --include=*.py . ; python -m pytest -q tests/test_api_pagination.py 2>&1 | tail -3; python -m pytest -q 2>&1 | grep -E \\\"^(FAILED|ERROR)|passed|failed\\\" | tail -20\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 220,
+      "argsSha256": "11d9e7f0b011f4b4557e4091677f5fd5b53d4a61d43166635a4b80bb57919849",
+      "outputPreview": "./taskflow/storage/query.py:6:def paginate_items(items: Sequence[T], page: int, page_size: int) -> List[T]:\n./taskflow/api/router.py:3:from taskflow.storage.query import paginate_items\n./taskflow/api/router.py:8:    page_items = paginate_items(all_tasks, page=page, page_size=page_size)\n/bin/bash: line 1: python: command not found",
+      "outputTruncated": false,
+      "outputOriginalBytes": 331,
+      "outputSha256": "8921b35294ab081a00673382c953d168f541211caefe5903570d88e557cce98e",
+      "toolOutputBytes": 331,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_0149uxmZoweXZdkMw5GpCnAZ",
+      "turnIndex": 6,
+      "name": "run_command",
+      "startedAtMonoMs": 8777.168,
+      "durationMs": 491,
+      "isError": false,
+      "argsPreview": "{\"command\":\"ls -a; (python3 -m pytest -q tests/test_api_pagination.py 2>&1 | tail -3); (python3 -m pytest -q 2>&1 | grep -E \\\"^(FAILED|ERROR)|passed|failed\\\" | tail -20)\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 171,
+      "argsSha256": "ac4dfdc82bb27e1076aa74cfb8e31cd0e8db3a3d1e472872246ea7cf2763002e",
+      "outputPreview": "[FAILED | exit:0 | 490ms | raw:14L/313B]\n.\n..\n.pytest_cache\npytest.ini\nREADME.md\ntaskflow\ntests\n.verified bulk item 39 successfully in store\n.\n42 passed in 0.02s\nFAILED tests/test_export.py::test_csv_export_handles_none_metadata - Attribut...\nFAILED tests/test_scheduler.py::test_backoff_caps_at_max_delay - assert 500 =...\n2 failed, 122 passed in 0.06s",
+      "outputTruncated": false,
+      "outputOriginalBytes": 353,
+      "outputSha256": "2e164492fb3d1b1c9105034600a106b2458ed61b012b773d7533bd622d0dbc5c",
+      "toolOutputBytes": 353,
+      "exitCode": 0,
+      "timedOut": false
+    }
+  ],
+  "diffBytes": 648
+}

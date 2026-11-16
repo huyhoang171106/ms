@@ -74,6 +74,8 @@ pub struct ListParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recursive: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub depth: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_entries: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub include_hidden: Option<bool>,
@@ -157,6 +159,8 @@ pub enum EditSpec {
         old_text: String,
         #[serde(rename = "newText")]
         new_text: String,
+        #[serde(default, rename = "replaceAll", skip_serializing_if = "Option::is_none")]
+        replace_all: Option<bool>,
     },
     Byte(TextEdit),
 }
@@ -245,6 +249,7 @@ pub struct PatchParams {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum BatchFileOp {
     Patch(PatchParams),
+    Edit(EditParams),
     #[serde(rename = "write_file")]
     WriteFile(WriteFileParams),
     #[serde(rename = "delete_file")]

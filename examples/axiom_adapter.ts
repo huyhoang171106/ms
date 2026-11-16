@@ -104,6 +104,7 @@ export type EditSpec =
   | {
       oldText: string;
       newText: string;
+      replaceAll?: boolean;
     }
   | TextEdit;
 
@@ -479,6 +480,58 @@ export class MsAxiomAdapter {
     }
   }
 
+  private async guardPatch(sessionId: string, filePath: string, edits: TextEdit[]): Promise<void> {
+    if (this.testGuardOpts === false || (!isTestPath(filePath) && !isTestConfigPath(filePath))) return;
+    const before = await this.readFullTextForGuard(sessionId, filePath);
+    if (before === null) return;
+    const buf = Buffer.from(before, "utf8");
+    const removed = edits
+      .map((e) => e.expectedText ?? buf.subarray(e.startByte, e.endByte).toString("utf8"))
+      .join("\n");
+    const added = edits.map((e) => e.replacement).join("\n");
+    this.enforceTestGuard(filePath, removed, added);
+  }
+
+  private async guardEdit(sessionId: string, filePath: string, edits: EditSpec[]): Promise<void> {
+    if (this.testGuardOpts === false || (!isTestPath(filePath) && !isTestConfigPath(filePath))) return;
+    const needsRead = edits.some((e) => !("oldText" in e) && !("expectedText" in e && e.expectedText !== undefined));
+    const before = needsRead ? await this.readFullTextForGuard(sessionId, filePath) : null;
+    const beforeLines = before !== null ? splitLines(before) : [];
+    const beforeBuf = before !== null ? Buffer.from(before, "utf8") : Buffer.alloc(0);
+
+    const removed = edits
+      .map((e) => {
+        if ("oldText" in e) return e.oldText;
+        if ("startLine" in e) {
+          return beforeLines.slice(Math.max(0, e.startLine - 1), e.endLine).join("\n");
+        }
+        return e.expectedText ?? beforeBuf.subarray(e.startByte, e.endByte).toString("utf8");
+      })
+      .join("\n");
+    const added = edits
+      .map((e) => ("newText" in e ? e.newText : e.replacement))
+      .join("\n");
+    this.enforceTestGuard(filePath, removed, added);
+  }
+
+  private async guardWrite(sessionId: string, filePath: string, content: string): Promise<void> {
+    if (this.testGuardOpts === false || (!isTestPath(filePath) && !isTestConfigPath(filePath))) return;
+    const before = await this.readFullTextForGuard(sessionId, filePath);
+    this.enforceTestGuard(filePath, before, content);
+  }
+
+  private async guardDelete(sessionId: string, filePath: string): Promise<void> {
+    if (this.testGuardOpts === false || (!isTestPath(filePath) && !isTestConfigPath(filePath))) return;
+    const before = await this.readFullTextForGuard(sessionId, filePath);
+    this.enforceTestGuard(filePath, before ?? "", null);
+  }
+
+  private async guardRename(sessionId: string, from: string, to: string): Promise<void> {
+    if (this.testGuardOpts === false || !isTestPath(from) || isTestPath(to)) return;
+    const before = await this.readFullTextForGuard(sessionId, from);
+    this.enforceTestGuard(from, before ?? "", null);
+  }
+
   async patchFile(
     sessionId: string,
     operationId: string,
@@ -487,17 +540,7 @@ export class MsAxiomAdapter {
     edits: TextEdit[],
     opts?: { dryRun?: boolean; deadlineMs?: number },
   ) {
-    if (this.testGuardOpts !== false && (isTestPath(filePath) || isTestConfigPath(filePath))) {
-      const before = await this.readFullTextForGuard(sessionId, filePath);
-      if (before !== null) {
-        const buf = Buffer.from(before, "utf8");
-        const removed = edits
-          .map((e) => e.expectedText ?? buf.subarray(e.startByte, e.endByte).toString("utf8"))
-          .join("\n");
-        const added = edits.map((e) => e.replacement).join("\n");
-        this.enforceTestGuard(filePath, removed, added);
-      }
-    }
+    await this.guardPatch(sessionId, filePath, edits);
     return this.sendRequest("call", {
       sessionId,
       operationId,
@@ -519,26 +562,7 @@ export class MsAxiomAdapter {
     edits: EditSpec[],
     opts?: { expectedRevision?: string; dryRun?: boolean; deadlineMs?: number },
   ) {
-    if (this.testGuardOpts !== false && (isTestPath(filePath) || isTestConfigPath(filePath))) {
-      const needsRead = edits.some((e) => !("oldText" in e) && !("expectedText" in e && e.expectedText !== undefined));
-      const before = needsRead ? await this.readFullTextForGuard(sessionId, filePath) : null;
-      const beforeLines = before !== null ? splitLines(before) : [];
-      const beforeBuf = before !== null ? Buffer.from(before, "utf8") : Buffer.alloc(0);
-
-      const removed = edits
-        .map((e) => {
-          if ("oldText" in e) return e.oldText;
-          if ("startLine" in e) {
-            return beforeLines.slice(Math.max(0, e.startLine - 1), e.endLine).join("\n");
-          }
-          return e.expectedText ?? beforeBuf.subarray(e.startByte, e.endByte).toString("utf8");
-        })
-        .join("\n");
-      const added = edits
-        .map((e) => ("newText" in e ? e.newText : e.replacement))
-        .join("\n");
-      this.enforceTestGuard(filePath, removed, added);
-    }
+    await this.guardEdit(sessionId, filePath, edits);
     return this.sendRequest("call", {
       sessionId,
       operationId,
@@ -560,10 +584,7 @@ export class MsAxiomAdapter {
     content: string,
     opts?: { createIfMissing?: boolean; overwrite?: boolean; expectedRevision?: string; dryRun?: boolean; deadlineMs?: number },
   ) {
-    if (this.testGuardOpts !== false && (isTestPath(filePath) || isTestConfigPath(filePath))) {
-      const before = await this.readFullTextForGuard(sessionId, filePath);
-      this.enforceTestGuard(filePath, before, content);
-    }
+    await this.guardWrite(sessionId, filePath, content);
     return this.sendRequest("call", {
       sessionId,
       operationId,
@@ -586,10 +607,7 @@ export class MsAxiomAdapter {
     filePath: string,
     opts?: { expectedRevision?: string; dryRun?: boolean; deadlineMs?: number },
   ) {
-    if (this.testGuardOpts !== false && isTestPath(filePath)) {
-      const before = await this.readFullTextForGuard(sessionId, filePath);
-      this.enforceTestGuard(filePath, before ?? "", null);
-    }
+    await this.guardDelete(sessionId, filePath);
     return this.sendRequest("call", {
       sessionId,
       operationId,
@@ -610,10 +628,7 @@ export class MsAxiomAdapter {
     to: string,
     opts?: { expectedRevision?: string; overwrite?: boolean; dryRun?: boolean; deadlineMs?: number },
   ) {
-    if (this.testGuardOpts !== false && isTestPath(from) && !isTestPath(to)) {
-      const before = await this.readFullTextForGuard(sessionId, from);
-      this.enforceTestGuard(from, before ?? "", null);
-    }
+    await this.guardRename(sessionId, from, to);
     return this.sendRequest("call", {
       sessionId,
       operationId,
@@ -624,6 +639,38 @@ export class MsAxiomAdapter {
         to,
         expectedRevision: opts?.expectedRevision,
         overwrite: opts?.overwrite,
+        dryRun: opts?.dryRun,
+      },
+    });
+  }
+
+  async batch(
+    sessionId: string,
+    operationId: string,
+    operations: Array<Record<string, unknown>>,
+    opts?: { dryRun?: boolean; deadlineMs?: number },
+  ) {
+    for (const op of operations) {
+      const kind = String(op.kind ?? "");
+      if (kind === "patch") {
+        await this.guardPatch(sessionId, String(op.path ?? ""), (op.edits ?? []) as TextEdit[]);
+      } else if (kind === "edit") {
+        await this.guardEdit(sessionId, String(op.path ?? ""), (op.edits ?? []) as EditSpec[]);
+      } else if (kind === "write_file") {
+        await this.guardWrite(sessionId, String(op.path ?? ""), String(op.content ?? ""));
+      } else if (kind === "delete_file") {
+        await this.guardDelete(sessionId, String(op.path ?? ""));
+      } else if (kind === "rename_file") {
+        await this.guardRename(sessionId, String(op.from ?? ""), String(op.to ?? ""));
+      }
+    }
+    return this.sendRequest("call", {
+      sessionId,
+      operationId,
+      deadlineMs: opts?.deadlineMs,
+      operation: {
+        kind: "patch.batch",
+        operations,
         dryRun: opts?.dryRun,
       },
     });
@@ -1063,7 +1110,9 @@ export function distillCommandOutput(
   const effectivePassed = opts.exitCode === 0 && !opts.timedOut && !failureMarkers;
 
   let body: string;
-  if (effectivePassed && cleanedLines.length <= 15 && rawBytes <= 800) {
+  if (effectivePassed && cleanedLines.length <= 120 && rawBytes <= 4096) {
+    body = cleanedLines.filter((l) => l.trim().length > 0).join("\n");
+  } else if (!effectivePassed && cleanedLines.length <= 40 && rawBytes <= 2048) {
     body = cleanedLines.filter((l) => l.trim().length > 0).join("\n");
   } else if (opts.kind === "pytest") {
     body = distillPytestLines(effectivePassed, cleanedLines);
@@ -1162,13 +1211,41 @@ export async function runProcessDirect(
   });
 }
 
+function hasFailureContextInOutput(renderedOutput: string, relPath: string, lineNum: number): boolean {
+  const lines = renderedOutput.split(/\r?\n/);
+  const fullTarget = `${relPath}:${lineNum}`;
+  const baseTarget = `${path.basename(relPath)}:${lineNum}`;
+  const isErrorContextLine = (l: string): boolean => /^\s*(?:E\s+|>\s+|\S*(?:Error|Exception):)/.test(l);
+  const isSectionBreak = (l: string): boolean => /^(?:===|___|\S+:\d+:)/.test(l);
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (!line.includes(fullTarget) && !line.includes(baseTarget)) continue;
+    for (let j = i; j >= Math.max(0, i - 12); j--) {
+      if (j < i && isSectionBreak(lines[j]!)) break;
+      if (isErrorContextLine(lines[j]!)) return true;
+    }
+    for (let j = i + 1; j <= Math.min(lines.length - 1, i + 12); j++) {
+      if (isSectionBreak(lines[j]!)) break;
+      if (isErrorContextLine(lines[j]!)) return true;
+    }
+  }
+  return false;
+}
+
 export async function attachFailureSnippetsViaRpc(
   ms: MsAxiomAdapter,
   sessionId: string,
   workspaceRoot: string,
   cleanedLines: readonly string[],
-  maxSnippets = 3,
+  maxSnippetsOrOpts: number | { maxSnippets?: number; renderedOutput?: string } = 3,
 ): Promise<string[]> {
+  const maxSnippets =
+    typeof maxSnippetsOrOpts === "number" ? maxSnippetsOrOpts : (maxSnippetsOrOpts.maxSnippets ?? 3);
+  const renderedOutput =
+    typeof maxSnippetsOrOpts === "object" && maxSnippetsOrOpts !== null
+      ? maxSnippetsOrOpts.renderedOutput
+      : undefined;
   const seen = new Set<string>();
   const snippets: string[] = [];
   let realRoot: string;
@@ -1194,6 +1271,10 @@ export async function attachFailureSnippetsViaRpc(
       }
       const key = `${relPath}:${lineNum}`;
       if (seen.has(key)) continue;
+      if (renderedOutput && hasFailureContextInOutput(renderedOutput, relPath, lineNum)) {
+        seen.add(key);
+        continue;
+      }
 
       try {
         const startLine = Math.max(1, lineNum - 2);

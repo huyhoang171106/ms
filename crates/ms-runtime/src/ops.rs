@@ -80,7 +80,7 @@ pub fn exec_list(
     let max_depth = if params.recursive == Some(false) {
         Some(1)
     } else {
-        None
+        params.depth.map(|d| d.max(1))
     };
 
     let mut builder = WalkBuilder::new(&start_abs);
@@ -716,6 +716,21 @@ pub fn exec_patch_batch(
                     transaction_id: None,
                 });
             }
+            BatchFileOp::Edit(ep) => {
+                let mut dry_e = ep.clone();
+                dry_e.dry_run = Some(true);
+                let res = exec_edit(fs, policy, journal, &dry_e, None, payload_hash)?;
+                estimated_state_bytes = estimated_state_bytes
+                    .saturating_add(4096)
+                    .saturating_add(res.bytes_delta.unsigned_abs());
+                dry_results.push(BatchItemResult {
+                    kind: "edit".to_string(),
+                    path: res.path,
+                    before_revision: res.before_revision,
+                    after_revision: res.after_revision,
+                    transaction_id: None,
+                });
+            }
             BatchFileOp::WriteFile(wp) => {
                 let mut dry_w = wp.clone();
                 dry_w.dry_run = Some(true);
@@ -775,6 +790,23 @@ pub fn exec_patch_batch(
                     (
                         BatchItemResult {
                             kind: "patch".to_string(),
+                            path: r.path,
+                            before_revision: r.before_revision,
+                            after_revision: r.after_revision,
+                            transaction_id: r.transaction_id,
+                        },
+                        tx,
+                    )
+                })
+            }
+            BatchFileOp::Edit(ep) => {
+                let mut e = ep.clone();
+                e.dry_run = Some(false);
+                exec_edit(fs, policy, journal, &e, None, payload_hash).map(|r| {
+                    let tx = r.transaction_id.clone();
+                    (
+                        BatchItemResult {
+                            kind: "edit".to_string(),
                             path: r.path,
                             before_revision: r.before_revision,
                             after_revision: r.after_revision,
@@ -1804,16 +1836,46 @@ pub fn exec_outline(
     params: &OutlineParams,
     cancel: &CancelToken,
 ) -> Result<OutlineOutput, RuntimeError> {
+    let max_files = params.max_files.unwrap_or(200).min(1_000);
+    let max_syms = params.max_symbols_per_file.unwrap_or(50).min(200);
+
+    if let Some(rel) = params.path.as_deref()
+        && rel != "."
+        && !rel.is_empty()
+    {
+        validate_relative_path(rel)?;
+        policy.check_read(rel)?;
+        if let Ok((bytes, _)) = fs.read_file_bytes(rel, policy.limits.max_edit_file_bytes) {
+            if bytes.contains(&0) {
+                return Ok(OutlineOutput {
+                    files: Vec::new(),
+                    truncated: false,
+                });
+            }
+            let text = std::str::from_utf8(&bytes).map_err(|e| {
+                RuntimeError::InvalidRequest(format!("file is not valid UTF-8: {e}"))
+            })?;
+            let (lines_count, symbols) = extract_symbols(rel, text, max_syms);
+            return Ok(OutlineOutput {
+                files: vec![OutlineFile {
+                    path: rel.to_string(),
+                    lines: lines_count,
+                    symbols,
+                }],
+                truncated: false,
+            });
+        }
+    }
+
     let list_params = ListParams {
         path: params.path.clone(),
         recursive: Some(true),
+        depth: None,
         max_entries: Some(10_000),
         include_hidden: Some(false),
         respect_ignore: Some(true),
     };
     let listed = exec_list(fs, policy, &list_params, cancel)?;
-    let max_files = params.max_files.unwrap_or(200).min(1_000);
-    let max_syms = params.max_symbols_per_file.unwrap_or(50).min(200);
 
     let mut files = Vec::new();
     let mut truncated = listed.truncated;
@@ -1921,6 +1983,7 @@ pub fn exec_context_bundle(
         &ListParams {
             path: None,
             recursive: Some(true),
+            depth: None,
             max_entries: Some(5_000),
             include_hidden: Some(false),
             respect_ignore: Some(true),
@@ -2029,6 +2092,7 @@ fn extract_symbols(path: &str, text: &str, max_syms: usize) -> (u64, Vec<Outline
         .unwrap_or("");
     let mut syms = Vec::new();
     let mut line_count = 0u64;
+    let mut py_docstring: Option<&'static str> = None;
 
     for (idx, line) in text.lines().enumerate() {
         line_count = (idx + 1) as u64;
@@ -2036,6 +2100,23 @@ fn extract_symbols(path: &str, text: &str, max_syms: usize) -> (u64, Vec<Outline
             continue;
         }
         let t = line.trim();
+        if ext == "py" {
+            if let Some(delim) = py_docstring {
+                if t.contains(delim) {
+                    py_docstring = None;
+                }
+                continue;
+            }
+            if let Some(delim) = ["\"\"\"", "'''"].into_iter().find(|d| t.contains(d)) {
+                let count = t.matches(delim).count();
+                if count % 2 == 1 {
+                    py_docstring = Some(delim);
+                }
+                if t.starts_with(delim) || t.starts_with("r\"\"\"") || t.starts_with("r'''") {
+                    continue;
+                }
+            }
+        }
         if t.is_empty() || t.starts_with("//") || t.starts_with('#') {
             continue;
         }
@@ -2080,6 +2161,11 @@ fn extract_symbols(path: &str, text: &str, max_syms: usize) -> (u64, Vec<Outline
                     && (s.starts_with("const ") || s.starts_with("let "))
                 {
                     Some("export")
+                } else if t == line
+                    && (s.starts_with("const ") || s.starts_with("let "))
+                    && (s.contains("=>") || s.contains("= function"))
+                {
+                    Some("fn")
                 } else {
                     None
                 }

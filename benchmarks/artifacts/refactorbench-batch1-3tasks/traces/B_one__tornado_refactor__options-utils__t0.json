@@ -1,0 +1,90 @@
+{
+  "pack": "refactorbench",
+  "arm": "B_one",
+  "caseId": "tornado_refactor/options-utils",
+  "trial": 0,
+  "overallPassed": false,
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 37102,
+      "argsPreview": "{\"code\":\"const r = await ms.read(\\\"tornado/options.py\\\", {startLine:1, lineCount:400});\\nconst s = await ms.search(\\\"options\\\", {path: \\\".\\\", maxMatches: 200});\\nreturn {total: r.totalLines, text: r.text, hits: s.hits.map(h=>h.path+\\\":\\\"+h.line+\\\": \\\"+h.text)};\"}",
+      "outputPreview": "ok · 2 calls · 16ms\n{\n \"total\": 745,\n \"text\": \"rev:b1695018b618164e84f3b6671c772a85867f90cd18db8095d337b2bb52e82026 eol:LF lines:1-400/745\\n1:71c2| #\\n2:ea13| # Copyright 2009 Facebook\\n3:71c2| #\\n4:d116| # Licensed under the Apache License, Version 2.0 (the \\\"License\\\"); you may\\n5:43d9| # not use this file except in compliance with the License. You may obtain\\n6:8c04| # a copy of the License at\\n7:71c2| #\\n8:8040| #     http://www.apache.org/licenses/LICENSE-2.0\\n9:71c2| #\\n10:6b4f| # Unless required by applicable law or agreed to in writing, software\\n11:2d3c| # distributed under the Licens"
+    },
+    {
+      "seq": 2,
+      "turn": 2,
+      "name": "ms",
+      "isError": true,
+      "outputBytes": 109,
+      "argsPreview": "{\"code\":\"const r = await ms.read(\\\"tornado/options.py\\\", {startLine:400, lineCount:400});\\nconst o = await ms.outline(\\\"tornado/options.py\\\", {maxSymbolsPerFile: 200});\\nconst s = await ms.search(\\\"tornado.options|from tornado import options|from \\\\\\\\.options|from \\\\\\\\.\\\\\\\\.options|import options\\\", {path: \\\"tornado\\\", regex: true, maxMatches: 200});\\nreturn {tail: r.text.split(\\\"\\\\n\\\").filter(l=>/^\\\\d+:[0-9a-f]{4}\\\\| (def |class |[A-Za-z_]+ *=|_[a-z])/.test(l)).join(\\\"\\\\n\\\"), outline: o, tornadoHits: s.hits.map(h=>h.path+\\\":\\\"+h.line+\\\": \\\"+h.text), trunc: s.truncated};\"}",
+      "outputPreview": "Error: MsError: E_NOT_FOUND: not found: parent is not a directory: 'tornado/options.py'\ncalls: 2 calls · 2ms"
+    },
+    {
+      "seq": 3,
+      "turn": 3,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 5808,
+      "argsPreview": "{\"code\":\"const r = await ms.read(\\\"tornado/options.py\\\", {startLine:400, lineCount:400});\\nconst s = await ms.search(\\\"tornado\\\\\\\\.options|from tornado import options|import options\\\", {path: \\\".\\\", regex: true, maxMatches: 200});\\nconst lines = r.text.split(\\\"\\\\n\\\").filter(l=>/^\\\\d+:[0-9a-f]{4}\\\\| (def |class |[A-Za-z_]+ *=)/.test(l));\\nreturn {defs: lines.join(\\\"\\\\n\\\"), hits: s.hits.filter(h=>!h.path.startsWith(\\\"docs/releases\\\")).map(h=>h.path+\\\":\\\"+h.line+\\\": \\\"+h.text), trunc: s.truncated};\"}",
+      "outputPreview": "ok · 2 calls · 20ms\n{\n \"defs\": \"497:784f| class _Mockable:\\n527:3e51| class _Option:\\n677:c9d8| options = OptionParser()\\n684:2984| def define(\\n710:0261| def parse_command_line(\\n720:98ce| def parse_config_file(path: str, final: bool = True) -> None:\\n728:5dcf| def print_help(file: Optional[TextIO] = None) -> None:\\n736:4aa8| def add_parse_callback(callback: Callable[[], None]) -> None:\",\n \"hits\": [\n  \"demos/blog/blog.py:27: from tornado.options import define, options\",\n  \"demos/blog/blog.py:290:     tornado.options.parse_command_line()\",\n  \"demos/chat/chatdemo.py:22: from tornado.options imp"
+    },
+    {
+      "seq": 4,
+      "turn": 4,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 4759,
+      "argsPreview": "{\"code\":\"const r = await ms.read(\\\"tornado/options.py\\\", {startLine:670, lineCount:80});\\nconst t = await ms.read(\\\"tornado/test/runtests.py\\\", {startLine:1, lineCount:40});\\nconst g = await ms.list(\\\"tornado\\\", {maxEntries: 200});\\nreturn {tail: r.text, runtests: t.text, files: g.map(f=>f.path).filter(p=>/options|global/.test(p))};\"}",
+      "outputPreview": "ok · 3 calls · 4ms\n{\n \"tail\": \"rev:b1695018b618164e84f3b6671c772a85867f90cd18db8095d337b2bb52e82026 eol:LF lines:670-745/745\\n670:923c|     def _parse_bool(self, value: str) -> bool:\\n671:d836|         return value.lower() not in (\\\"false\\\", \\\"0\\\", \\\"f\\\")\\n672:af13| \\n673:168e|     def _parse_string(self, value: str) -> str:\\n674:6b88|         return _unicode(value)\\n675:af13| \\n676:af13| \\n677:c9d8| options = OptionParser()\\n678:001b| \\\"\\\"\\\"Global options object.\\n679:af13| \\n680:7490| All defined options are available as attributes on this object.\\n681:b925| \\\"\\\"\\\"\\n682:af13| \\n683:af13| \\n6"
+    },
+    {
+      "seq": 5,
+      "turn": 5,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 10052,
+      "argsPreview": "{\"code\":\"const s = await ms.search(\\\"file_name|group_name|co_filename|_getframe|from tornado.options import|tornado.options\\\\\\\\.(define|parse_|print_help|add_parse)|options\\\\\\\\.(define|parse_command_line|parse_config_file|print_help|add_parse_callback)\\\\\\\\(\\\", {path: \\\"tornado\\\", regex: true, maxMatches: 200});\\nconst g = await ms.exec(\\\"git status --short | head -20; git log --oneline -1\\\", {timeoutMs: 20000});\\nreturn {hits: s.hits.map(h=>h.path+\\\":\\\"+h.line+\\\": \\\"+h.text), git: g.output};\"}",
+      "outputPreview": "ok · 2 calls · 13ms\n{\n \"hits\": [\n  \"tornado/httpclient.py:758:     from tornado.options import define, options, parse_command_line\",\n  \"tornado/log.py:91:     `tornado.options.parse_command_line` or `tornado.options.parse_config_file`\",\n  \"tornado/log.py:91:     `tornado.options.parse_command_line` or `tornado.options.parse_config_file`\",\n  \"tornado/log.py:220:     This is called automatically by `tornado.options.parse_command_line`\",\n  \"tornado/log.py:221:     and `tornado.options.parse_config_file`.\",\n  \"tornado/log.py:279:     options.define(\",\n  \"tornado/log.py:288:     options.define(\",\n "
+    },
+    {
+      "seq": 6,
+      "turn": 6,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 4053,
+      "argsPreview": "{\"code\":\"const a = await ms.read(\\\"tornado/test/options_test.py\\\", {startLine:158, lineCount:22});\\nconst b = await ms.read(\\\"demos/file_upload/file_receiver.py\\\", {startLine:12, lineCount:44});\\nconst c = await ms.read(\\\"tornado/test/log_test.py\\\", {startLine:186, lineCount:16});\\nreturn {grp: a.text, receiver: b.text, logtest: c.text};\"}",
+      "outputPreview": "ok · 3 calls · 2ms\n{\n \"grp\": \"rev:3c44ff3c91167d405671e5495ca8884758f5586df71e177b19b6e0c3d0fd14d2 eol:LF lines:158-179/328\\n158:c7dd|         expected = {\\\"a\\\": 1, \\\"b\\\": 2, \\\"help\\\": options.help}\\n159:a848|         self.assertEqual(expected, options.as_dict())\\n160:af13| \\n161:965a|     def test_group_dict(self):\\n162:0b3a|         options = OptionParser()\\n163:deb2|         options.define(\\\"a\\\", default=1)\\n164:f646|         options.define(\\\"b\\\", group=\\\"b_group\\\", default=2)\\n165:af13| \\n166:9a70|         frame = sys._getframe(0)\\n167:db13|         this_file = frame.f_code.co_filename\\n16"
+    },
+    {
+      "seq": 7,
+      "turn": 7,
+      "name": "ms",
+      "isError": true,
+      "outputBytes": 85,
+      "argsPreview": "{}",
+      "outputPreview": "Error: `code` is required: a JavaScript program body using the `ms` capability table."
+    },
+    {
+      "seq": 8,
+      "turn": 8,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 15539,
+      "argsPreview": "{\"code\":\"const files = [\\\"docs/options.rst\\\",\\\"tornado/__init__.pyi\\\",\\\"tornado/httpclient.py\\\",\\\"tornado/testing.py\\\",\\\"tornado/test/runtests.py\\\",\\\"tornado/test/import_test.py\\\",\\\"docs/conf.py\\\"];\\nconst out = {};\\nfor (const f of files) {\\n  try { const r = await ms.read(f, {startLine:1, lineCount:60}); out[f] = r.text; } catch(e) { out[f] = \\\"ERR \\\" + e.message; }\\n}\\nreturn out;\"}",
+      "outputPreview": "ok · 7 calls · 3ms\n{\n \"docs/options.rst\": \"rev:7c592192d92e05bce1649cf054328ac45cc13085a100e3569085e239159d02fd eol:LF lines:1-38/38\\n1:0a1e| ``tornado.options`` --- Command-line parsing\\n2:4f60| ============================================\\n3:af13| \\n4:3821| .. automodule:: tornado.options\\n5:af13| \\n6:af13| \\n7:af13| \\n8:75a0|    Global functions\\n9:674c|    ----------------\\n10:a04f|    \\n11:5b9a|    .. autofunction:: define\\n12:af13| \\n13:95d6|    .. py:data:: options\\n14:af13| \\n15:8158|        Global options object.  All defined options are available as attributes\\n16:1e50|        on thi"
+    },
+    {
+      "seq": 9,
+      "turn": 9,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 6898,
+      "argsPreview": "{\"code\":\"const o = await ms.read(\\\"tornado/test/options_test.py\\\", {startLine:1, lineCount:60});\\nconst l = await ms.read(\\\"tornado/test/log_test.py\\\", {startLine:186, lineCount:30});\\nconst init = await ms.read(\\\"tornado/__init__.py\\\", {startLine:1, lineCount:80});\\nconst ex = await ms.exec(\\\"python3 --version && python3 -c 'import tornado,sys;print(tornado.__file__)' ; ls\\\", {timeoutMs: 30000});\\nreturn {opt: o.text, log: l.text.slice(0,1500), init: init.text, env: ex.output};\"}",
+      "outputPreview": "ok · 4 calls · 29ms\n{\n \"opt\": \"rev:3c44ff3c91167d405671e5495ca8884758f5586df71e177b19b6e0c3d0fd14d2 eol:LF lines:1-60/328\\n1:4eae| import datetime\\n2:b9cd| from io import StringIO\\n3:9c21| import os\\n4:6eeb| import sys\\n5:70bd| from unittest import mock\\n6:2714| import unittest\\n7:af13| \\n8:53d7| from tornado.options import OptionParser, Error\\n9:bad3| from tornado.util import basestring_type\\n10:af13| \\n11:44cd| import typing\\n12:af13| \\n13:6f42| if typing.TYPE_CHECKING:\\n14:49db|     from typing import List  # noqa: F401\\n15:af13| \\n16:af13| \\n17:ed26| class Email:\\n18:f410|     def __init__"
+    }
+  ]
+}

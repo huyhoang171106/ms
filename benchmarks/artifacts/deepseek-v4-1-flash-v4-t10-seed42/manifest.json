@@ -1,0 +1,726 @@
+{
+  "schemaVersion": "2.0.0",
+  "experimentId": "uc01-controlled-seed42-2026-11-15T00-49-56-500Z",
+  "createdAt": "2026-11-15T00:49:56.762Z",
+  "mode": "controlled",
+  "seed": 42,
+  "trials": 10,
+  "cases": [
+    "uc01-01-bug-crash-null",
+    "uc01-02-bug-test-fail",
+    "uc01-03-bug-reproducible"
+  ],
+  "modelSelector": "trollllm/deepseek-v4-1-flash",
+  "resolvedModel": "deepseek-v4-1-flash",
+  "pricing": {
+    "canonicalId": "deepseek-v4-1-flash",
+    "pricingStatus": "unpriced",
+    "inputPer1M": null,
+    "outputPer1M": null,
+    "cacheReadPer1M": null,
+    "cacheWrite5mPer1M": null,
+    "source": "unpriced-catalog-model",
+    "asOfDate": "2026-11-14"
+  },
+  "costKind": "unpriced",
+  "msBinaryPath": "/home/hoang/ms/target/release/ms",
+  "fixtureDir": "/home/hoang/nhom-30/evals/fixtures/uc01",
+  "casesDir": "/home/hoang/nhom-30/evals/uc01",
+  "git": {
+    "ms": {
+      "commit": "465cf79e5fd62eb000a8599f2ff2a14e736363a6",
+      "dirty": true,
+      "dirtyHash": "eae384cbc8a303ee42e3e6ac6b29d892af40613b948d70d907adb088ffd5740f"
+    },
+    "nhom30": {
+      "commit": "65ed1d8f56446781178f0b740669cb4ffc452261",
+      "dirty": true,
+      "dirtyHash": "5d851cfc0e6be852e107eb701b1d4fc47b612bab102f8b1957e3cae610b9a477"
+    }
+  },
+  "hashes": {
+    "msBinarySha256": "7263c578ffa54897e8acb64d320ba0e73f0a45a7a144b7b924651245fa90f16b",
+    "fixtureSha256": "edf0d57b8114981ab56a7fbe21512996704a47e540816aa4661e238b596f5405",
+    "adapterSha256": "c8f499a0007337065dd71159e23e24fd0627064e22e22c802e5dd4e3ac5ffc5f",
+    "systemPromptSha256": "fc7b2f3ea75f34778ac5f69301c5f2b0d42b6bcd694457c6ac09cc20efb41ef4",
+    "bundledSkillSha256": "61bc0967b61deb13a8096a52eb2485c444d8124807a02c909f10271c26216d7a",
+    "featureConfigSha256": "f573b5c3dbd401fd17e5aedb17824db49a1dd10cbf4bfdb1ec34881e54aa0dfa",
+    "toolDefinitionsSha256": {
+      "A_baseline": "f93f0f38ba3de28b7d1580a3e3ccfb853332a000acadd0919736b4f16d5b9cf0",
+      "B_ms": "b61c9b3e75050004865fa065146c42aa058fdf8d0d11f84383bc80c1b47574f4"
+    }
+  },
+  "featureFlags": {
+    "bundledSkillMode": "on"
+  },
+  "generationSettings": {
+    "maxSteps": 20,
+    "budgetLimitDollars": 1
+  },
+  "executionPolicy": {
+    "A_baseline": {
+      "mode": "controlled",
+      "arm": "A_baseline",
+      "shell": "/bin/bash",
+      "pythonBin": "/home/hoang/.axiom/venv/bin/python3",
+      "timeoutMs": 120000,
+      "envScrubbed": true,
+      "sandboxKind": "bwrap",
+      "sandboxDetail": "auto: /usr/bin/bwrap",
+      "targetValidation": true,
+      "destructiveGuard": true,
+      "allowWithoutApprover": true,
+      "walAndOpenat2Scope": "none (standard filesystem tools)"
+    },
+    "B_ms": {
+      "mode": "controlled",
+      "arm": "B_ms",
+      "shell": "/bin/bash",
+      "pythonBin": "/home/hoang/.axiom/venv/bin/python3",
+      "timeoutMs": 120000,
+      "envScrubbed": true,
+      "sandboxKind": "bwrap",
+      "sandboxDetail": "auto: /usr/bin/bwrap",
+      "targetValidation": true,
+      "destructiveGuard": true,
+      "allowWithoutApprover": true,
+      "walAndOpenat2Scope": "ms RPC file operations only (read, edit, write_file, delete_file, rename_file, tx.undo); arbitrary shell commands via run_command/ms exec bypass WAL/openat2/test-guard"
+    }
+  },
+  "redactedConfigSnapshot": {
+    "activeProvider": "anthropic",
+    "providers": {
+      "antigravity": {
+        "apiKey": "‹redacted›",
+        "source": "config"
+      },
+      "rhikaku": {
+        "apiKey": "‹redacted›",
+        "baseUrl": "http://127.0.0.1:18090/v1",
+        "models": [
+          {
+            "id": "rhika/deepseek-v4.1-flash"
+          }
+        ],
+        "source": "omp"
+      },
+      "vilaoai": {
+        "apiKey": "‹redacted›",
+        "baseUrl": "https://api.vilao.ai/v1",
+        "models": [
+          {
+            "id": "cnt/glm-5.3-flash"
+          },
+          {
+            "id": "glm-5.3-flash"
+          },
+          {
+            "id": "wen/qwen3.8-flash"
+          },
+          {
+            "id": "qwen3.8-flash"
+          }
+        ],
+        "source": "omp"
+      },
+      "tokenharbor": "‹redacted›",
+      "google-antigravity": {
+        "apiKey": "‹redacted›",
+        "source": "config"
+      },
+      "tokenhabour": "‹redacted›",
+      "fireworks": {
+        "apiKey": "‹redacted›",
+        "source": "config",
+        "models": [
+          {
+            "id": "accounts/fireworks/routers/glm-5p2-fast",
+            "contextWindow": 1048576
+          },
+          {
+            "id": "accounts/fireworks/models/minimax-m3",
+            "contextWindow": 512000
+          },
+          {
+            "id": "accounts/fireworks/models/gpt-oss-120b",
+            "contextWindow": 131072
+          },
+          {
+            "id": "accounts/fireworks/models/nemotron-3-ultra-nvfp4",
+            "contextWindow": 262144
+          },
+          {
+            "id": "accounts/fireworks/models/qwen3-reranker-8b",
+            "contextWindow": 40960
+          },
+          {
+            "id": "accounts/fireworks/models/qwen3-embedding-8b",
+            "contextWindow": 40960
+          },
+          {
+            "id": "accounts/fireworks/models/kimi-k3",
+            "contextWindow": 1048576
+          },
+          {
+            "id": "accounts/fireworks/routers/kimi-k3-fast",
+            "contextWindow": 1048576
+          },
+          {
+            "id": "accounts/fireworks/models/qwen3p8-max"
+          },
+          {
+            "id": "accounts/fireworks/models/glm-5p3",
+            "contextWindow": 1048576
+          },
+          {
+            "id": "accounts/fireworks/routers/glm-5p3-fast",
+            "contextWindow": 1048576
+          },
+          {
+            "id": "accounts/fireworks/models/glm-5p3-flash",
+            "contextWindow": 1048576
+          },
+          {
+            "id": "accounts/fireworks/models/deepseek-v4p1-flash",
+            "contextWindow": 1048576
+          },
+          {
+            "id": "accounts/fireworks/models/ember-1",
+            "contextWindow": 1048576
+          },
+          {
+            "id": "accounts/fireworks/models/nemotron-lightning-3p5-30b-a3b",
+            "contextWindow": 262144
+          },
+          {
+            "id": "accounts/fireworks/models/inkling",
+            "contextWindow": 1048576
+          },
+          {
+            "id": "auto"
+          },
+          {
+            "id": "firerouter/auto"
+          },
+          {
+            "id": "accounts/fireworks/models/glm-5p2",
+            "contextWindow": 1048576
+          },
+          {
+            "id": "accounts/fireworks/models/qwen3p8-2p4t-a95b",
+            "contextWindow": 262144
+          }
+        ]
+      }
+    },
+    "budgetLimitDollars": 1,
+    "autoVerify": true,
+    "mode": "adaptive",
+    "workspaceRoot": "/home/hoang/ms",
+    "defaultModel": "deepseek-v4-1-flash",
+    "subscription": {
+      "tier": "pro",
+      "active": true,
+      "key": "‹redacted›",
+      "expiresAt": "2026-11-09T08:27:27.152Z",
+      "tokenQuota": "‹redacted›",
+      "tokensUsed": "‹redacted›"
+    },
+    "decisionRouter": {
+      "backend": "@cf/cloudflare/clef",
+      "cloudflare": {
+        "accountId": "test-account-id",
+        "authToken": "‹redacted›"
+      }
+    },
+    "modelRoles": {
+      "code": "anthropic/claude-haiku-5-5",
+      "smol": "anthropic/claude-haiku-5-5",
+      "embed": "ollama/qwen3-embedding:0.6b",
+      "default": "anthropic/claude-haiku-5-5"
+    },
+    "maxSteps": 20
+  },
+  "schedule": [
+    {
+      "runId": "trial-1__uc01-03-bug-reproducible__A_baseline",
+      "trial": 1,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-1__uc01-03-bug-reproducible__B_ms",
+      "trial": 1,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-1__uc01-01-bug-crash-null__B_ms",
+      "trial": 1,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-1__uc01-01-bug-crash-null__A_baseline",
+      "trial": 1,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-1__uc01-02-bug-test-fail__A_baseline",
+      "trial": 1,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-1__uc01-02-bug-test-fail__B_ms",
+      "trial": 1,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-2__uc01-01-bug-crash-null__B_ms",
+      "trial": 2,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-2__uc01-01-bug-crash-null__A_baseline",
+      "trial": 2,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-2__uc01-02-bug-test-fail__A_baseline",
+      "trial": 2,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-2__uc01-02-bug-test-fail__B_ms",
+      "trial": 2,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-2__uc01-03-bug-reproducible__B_ms",
+      "trial": 2,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-2__uc01-03-bug-reproducible__A_baseline",
+      "trial": 2,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-3__uc01-03-bug-reproducible__A_baseline",
+      "trial": 3,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-3__uc01-03-bug-reproducible__B_ms",
+      "trial": 3,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-3__uc01-02-bug-test-fail__B_ms",
+      "trial": 3,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-3__uc01-02-bug-test-fail__A_baseline",
+      "trial": 3,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-3__uc01-01-bug-crash-null__A_baseline",
+      "trial": 3,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-3__uc01-01-bug-crash-null__B_ms",
+      "trial": 3,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-4__uc01-03-bug-reproducible__B_ms",
+      "trial": 4,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-4__uc01-03-bug-reproducible__A_baseline",
+      "trial": 4,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-4__uc01-02-bug-test-fail__A_baseline",
+      "trial": 4,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-4__uc01-02-bug-test-fail__B_ms",
+      "trial": 4,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-4__uc01-01-bug-crash-null__B_ms",
+      "trial": 4,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-4__uc01-01-bug-crash-null__A_baseline",
+      "trial": 4,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-5__uc01-02-bug-test-fail__A_baseline",
+      "trial": 5,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-5__uc01-02-bug-test-fail__B_ms",
+      "trial": 5,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-5__uc01-01-bug-crash-null__B_ms",
+      "trial": 5,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-5__uc01-01-bug-crash-null__A_baseline",
+      "trial": 5,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-5__uc01-03-bug-reproducible__A_baseline",
+      "trial": 5,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-5__uc01-03-bug-reproducible__B_ms",
+      "trial": 5,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-6__uc01-03-bug-reproducible__B_ms",
+      "trial": 6,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-6__uc01-03-bug-reproducible__A_baseline",
+      "trial": 6,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-6__uc01-02-bug-test-fail__A_baseline",
+      "trial": 6,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-6__uc01-02-bug-test-fail__B_ms",
+      "trial": 6,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-6__uc01-01-bug-crash-null__B_ms",
+      "trial": 6,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-6__uc01-01-bug-crash-null__A_baseline",
+      "trial": 6,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-7__uc01-02-bug-test-fail__A_baseline",
+      "trial": 7,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-7__uc01-02-bug-test-fail__B_ms",
+      "trial": 7,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-7__uc01-01-bug-crash-null__B_ms",
+      "trial": 7,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-7__uc01-01-bug-crash-null__A_baseline",
+      "trial": 7,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-7__uc01-03-bug-reproducible__A_baseline",
+      "trial": 7,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-7__uc01-03-bug-reproducible__B_ms",
+      "trial": 7,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-8__uc01-03-bug-reproducible__B_ms",
+      "trial": 8,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-8__uc01-03-bug-reproducible__A_baseline",
+      "trial": 8,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-8__uc01-02-bug-test-fail__A_baseline",
+      "trial": 8,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-8__uc01-02-bug-test-fail__B_ms",
+      "trial": 8,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-8__uc01-01-bug-crash-null__B_ms",
+      "trial": 8,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-8__uc01-01-bug-crash-null__A_baseline",
+      "trial": 8,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-9__uc01-01-bug-crash-null__A_baseline",
+      "trial": 9,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-9__uc01-01-bug-crash-null__B_ms",
+      "trial": 9,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-9__uc01-02-bug-test-fail__B_ms",
+      "trial": 9,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-9__uc01-02-bug-test-fail__A_baseline",
+      "trial": 9,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-9__uc01-03-bug-reproducible__A_baseline",
+      "trial": 9,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-9__uc01-03-bug-reproducible__B_ms",
+      "trial": 9,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-10__uc01-02-bug-test-fail__B_ms",
+      "trial": 10,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-10__uc01-02-bug-test-fail__A_baseline",
+      "trial": 10,
+      "caseId": "uc01-02-bug-test-fail",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 0
+    },
+    {
+      "runId": "trial-10__uc01-03-bug-reproducible__A_baseline",
+      "trial": 10,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "A_baseline",
+      "pairOrder": "AB",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-10__uc01-03-bug-reproducible__B_ms",
+      "trial": 10,
+      "caseId": "uc01-03-bug-reproducible",
+      "arm": "B_ms",
+      "pairOrder": "AB",
+      "caseOrderIndex": 1
+    },
+    {
+      "runId": "trial-10__uc01-01-bug-crash-null__B_ms",
+      "trial": 10,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "B_ms",
+      "pairOrder": "BA",
+      "caseOrderIndex": 2
+    },
+    {
+      "runId": "trial-10__uc01-01-bug-crash-null__A_baseline",
+      "trial": 10,
+      "caseId": "uc01-01-bug-crash-null",
+      "arm": "A_baseline",
+      "pairOrder": "BA",
+      "caseOrderIndex": 2
+    }
+  ]
+}

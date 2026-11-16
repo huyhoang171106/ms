@@ -1,0 +1,117 @@
+{
+  "pack": "refactorbench",
+  "arm": "A_eight",
+  "caseId": "tornado_refactor/options-utils",
+  "trial": 0,
+  "overallPassed": false,
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "list_dir",
+      "isError": false,
+      "outputBytes": 2112,
+      "argsPreview": "{\"path\":\".\",\"depth\":2}",
+      "outputPreview": "Directory: . (depth 2)\n.github/\n.github/workflows/\ndemos/\ndemos/blog/\ndemos/chat/\ndemos/facebook/\ndemos/file_upload/\ndemos/google_auth/\ndemos/helloworld/\ndemos/s3server/\ndemos/tcpecho/\ndemos/websocket/\ndemos/webspider/\ndemos/.DS_Store\ndemos/README.rst\ndocs/\ndocs/guide/\ndocs/releases/\ndocs/.DS_Store\ndocs/asyncio.rst\ndocs/auth.rst\ndocs/autoreload.rst\ndocs/caresresolver.rst\ndocs/concurrent.rst\ndocs/conf.py\ndocs/coroutine.rst\ndocs/escape.rst\ndocs/faq.rst\ndocs/favicon.ico\ndocs/gen.rst\ndocs/guide.rst\ndocs/http.rst\ndocs/http1connection.rst\ndocs/httpclient.rst\ndocs/httpserver.rst\ndocs/httputil.rst\ndoc"
+    },
+    {
+      "seq": 2,
+      "turn": 1,
+      "name": "search_code",
+      "isError": false,
+      "outputBytes": 17068,
+      "argsPreview": "{\"pattern\":\"options\",\"maxResults\":200}",
+      "outputPreview": "maint/benchmark/chunk_benchmark.py:9: from tornado.options import define, options, parse_command_line\nmaint/benchmark/chunk_benchmark.py:24:         for i in xrange(options.num_chunks):\nmaint/benchmark/chunk_benchmark.py:25:             self.write('A' * options.chunk_size)\nmaint/benchmark/chunk_benchmark.py:33:     app.listen(options.port, address='127.0.0.1')\nmaint/benchmark/chunk_benchmark.py:37:         assert len(response.body) == (options.num_chunks * options.chunk_size)\nmaint/benchmark/chunk_benchmark.py:43:     curl_client.fetch('http://localhost:%d/' % options.port,\nmaint/benchmark/chu"
+    },
+    {
+      "seq": 3,
+      "turn": 2,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 31121,
+      "argsPreview": "{\"path\":\"tornado/options.py\"}",
+      "outputPreview": "File: tornado/options.py (lines 1-745 of 745):\n     1\t#\n     2\t# Copyright 2009 Facebook\n     3\t#\n     4\t# Licensed under the Apache License, Version 2.0 (the \"License\"); you may\n     5\t# not use this file except in compliance with the License. You may obtain\n     6\t# a copy of the License at\n     7\t#\n     8\t#     http://www.apache.org/licenses/LICENSE-2.0\n     9\t#\n    10\t# Unless required by applicable law or agreed to in writing, software\n    11\t# distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT\n    12\t# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied"
+    },
+    {
+      "seq": 4,
+      "turn": 3,
+      "name": "search_code",
+      "isError": false,
+      "outputBytes": 12936,
+      "argsPreview": "{\"pattern\":\"tornado\\\\.options|from tornado import options|tornado import .*options|options\\\\.(define|parse_command_line|parse_config_file|print_help|add_parse_callback)\\\\b|from \\\\.options|from \\\\.\\\\s*import options\",\"maxResults\":200}",
+      "outputPreview": "maint/benchmark/chunk_benchmark.py:9: from tornado.options import define, options, parse_command_line\nmaint/scripts/test_resolvers.py:17: from tornado.options import parse_command_line, define, options\nmaint/benchmark/parsing_benchmark.py:8: from tornado.options import define, options, parse_command_line\nmaint/benchmark/template_benchmark.py:9: from tornado.options import options, define, parse_command_line\ndocs/conf.py:131:     \"tornado.options._Mockable\",\nmaint/benchmark/benchmark.py:17: from tornado.options import define, options, parse_command_line\nmaint/benchmark/gen_benchmark.py:10: from"
+    },
+    {
+      "seq": 5,
+      "turn": 3,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 589,
+      "argsPreview": "{\"command\":\"git status --short | head -20; git log --oneline -1; ls tornado/test | grep -i option; grep -rn \\\"options\\\" tornado/test/__init__.py tornado/test/runtests.py 2>/dev/null | head\"}",
+      "outputPreview": "options_test.cfg\noptions_test.py\noptions_test_types.cfg\noptions_test_types_str.cfg\ntornado/test/runtests.py:15:from tornado.options import define, add_parse_callback, options\ntornado/test/runtests.py:42:    \"tornado.test.options_test\",\ntornado/test/runtests.py:218:            if options.fail_if_logs:\n\n[stderr]\nfatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\nfatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set)."
+    },
+    {
+      "seq": 6,
+      "turn": 4,
+      "name": "run_tests",
+      "isError": true,
+      "outputBytes": 232,
+      "argsPreview": "{}",
+      "outputPreview": "Error: run_tests needs the bwrap sandbox (Linux with unprivileged user namespaces) to cut the network and hide host files; the \"local\" backend cannot guarantee that (auto: no sandbox backend available). Tests are not run unisolated."
+    },
+    {
+      "seq": 7,
+      "turn": 4,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 899,
+      "argsPreview": "{\"path\":\"tornado/test/options_test.py\",\"lineRange\":\"[1-30]\"}",
+      "outputPreview": "File: tornado/test/options_test.py (lines 1-30 of 328):\n     1\timport datetime\n     2\tfrom io import StringIO\n     3\timport os\n     4\timport sys\n     5\tfrom unittest import mock\n     6\timport unittest\n     7\t\n     8\tfrom tornado.options import OptionParser, Error\n     9\tfrom tornado.util import basestring_type\n    10\t\n    11\timport typing\n    12\t\n    13\tif typing.TYPE_CHECKING:\n    14\t    from typing import List  # noqa: F401\n    15\t\n    16\t\n    17\tclass Email:\n    18\t    def __init__(self, value):\n    19\t        if isinstance(value, str) and \"@\" in value:\n    20\t            self._value = valu"
+    },
+    {
+      "seq": 8,
+      "turn": 4,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 1172,
+      "argsPreview": "{\"path\":\"tornado/test/options_test.py\",\"offset\":155,\"limit\":25}",
+      "outputPreview": "File: tornado/test/options_test.py (lines 155-179 of 328):\n   155\t\n   156\t    def test_as_dict(self):\n   157\t        options = self._sample_options()\n   158\t        expected = {\"a\": 1, \"b\": 2, \"help\": options.help}\n   159\t        self.assertEqual(expected, options.as_dict())\n   160\t\n   161\t    def test_group_dict(self):\n   162\t        options = OptionParser()\n   163\t        options.define(\"a\", default=1)\n   164\t        options.define(\"b\", group=\"b_group\", default=2)\n   165\t\n   166\t        frame = sys._getframe(0)\n   167\t        this_file = frame.f_code.co_filename\n   168\t        self.assertEqu"
+    },
+    {
+      "seq": 9,
+      "turn": 5,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 5988,
+      "argsPreview": "{\"command\":\"cd . && grep -rnE \\\"tornado\\\\.options\\\\.(define|parse_command_line|parse_config_file|print_help|add_parse_callback)\\\\b|from tornado\\\\.options import|from tornado import options|from \\\\. import options|tornado import options|options\\\\.(parse_command_line|parse_config_file|print_help|add_parse_callback)\\\\(|automodule:: tornado\\\\.options|tornado\\\\.options\\\\.(define|parse)\\\" --include=\\\"*\\\" -I . 2>/dev/null | grep -v \\\"^./docs/releases/\\\" | grep -v \\\"^./.git/\\\"\"}",
+      "outputPreview": "./demos/file_upload/file_uploader.py:21:from tornado.options import define, options\n./demos/file_upload/file_uploader.py:108:    filenames = options.parse_command_line()\n./demos/file_upload/file_receiver.py:16:from tornado import options\n./demos/file_upload/file_receiver.py:52:    options.parse_command_line()\n./demos/helloworld/helloworld.py:20:from tornado.options import define, options\n./demos/helloworld/helloworld.py:31:    tornado.options.parse_command_line()\n./demos/chat/chatdemo.py:22:from tornado.options import define, options, parse_command_line\n./demos/s3server/s3server.py:45:from tor"
+    },
+    {
+      "seq": 10,
+      "turn": 5,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 1726,
+      "argsPreview": "{\"path\":\"tornado/test/log_test.py\",\"lineRange\":\"[185-215]\"}",
+      "outputPreview": "File: tornado/test/log_test.py (lines 185-215 of 233):\n   185\t    \"\"\"Test the ability to enable and disable Tornado's logging hooks.\"\"\"\n   186\t\n   187\t    def logs_present(self, statement, args=None):\n   188\t        # Each test may manipulate and/or parse the options and then logs\n   189\t        # a line at the 'info' level.  This level is ignored in the\n   190\t        # logging module by default, but Tornado turns it on by default\n   191\t        # so it is the easiest way to tell whether tornado's logging hooks\n   192\t        # ran.\n   193\t        IMPORT = \"from tornado.options import options"
+    },
+    {
+      "seq": 11,
+      "turn": 5,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 1344,
+      "argsPreview": "{\"path\":\"docs/options.rst\"}",
+      "outputPreview": "File: docs/options.rst (lines 1-38 of 38):\n     1\t``tornado.options`` --- Command-line parsing\n     2\t============================================\n     3\t\n     4\t.. automodule:: tornado.options\n     5\t\n     6\t\n     7\t\n     8\t   Global functions\n     9\t   ----------------\n    10\t   \n    11\t   .. autofunction:: define\n    12\t\n    13\t   .. py:data:: options\n    14\t\n    15\t       Global options object.  All defined options are available as attributes\n    16\t       on this object.\n    17\t\n    18\t   .. autofunction:: parse_command_line\n    19\t   .. autofunction:: parse_config_file\n    20\t   .. autof"
+    },
+    {
+      "seq": 12,
+      "turn": 5,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 991,
+      "argsPreview": "{\"path\":\"tornado/__init__.pyi\"}",
+      "outputPreview": "File: tornado/__init__.pyi (lines 1-33 of 33):\n     1\timport typing\n     2\t\n     3\tversion: str\n     4\tversion_info: typing.Tuple[int, int, int, int]\n     5\t\n     6\tfrom . import auth\n     7\tfrom . import autoreload\n     8\tfrom . import concurrent\n     9\tfrom . import curl_httpclient\n    10\tfrom . import escape\n    11\tfrom . import gen\n    12\tfrom . import http1connection\n    13\tfrom . import httpclient\n    14\tfrom . import httpserver\n    15\tfrom . import httputil\n    16\tfrom . import ioloop\n    17\tfrom . import iostream\n    18\tfrom . import locale\n    19\tfrom . import locks\n    20\tfrom . impo"
+    }
+  ]
+}

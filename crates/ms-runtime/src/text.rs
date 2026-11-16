@@ -318,7 +318,11 @@ pub fn resolve_and_compute_edit(
                     replacement: replacement.clone(),
                 });
             }
-            EditSpec::Text { old_text, new_text } => {
+            EditSpec::Text {
+                old_text,
+                new_text,
+                replace_all,
+            } => {
                 if old_text.is_empty() {
                     return Err(RuntimeError::InvalidRequest(format!(
                         "edit[{idx}] oldText cannot be empty"
@@ -342,7 +346,7 @@ pub fn resolve_and_compute_edit(
                         "oldText did not match; current file snippet:",
                     ));
                 }
-                if matches.len() > 1 {
+                if matches.len() > 1 && !replace_all.unwrap_or(false) {
                     let first_orig = lf_to_orig[matches[0]];
                     let first_line = line_for_offset(&analyzed, first_orig as u64);
                     return Err(self_healing_conflict(
@@ -352,22 +356,23 @@ pub fn resolve_and_compute_edit(
                             "edit[{idx}] oldText matched {} times (must be unique)",
                             matches.len()
                         ),
-                        "Provide more surrounding context or use line-range+tag edit:",
+                        "Provide more surrounding context, set replaceAll: true, or use line-range+tag edit:",
                     ));
                 }
 
-                let lf_start = matches[0];
-                let lf_end = lf_start + norm_old.len();
-                let orig_start = lf_to_orig[lf_start] as u64;
-                let orig_end = lf_to_orig[lf_end] as u64;
+                for lf_start in matches {
+                    let lf_end = lf_start + norm_old.len();
+                    let orig_start = lf_to_orig[lf_start] as u64;
+                    let orig_end = lf_to_orig[lf_end] as u64;
 
-                resolved.push(TextEdit {
-                    start_byte: orig_start,
-                    end_byte: orig_end,
-                    expected_text: None,
-                    expected_tag: None,
-                    replacement: norm_new,
-                });
+                    resolved.push(TextEdit {
+                        start_byte: orig_start,
+                        end_byte: orig_end,
+                        expected_text: None,
+                        expected_tag: None,
+                        replacement: norm_new.clone(),
+                    });
+                }
             }
             EditSpec::Byte(te) => {
                 resolved.push(te.clone());

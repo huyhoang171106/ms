@@ -1,0 +1,10 @@
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tinydb_demo/pretty.py b/tinydb_demo/pretty.py
+--- a/tinydb_demo/pretty.py	2026-10-29 15:19:32.690682172 +0700
++++ b/tinydb_demo/pretty.py	2026-11-15 07:55:10.382132786 +0700
+@@ -1,4 +1,6 @@
+ def render_table(rows):
++    if not rows:
++        return ''
+     headers = list(rows[0])
+     widths = [len(header) for header in headers]
+     return '  '.join(_pad_header(header, width) for header, width in zip(headers, widths))

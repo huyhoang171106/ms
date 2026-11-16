@@ -1,0 +1,471 @@
+{
+  "schemaVersion": "2.0.0",
+  "experimentId": "uc01-controlled-seed42-2026-11-15T01-38-45-732Z",
+  "runId": "trial-9__uc01-03-bug-reproducible__B_ms",
+  "arm": "B_ms",
+  "caseId": "uc01-03-bug-reproducible",
+  "trial": 9,
+  "pairOrder": "AB",
+  "durationsMs": {
+    "setupMs": 5.54,
+    "agentMs": 12490.37,
+    "verifyMs": 169,
+    "cleanupMs": 0.14,
+    "wallClockMs": 12665.53
+  },
+  "requests": [
+    {
+      "turn": 1,
+      "usage": {
+        "uncachedInput": 258,
+        "cacheRead": 2185,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 107,
+        "totalInputAll": 2443,
+        "totalTokens": 2550
+      },
+      "cost": {
+        "costDollars": 0.000123,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0.000026,
+          "cacheReadUsd": 0.000044,
+          "cacheWriteUsd": 0,
+          "outputUsd": 0.000053
+        }
+      }
+    },
+    {
+      "turn": 2,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 2800,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 144,
+        "totalInputAll": 2802,
+        "totalTokens": 2946
+      },
+      "cost": {
+        "costDollars": 0.000128,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000056,
+          "cacheWriteUsd": 0,
+          "outputUsd": 0.000072
+        }
+      }
+    },
+    {
+      "turn": 3,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 2800,
+        "cacheWrite": 179,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 118,
+        "totalInputAll": 2981,
+        "totalTokens": 3099
+      },
+      "cost": {
+        "costDollars": 0.000138,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000056,
+          "cacheWriteUsd": 0.000022,
+          "outputUsd": 0.000059
+        }
+      }
+    },
+    {
+      "turn": 4,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 2979,
+        "cacheWrite": 155,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 297,
+        "totalInputAll": 3136,
+        "totalTokens": 3433
+      },
+      "cost": {
+        "costDollars": 0.000228,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.00006,
+          "cacheWriteUsd": 0.000019,
+          "outputUsd": 0.000149
+        }
+      }
+    },
+    {
+      "turn": 5,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 3134,
+        "cacheWrite": 1049,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 285,
+        "totalInputAll": 4185,
+        "totalTokens": 4470
+      },
+      "cost": {
+        "costDollars": 0.000337,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000063,
+          "cacheWriteUsd": 0.000131,
+          "outputUsd": 0.000142
+        }
+      }
+    },
+    {
+      "turn": 6,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 4183,
+        "cacheWrite": 389,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 191,
+        "totalInputAll": 4574,
+        "totalTokens": 4765
+      },
+      "cost": {
+        "costDollars": 0.000228,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000084,
+          "cacheWriteUsd": 0.000049,
+          "outputUsd": 0.000096
+        }
+      }
+    },
+    {
+      "turn": 7,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 4572,
+        "cacheWrite": 376,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 300,
+        "totalInputAll": 4950,
+        "totalTokens": 5250
+      },
+      "cost": {
+        "costDollars": 0.000289,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000091,
+          "cacheWriteUsd": 0.000047,
+          "outputUsd": 0.00015
+        }
+      }
+    },
+    {
+      "turn": 8,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 4948,
+        "cacheWrite": 185,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 355,
+        "totalInputAll": 5135,
+        "totalTokens": 5490
+      },
+      "cost": {
+        "costDollars": 0.0003,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000099,
+          "cacheWriteUsd": 0.000023,
+          "outputUsd": 0.000178
+        }
+      }
+    }
+  ],
+  "toolCalls": [
+    {
+      "toolCallId": "toolu_01YZDPztNJpdhiGWrgzW8V7U",
+      "turnIndex": 1,
+      "name": "read_file",
+      "startedAtMonoMs": 1161.702,
+      "durationMs": 2,
+      "isError": false,
+      "argsPreview": "{\"path\":\"tinydb_demo/pretty.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 32,
+      "argsSha256": "3d39b90a69965ad5a6c4c4441a19e4f806281b3d4cf706af64e8b3b6e2f9723c",
+      "outputPreview": "rev:6fefeca0 eol:LF lines:1-8/8\n1:e3ea| def render_table(rows):\n2:4c8e|     headers = list(rows[0])\n3:4cb3|     widths = [len(header) for header in headers]\n4:ec44|     return '  '.join(_pad_header(header, width) for header, width in zip(headers, widths))\n5:af13| \n6:af13| \n7:222d| def _pad_header(header, width):\n8:0995|     return header.ljust(width)",
+      "outputTruncated": false,
+      "outputOriginalBytes": 352,
+      "outputSha256": "7ec313f166fcb7e4513f3fc92207af63233fc385db540b94f30031c921fef081",
+      "toolOutputBytes": 352,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_018ya37WE7DbViBXaLfLVLFw",
+      "turnIndex": 1,
+      "name": "search_code",
+      "startedAtMonoMs": 1163.377,
+      "durationMs": 2,
+      "isError": false,
+      "argsPreview": "{\"pattern\":\"render_table\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 26,
+      "argsSha256": "07ba0d369dce71c6dfbbdad6906584eae4709dfd6914e1e6606969316c46dc12",
+      "outputPreview": "tinydb_demo/pretty.py:1:e3ea| def render_table(rows):",
+      "outputTruncated": false,
+      "outputOriginalBytes": 53,
+      "outputSha256": "92f32ca0d44704a50b41e2b8e1f7112491235b00ef874f693f4e165188c6938e",
+      "toolOutputBytes": 53,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01GP8aWrx9b6x2trCu8cK3Nt",
+      "turnIndex": 2,
+      "name": "run_command",
+      "startedAtMonoMs": 2435.941,
+      "durationMs": 9,
+      "isError": false,
+      "argsPreview": "{\"command\":\"python -c \\\"from tinydb_demo.pretty import render_table; print(repr(render_table([])))\\\" 2>&1 | tail -3; ls tests 2>/dev/null; ls\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 143,
+      "argsSha256": "125d778938610204c2c131d05606e4e23486cf1c0cc49cd2b662bc9659059665",
+      "outputPreview": "[OK | exit:0 | 8ms | raw:7L/100B]\n/bin/bash: line 1: python: command not found\n__pycache__\ntest_search.py\nREADME.md\ntests\ntinydb_demo",
+      "outputTruncated": false,
+      "outputOriginalBytes": 133,
+      "outputSha256": "41a9620a1009bd3a7ee9cf60b39e6494c41bdc4c32694f4dbdd4974f27cd4303",
+      "toolOutputBytes": 133,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01JiP1PGvaXBGNxZCpcAWYY5",
+      "turnIndex": 3,
+      "name": "run_command",
+      "startedAtMonoMs": 3455.423,
+      "durationMs": 87,
+      "isError": false,
+      "argsPreview": "{\"command\":\"python3 -c \\\"from tinydb_demo.pretty import render_table; print(repr(render_table([])))\\\" 2>&1 | tail -3\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 118,
+      "argsSha256": "df4ea772ab296f35e7b1c795ff8f23487e5f3078fe23e433e193a80c544e92c8",
+      "outputPreview": "[OK | exit:0 | 85ms | raw:4L/91B]\n    headers = list(rows[0])\n                   ~~~~^^^\nIndexError: list index out of range",
+      "outputTruncated": false,
+      "outputOriginalBytes": 124,
+      "outputSha256": "490e519b9b3a452db2a61446b8be79b1f9f0d4b4b98ac421f0ea130f7f970c9b",
+      "toolOutputBytes": 124,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01PVJzFex7VDQtFJCeNwiyNB",
+      "turnIndex": 4,
+      "name": "edit",
+      "startedAtMonoMs": 5006.798,
+      "durationMs": 4,
+      "isError": false,
+      "argsPreview": "{\"path\":\"tinydb_demo/pretty.py\",\"oldText\":\"def render_table(rows):\\n    headers = list(rows[0])\",\"newText\":\"def render_table(rows):\\n    if not rows:\\n        return ''\\n    headers = list(rows[0])\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 199,
+      "argsSha256": "3bfb91ac9aea4130df51b0ca252fa2e6b7bb3a3d7f686950a55b421431e3bea4",
+      "outputPreview": "Edited tinydb_demo/pretty.py (rev:0f494518, tx:tx-1794707462529-000001)\neol:LF lines:1-5/10\n1:e3ea| def render_table(rows):\n2:cad8|     if not rows:\n3:2803|         return ''\n4:4c8e|     headers = list(rows[0])\n5:4cb3|     widths = [len(header) for header in headers]",
+      "outputTruncated": false,
+      "outputOriginalBytes": 267,
+      "outputSha256": "ddc3585679917ab4e8dd5eae7a3c3d624a68aa534dd613fe4946df172426e9cd",
+      "toolOutputBytes": 267,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_019mDoamkhgJyNC5nMpTKahg",
+      "turnIndex": 4,
+      "name": "run_command",
+      "startedAtMonoMs": 5010.385,
+      "durationMs": 25,
+      "isError": false,
+      "argsPreview": "{\"command\":\"python3 -c \\\"from tinydb_demo.pretty import render_table; print(repr(render_table([])))\\\" 2>&1 | tail -3\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 118,
+      "argsSha256": "df4ea772ab296f35e7b1c795ff8f23487e5f3078fe23e433e193a80c544e92c8",
+      "outputPreview": "[OK | exit:0 | 24ms | raw:2L/3B]\n''",
+      "outputTruncated": false,
+      "outputOriginalBytes": 35,
+      "outputSha256": "dd4d7cfc2a7a20e66b66dde12bc026711952ece50036d1f6be1fad34452e4c57",
+      "toolOutputBytes": 35,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01HoCa1St5gD9oGEdjdFV1J5",
+      "turnIndex": 4,
+      "name": "run_tests",
+      "startedAtMonoMs": 5035.931,
+      "durationMs": 147,
+      "isError": false,
+      "argsPreview": "{}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 2,
+      "argsSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "outputPreview": "[FAILED | exit:1 | 147ms | raw:20L/954B]\n=================================== FAILURES ===================================\n_______________________ test_search_is_case_insensitive ________________________\n\ntmp_path = PosixPath('/dev/shm/hoang-agent-tmp/pytest-of-hoang/pytest-0/test_search_is_case_insensitiv0')\n\n    def test_search_is_case_insensitive(tmp_path):\n        store = Store(tmp_path / 'db.json')\n        store.add({'title': 'Hello World'})\n>       assert len(store.search('hello')) == 1\nE       AssertionError: assert 0 == 1\nE        +  where 0 = len([])\nE        +    where [] = search('hello')\nE        +      where search = <tinydb_demo.store.Store object at 0x7c6a6b9eeea0>.search\n\ntests/test_search.py:7: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_search.py::test_search_is_case_insensitive - AssertionError...\n1 failed in 0.01s\n\n--- context snippets ---\n@ tests/test_search.py:7\nrev:6c42a783e0f85dc61509179bfc15c9b8caeebc5503b4301ffe9562",
+      "outputTruncated": true,
+      "outputOriginalBytes": 1200,
+      "outputSha256": "248b5f26c66a45be5f38f85c7383263b0b6ffe721e2488bab2973f12b2d1e89b",
+      "toolOutputBytes": 1200,
+      "exitCode": 1,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_015n7RrcafcndA35zdmxUxyV",
+      "turnIndex": 5,
+      "name": "run_command",
+      "startedAtMonoMs": 7093.037,
+      "durationMs": 10,
+      "isError": false,
+      "argsPreview": "{\"command\":\"git stash && (python3 -m pytest -q 2>&1 | tail -2); git stash pop && git diff --stat\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 98,
+      "argsSha256": "7c2b3054790f0164b1c19ca7a80f4cc5f84744c97854e89b5745593c547bf784",
+      "outputPreview": "[FAILED | exit:128 | 9ms | raw:5L/404B]\nfatal: not a git repository (or any parent up to mount point /dev/shm/hoang-agent-tmp/ab-B_ms-uc01-03-bug-reproducible-OxqsBa)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\nfatal: not a git repository (or any parent up to mount point /dev/shm/hoang-agent-tmp/ab-B_ms-uc01-03-bug-reproducible-OxqsBa)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).",
+      "outputTruncated": false,
+      "outputOriginalBytes": 443,
+      "outputSha256": "51dd0897f06b6de154a8c09f3c1e247fb48e196db4540e4f46d3025856823b0c",
+      "toolOutputBytes": 443,
+      "exitCode": 128,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01WK3WFhMkeZAQTsLCKCRQaJ",
+      "turnIndex": 6,
+      "name": "read_file",
+      "startedAtMonoMs": 8584.397,
+      "durationMs": 2,
+      "isError": false,
+      "argsPreview": "{\"path\":\"tinydb_demo/store.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 31,
+      "argsSha256": "45465b230aa2527746dda9f6ed02d0ad2ffcf2a3fa2c45200905084c26e6c4b8",
+      "outputPreview": "rev:1484784d eol:LF lines:1-17/17\n1:8520| import json\n2:2821| from pathlib import Path\n3:af13| \n4:af13| \n5:e784| class Store:\n6:3db2|     def __init__(self, filename):\n7:6795|         self.filename = Path(filename)\n8:7bfa|         self.notes = json.loads(self.filename.read_text()) if self.filename.exists() else []\n9:af13| \n10:4ca6|     def add(self, note):\n11:2540|         self.notes.append(note)\n12:af13| \n13:7037|     def search(self, query):\n14:42fe|         return [note for note in self.notes if query in note['title']]\n15:af13| \n16:e84b|     def save(self):\n17:13fd|         self.filename.write_text(json.dumps(self.notes))",
+      "outputTruncated": false,
+      "outputOriginalBytes": 632,
+      "outputSha256": "122d891d8fca49ef2498f1bc56c5495c3910d5b159dc3f76a2328c43627f68c1",
+      "toolOutputBytes": 632,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01TmVTcjP7Fwa97ketrgWS9v",
+      "turnIndex": 7,
+      "name": "search_code",
+      "startedAtMonoMs": 10396.235,
+      "durationMs": 2,
+      "isError": false,
+      "argsPreview": "{\"pattern\":\"pretty|render_table\",\"path\":\"tests\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 48,
+      "argsSha256": "5340044ddb929363a40e267341f0e6c9ff0964f09b099f7029989b340d6c1b99",
+      "outputPreview": "No matches for /pretty|render_table/",
+      "outputTruncated": false,
+      "outputOriginalBytes": 36,
+      "outputSha256": "93fc2a29c2e6d1fb26b5fbe444668442bd58fb1e7680978664d0c8a2f7a83ba4",
+      "toolOutputBytes": 36,
+      "exitCode": null,
+      "timedOut": false
+    }
+  ],
+  "actualFilesChanged": [
+    "tinydb_demo/pretty.py"
+  ],
+  "diffBytes": 502,
+  "diffTruncated": false
+}

@@ -1222,6 +1222,7 @@ async fn hashline_edit_self_healing_and_file_mutations_undo() {
                 edits: vec![ms_protocol::EditSpec::Text {
                     old_text: "a.saturating_add(b)".into(),
                     new_text: "a.wrapping_add(b)".into(),
+                    replace_all: None,
                 }],
                 dry_run: None,
             }),
@@ -1967,4 +1968,225 @@ async fn patch_batch_idempotency_expiry_and_retry_after_rollback() {
         .await
         .unwrap_err();
     assert_eq!(expired_err.error_code(), ErrorCode::EIdempotencyExpired);
+}
+
+#[tokio::test]
+async fn patch_batch_supports_edit_specs_and_atomic_rollback() {
+    let ws = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    std::fs::write(ws.path().join("a.txt"), "hello world\n").unwrap();
+    std::fs::write(ws.path().join("b.txt"), "foo bar\n").unwrap();
+
+    let cfg = HostConfig::new(ws.path(), state.path()).with_allow_write(true);
+    let rt = Runtime::new(cfg).unwrap();
+    let sess = rt.open_session(&SessionOpenParams::default()).unwrap();
+
+    // 1. Atomic edit across two files + write_file
+    let ok = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::PatchBatch(ms_protocol::PatchBatchParams {
+                    operations: vec![
+                        ms_protocol::BatchFileOp::Edit(ms_protocol::EditParams {
+                            path: "a.txt".into(),
+                            expected_revision: None,
+                            edits: vec![ms_protocol::EditSpec::Text {
+                                old_text: "hello".into(),
+                                new_text: "HI".into(),
+                                replace_all: None,
+                            }],
+                            dry_run: None,
+                        }),
+                        ms_protocol::BatchFileOp::Edit(ms_protocol::EditParams {
+                            path: "b.txt".into(),
+                            expected_revision: None,
+                            edits: vec![ms_protocol::EditSpec::Line {
+                                start_line: 1,
+                                end_line: 1,
+                                start_tag: None,
+                                end_tag: None,
+                                replacement: "BAZ QUX".into(),
+                            }],
+                            dry_run: None,
+                        }),
+                        ms_protocol::BatchFileOp::WriteFile(ms_protocol::WriteFileParams {
+                            path: "c.txt".into(),
+                            content: "new\n".into(),
+                            create_if_missing: Some(true),
+                            overwrite: Some(true),
+                            expected_revision: None,
+                            dry_run: None,
+                        }),
+                    ],
+                    dry_run: None,
+                }),
+                Some("batch-edit-ok"),
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    let res: ms_protocol::PatchBatchResult = serde_json::from_value(ok.result.unwrap()).unwrap();
+    assert_eq!(res.operations_applied, 3);
+    assert_eq!(std::fs::read_to_string(ws.path().join("a.txt")).unwrap(), "HI world\n");
+    assert_eq!(std::fs::read_to_string(ws.path().join("b.txt")).unwrap(), "BAZ QUX\n");
+    assert_eq!(std::fs::read_to_string(ws.path().join("c.txt")).unwrap(), "new\n");
+
+    // 2. If second edit fails, first edit must not apply
+    let fail = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::PatchBatch(ms_protocol::PatchBatchParams {
+                    operations: vec![
+                        ms_protocol::BatchFileOp::Edit(ms_protocol::EditParams {
+                            path: "a.txt".into(),
+                            expected_revision: None,
+                            edits: vec![ms_protocol::EditSpec::Text {
+                                old_text: "HI".into(),
+                                new_text: "BYE".into(),
+                                replace_all: None,
+                            }],
+                            dry_run: None,
+                        }),
+                        ms_protocol::BatchFileOp::Edit(ms_protocol::EditParams {
+                            path: "b.txt".into(),
+                            expected_revision: None,
+                            edits: vec![ms_protocol::EditSpec::Text {
+                                old_text: "DOES_NOT_EXIST".into(),
+                                new_text: "X".into(),
+                                replace_all: None,
+                            }],
+                            dry_run: None,
+                        }),
+                    ],
+                    dry_run: None,
+                }),
+                Some("batch-edit-fail"),
+            ),
+            CancelToken::new(),
+        )
+        .await;
+    assert!(fail.is_err());
+    assert_eq!(std::fs::read_to_string(ws.path().join("a.txt")).unwrap(), "HI world\n");
+}
+
+#[tokio::test]
+async fn edit_replace_all_and_single_file_outline_work() {
+    let ws = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    std::fs::write(
+        ws.path().join("mod.py"),
+        "from old.pkg import foo\r\nfoo()\r\nfoo()\r\n",
+    )
+    .unwrap();
+
+    let cfg = HostConfig::new(ws.path(), state.path()).with_allow_write(true);
+    let rt = Runtime::new(cfg).unwrap();
+    let sess = rt.open_session(&SessionOpenParams::default()).unwrap();
+
+    // Without replaceAll, multiple matches return EConflict
+    let conflict = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::Edit(ms_protocol::EditParams {
+                    path: "mod.py".into(),
+                    expected_revision: None,
+                    edits: vec![ms_protocol::EditSpec::Text {
+                        old_text: "foo".into(),
+                        new_text: "bar".into(),
+                        replace_all: None,
+                    }],
+                    dry_run: None,
+                }),
+                Some("conflict-multi"),
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(conflict.error_code(), ErrorCode::EConflict);
+
+    // With replaceAll=true, all non-overlapping matches are replaced and CRLF is preserved
+    let ok = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::Edit(ms_protocol::EditParams {
+                    path: "mod.py".into(),
+                    expected_revision: None,
+                    edits: vec![ms_protocol::EditSpec::Text {
+                        old_text: "foo".into(),
+                        new_text: "bar".into(),
+                        replace_all: Some(true),
+                    }],
+                    dry_run: None,
+                }),
+                Some("replace-all-ok"),
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    let res: ms_protocol::PatchResult = serde_json::from_value(ok.result.unwrap()).unwrap();
+    assert_eq!(res.edits_applied, 3);
+    assert_eq!(
+        std::fs::read_to_string(ws.path().join("mod.py")).unwrap(),
+        "from old.pkg import bar\r\nbar()\r\nbar()\r\n"
+    );
+
+    // Single-file outline succeeds directly and skips Python docstrings
+    std::fs::write(
+        ws.path().join("mod.py"),
+        "\"\"\"Example:\ndef fake_in_doc():\n    pass\n\"\"\"\ndef bar():\n    return 1\n",
+    )
+    .unwrap();
+    let out = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::Outline(ms_protocol::OutlineParams {
+                    path: Some("mod.py".into()),
+                    max_files: None,
+                    max_symbols_per_file: Some(10),
+                }),
+                Some("outline-single-file"),
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(out.records.len(), 1);
+    let outline_json = serde_json::to_string(&out.records).unwrap();
+    assert!(outline_json.contains("def bar()"), "{outline_json}");
+    assert!(!outline_json.contains("fake_in_doc"), "{outline_json}");
+
+    // JS/JSX/TS outline catches top-level arrow/function declarations while skipping indented locals and plain data constants
+    std::fs::write(
+        ws.path().join("app.jsx"),
+        "const CONFIG = { a: 1 };\nconst HelperCard = ({ title }) => {\n  const inner = () => null;\n  return title;\n};\nexport function App() {\n  return null;\n}\n",
+    )
+    .unwrap();
+    let js_out = rt
+        .execute_call(
+            &make_call(
+                &sess.session_id,
+                Operation::Outline(ms_protocol::OutlineParams {
+                    path: Some("app.jsx".into()),
+                    max_files: None,
+                    max_symbols_per_file: Some(10),
+                }),
+                Some("outline-js-arrow"),
+            ),
+            CancelToken::new(),
+        )
+        .await
+        .unwrap();
+    let js_json = serde_json::to_string(&js_out.records).unwrap();
+    assert!(js_json.contains("HelperCard"), "{js_json}");
+    assert!(js_json.contains("App"), "{js_json}");
+    assert!(!js_json.contains("CONFIG"), "{js_json}");
+    assert!(!js_json.contains("inner"), "{js_json}");
 }

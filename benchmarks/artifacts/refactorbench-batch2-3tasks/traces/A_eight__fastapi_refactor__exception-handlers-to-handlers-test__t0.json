@@ -1,0 +1,144 @@
+{
+  "pack": "refactorbench",
+  "arm": "A_eight",
+  "caseId": "fastapi_refactor/exception-handlers-to-handlers-test",
+  "trial": 0,
+  "overallPassed": true,
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "search_code",
+      "isError": false,
+      "outputBytes": 2950,
+      "argsPreview": "{\"pattern\":\"exception_handlers\",\"maxResults\":200}",
+      "outputPreview": "docs_src/handling_errors/tutorial006.py:2: from fastapi.exception_handlers import (\nfastapi/applications.py:18: from fastapi.exception_handlers import (\nfastapi/applications.py:485:         exception_handlers: Annotated[\nfastapi/applications.py:947:         self.exception_handlers: Dict[\nfastapi/applications.py:949:         ] = {} if exception_handlers is None else dict(exception_handlers)\nfastapi/applications.py:950:         self.exception_handlers.setdefault(HTTPException, http_exception_handler)\nfastapi/applications.py:951:         self.exception_handlers.setdefault(\nfastapi/applications.py"
+    },
+    {
+      "seq": 2,
+      "turn": 1,
+      "name": "list_dir",
+      "isError": false,
+      "outputBytes": 609,
+      "argsPreview": "{\"path\":\"fastapi\",\"depth\":1}",
+      "outputPreview": "Directory: fastapi (depth 1)\nfastapi/dependencies/\nfastapi/middleware/\nfastapi/openapi/\nfastapi/security/\nfastapi/__init__.py\nfastapi/__main__.py\nfastapi/_compat.py\nfastapi/applications.py\nfastapi/background.py\nfastapi/cli.py\nfastapi/concurrency.py\nfastapi/datastructures.py\nfastapi/encoders.py\nfastapi/exception_handlers.py\nfastapi/exceptions.py\nfastapi/logger.py\nfastapi/param_functions.py\nfastapi/params.py\nfastapi/py.typed\nfastapi/requests.py\nfastapi/responses.py\nfastapi/routing.py\nfastapi/staticfiles.py\nfastapi/templating.py\nfastapi/testclient.py\nfastapi/types.py\nfastapi/utils.py\nfastapi/webs"
+    },
+    {
+      "seq": 3,
+      "turn": 2,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 2377,
+      "argsPreview": "{\"command\":\"grep -rn \\\"exception_handlers\\\\|Exception_handlers\\\" . --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv | grep -v \\\"^./docs/.*release-notes\\\" | grep -v \\\"self.exception_handlers\\\\|exception_handlers=\\\\|exception_handlers:\\\\|exception_handlers is None\\\\|exception_handlers)\\\" ; echo ---; git status --short | head; git log --oneline -1\"}",
+      "outputPreview": "./tests/test_starlette_exception.py:67:def test_no_body_status_code_exception_handlers():\n./tests/test_starlette_exception.py:73:def test_no_body_status_code_with_detail_exception_handlers():\n./docs/ru/docs/tutorial/handling-errors.md:267:Если вы хотите использовать исключение вместе с теми же обработчиками исключений по умолчанию из **FastAPI**, вы можете импортировать и повторно использовать обработчики исключений по умолчанию из `fastapi.exception_handlers`:\n./docs/en/docs/tutorial/handling-errors.md:265:If you want to use the exception along with the same default exception handlers from  *"
+    },
+    {
+      "seq": 4,
+      "turn": 2,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 1575,
+      "argsPreview": "{\"path\":\"fastapi/applications.py\",\"lineRange\":\"[1, 40]\"}",
+      "outputPreview": "File: fastapi/applications.py (lines 1-40 of 4585):\n     1\tfrom enum import Enum\n     2\tfrom typing import (\n     3\t    Any,\n     4\t    Awaitable,\n     5\t    Callable,\n     6\t    Coroutine,\n     7\t    Dict,\n     8\t    List,\n     9\t    Optional,\n    10\t    Sequence,\n    11\t    Type,\n    12\t    TypeVar,\n    13\t    Union,\n    14\t)\n    15\t\n    16\tfrom fastapi import routing\n    17\tfrom fastapi.datastructures import Default, DefaultPlaceholder\n    18\tfrom fastapi.exception_handlers import (\n    19\t    http_exception_handler,\n    20\t    request_validation_exception_handler,\n    21\t    websocket_requ"
+    },
+    {
+      "seq": 5,
+      "turn": 2,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 1189,
+      "argsPreview": "{\"path\":\"docs_src/handling_errors/tutorial006.py\"}",
+      "outputPreview": "File: docs_src/handling_errors/tutorial006.py (lines 1-28 of 28):\n     1\tfrom fastapi import FastAPI, HTTPException\n     2\tfrom fastapi.exception_handlers import (\n     3\t    http_exception_handler,\n     4\t    request_validation_exception_handler,\n     5\t)\n     6\tfrom fastapi.exceptions import RequestValidationError\n     7\tfrom starlette.exceptions import HTTPException as StarletteHTTPException\n     8\t\n     9\tapp = FastAPI()\n    10\t\n    11\t\n    12\t@app.exception_handler(StarletteHTTPException)\n    13\tasync def custom_http_exception_handler(request, exc):\n    14\t    print(f\"OMG! An HTTP error!:"
+    },
+    {
+      "seq": 6,
+      "turn": 3,
+      "name": "run_command",
+      "isError": true,
+      "outputBytes": 158,
+      "argsPreview": "{\"command\":\"cat fastapi/exception_handlers.py; echo ---; head -30 tests/test_exception_handlers.py; echo ---; grep -rn \\\"handling_errors/tutorial006\\\\|tutorial006\\\" tests | head; mkdir -p /tmp/backup_rename && cp -a fastapi docs docs_src tests /tmp/backup_rename/ && echo backup-ok\"}",
+      "outputPreview": "Error executing run_command: Blocked by policy (shell references a path outside the workspace). This action is never allowed; do not retry it in another form."
+    },
+    {
+      "seq": 7,
+      "turn": 4,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 3360,
+      "argsPreview": "{\"command\":\"cat fastapi/exception_handlers.py; echo ---; head -30 tests/test_exception_handlers.py; echo ---; grep -rn \\\"tutorial006\\\" tests | head\"}",
+      "outputPreview": "from fastapi.encoders import jsonable_encoder\nfrom fastapi.exceptions import RequestValidationError, WebSocketRequestValidationError\nfrom fastapi.utils import is_body_allowed_for_status_code\nfrom fastapi.websockets import WebSocket\nfrom starlette.exceptions import HTTPException\nfrom starlette.requests import Request\nfrom starlette.responses import JSONResponse, Response\nfrom starlette.status import HTTP_422_UNPROCESSABLE_ENTITY, WS_1008_POLICY_VIOLATION\n\n\nasync def http_exception_handler(request: Request, exc: HTTPException) -> Response:\n    headers = getattr(exc, \"headers\", None)\n    if not i"
+    },
+    {
+      "seq": 8,
+      "turn": 5,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 96,
+      "argsPreview": "{\"command\":\"mv fastapi/exception_handlers.py fastapi/handlers.py && ls fastapi/handlers.py && ls fastapi/exception_handlers.py 2>&1 | head -1\"}",
+      "outputPreview": "fastapi/handlers.py\nls: cannot access 'fastapi/exception_handlers.py': No such file or directory"
+    },
+    {
+      "seq": 9,
+      "turn": 5,
+      "name": "edit",
+      "isError": false,
+      "outputBytes": 171,
+      "argsPreview": "{\"path\":\"fastapi/applications.py\",\"oldText\":\"from fastapi.exception_handlers import (\",\"newText\":\"from fastapi.handlers import (\"}",
+      "outputPreview": "Successfully replaced 1 occurrence of oldText in /tmp/ab1-A_eight-fastapi_refactor__exception-handlers-to-handlers-test-Xsp0UW/workspace/fastapi/applications.py (+0 lines)"
+    },
+    {
+      "seq": 10,
+      "turn": 5,
+      "name": "edit",
+      "isError": false,
+      "outputBytes": 187,
+      "argsPreview": "{\"path\":\"docs_src/handling_errors/tutorial006.py\",\"oldText\":\"from fastapi.exception_handlers import (\",\"newText\":\"from fastapi.handlers import (\"}",
+      "outputPreview": "Successfully replaced 1 occurrence of oldText in /tmp/ab1-A_eight-fastapi_refactor__exception-handlers-to-handlers-test-Xsp0UW/workspace/docs_src/handling_errors/tutorial006.py (+0 lines)"
+    },
+    {
+      "seq": 11,
+      "turn": 6,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 1637,
+      "argsPreview": "{\"command\":\"for f in docs/*/docs/tutorial/handling-errors.md; do sed -i 's/fastapi\\\\.exception_handlers/fastapi.handlers/g; s/fastapi\\\\.Exception_handlers/fastapi.handlers/g' \\\"$f\\\"; done; grep -rn \\\"fastapi\\\\.handlers\\\\|fastapi\\\\.exception_handlers\\\\|fastapi\\\\.Exception_handlers\\\" docs/*/docs/tutorial/handling-errors.md\"}",
+      "outputPreview": "docs/de/docs/tutorial/handling-errors.md:265:Wenn Sie die Exception zusammen mit denselben Default-Exceptionhandlern von **FastAPI** verwenden möchten, können Sie die Default-Exceptionhandler von `fastapi.handlers` importieren und wiederverwenden:\ndocs/em/docs/tutorial/handling-errors.md:267:🚥 👆 💚 ⚙️ ⚠ ⤴️ ⏮️ 🎏 🔢 ⚠ 🐕‍🦺 ⚪️➡️ **FastAPI**, 👆 💪 🗄 &amp; 🏤-⚙️ 🔢 ⚠ 🐕‍🦺 ⚪️➡️ `fastapi.handlers`:\ndocs/en/docs/tutorial/handling-errors.md:265:If you want to use the exception along with the same default exception handlers from  **FastAPI**, You can import and reuse the default exception handler"
+    },
+    {
+      "seq": 12,
+      "turn": 7,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 8,
+      "argsPreview": "{\"command\":\"grep -rn \\\"exception_handlers\\\\b\\\" . --exclude-dir=.git --exclude-dir=.venv --exclude-dir=node_modules -I | grep -v \\\"release-notes\\\\|self.exception_handlers\\\\|exception_handlers=\\\\|exception_handlers:\\\\|exception_handlers is None\\\\|exception_handlers)\\\\|def test_\\\\|exception_handlers={\\\" ; echo \\\"--- done\\\"\"}",
+      "outputPreview": "--- done"
+    },
+    {
+      "seq": 13,
+      "turn": 7,
+      "name": "run_tests",
+      "isError": true,
+      "outputBytes": 232,
+      "argsPreview": "{\"target\":\"tests/test_tutorial/test_handling_errors tests/test_exception_handlers.py tests/test_starlette_exception.py\"}",
+      "outputPreview": "Error: run_tests needs the bwrap sandbox (Linux with unprivileged user namespaces) to cut the network and hide host files; the \"local\" backend cannot guarantee that (auto: no sandbox backend available). Tests are not run unisolated."
+    },
+    {
+      "seq": 14,
+      "turn": 8,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 167,
+      "argsPreview": "{\"command\":\"python3 -m py_compile fastapi/handlers.py fastapi/applications.py docs_src/handling_errors/tutorial006.py && echo compile-ok; python3 - <<'EOF'\\nimport ast\\nwant={\\\"http_exception_handler\\\",\\\"request_validation_exception_handler\\\",\\\"websocket_request_validation_exception_handler\\\"}\\ndefs={n.name for n in ast.parse(open(\\\"fastapi/handlers.py\\\").read()).body if isinstance(n,(ast.AsyncFunctionDef,ast.FunctionDef))}\\nprint(\\\"handlers defines:\\\", sorted(want<=defs), sorted(want-defs))\\nEOF\\nls fastapi/exception_handlers.py 2>/dev/null || echo \\\"old module gone\\\"; grep -rln \\\"exception_h",
+      "outputPreview": "compile-ok\nold module gone\nno stale imports\n\n[stderr]\nTraceback (most recent call last):\n  File \"<stdin>\", line 4, in <module>\nTypeError: 'bool' object is not iterable"
+    },
+    {
+      "seq": 15,
+      "turn": 9,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 47,
+      "argsPreview": "{\"command\":\"python3 - <<'EOF'\\nimport ast\\nwant={\\\"http_exception_handler\\\",\\\"request_validation_exception_handler\\\",\\\"websocket_request_validation_exception_handler\\\"}\\ndefs={n.name for n in ast.parse(open(\\\"fastapi/handlers.py\\\").read()).body if isinstance(n,(ast.AsyncFunctionDef,ast.FunctionDef))}\\nprint(\\\"all expected handlers defined:\\\", want<=defs, \\\"missing:\\\", sorted(want-defs))\\nEOF\"}",
+      "outputPreview": "all expected handlers defined: True missing: []"
+    }
+  ]
+}

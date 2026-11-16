@@ -1,0 +1,45 @@
+{
+  "pack": "refactorbench",
+  "arm": "B_one",
+  "caseId": "tornado_refactor/options-utils",
+  "trial": 0,
+  "overallPassed": false,
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 29901,
+      "argsPreview": "{\"code\":\"const r = await ms.list('tornado', {recursive: true, maxEntries: 500});\\nconst hits = await ms.search('options', {regex: false, maxMatches: 300});\\nreturn {files: r.map(x=>x.path), hits: hits.hits.map(h=>`${h.path}:${h.line}: ${h.text}`), truncated: hits.truncated};\"}",
+      "outputPreview": "ok · 2 calls · 23ms\n{\n \"files\": [\n  \"tornado\",\n  \"tornado/__init__.py\",\n  \"tornado/__init__.pyi\",\n  \"tornado/_locale_data.py\",\n  \"tornado/auth.py\",\n  \"tornado/autoreload.py\",\n  \"tornado/concurrent.py\",\n  \"tornado/curl_httpclient.py\",\n  \"tornado/escape.py\",\n  \"tornado/gen.py\",\n  \"tornado/http1connection.py\",\n  \"tornado/httpclient.py\",\n  \"tornado/httpserver.py\",\n  \"tornado/httputil.py\",\n  \"tornado/ioloop.py\",\n  \"tornado/iostream.py\",\n  \"tornado/locale.py\",\n  \"tornado/locks.py\",\n  \"tornado/log.py\",\n  \"tornado/netutil.py\",\n  \"tornado/options.py\",\n  \"tornado/platform\",\n  \"tornado/platform/__init__."
+    },
+    {
+      "seq": 2,
+      "turn": 2,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 34406,
+      "argsPreview": "{\"code\":\"const f = await ms.read('tornado/options.py', {startLine: 1, lineCount: 800});\\nreturn {total: f.totalLines, text: f.text};\"}",
+      "outputPreview": "ok · 1 call · 2ms\n{\n \"total\": 745,\n \"text\": \"rev:b1695018b618164e84f3b6671c772a85867f90cd18db8095d337b2bb52e82026 eol:LF lines:1-745/745\\n1:71c2| #\\n2:ea13| # Copyright 2009 Facebook\\n3:71c2| #\\n4:d116| # Licensed under the Apache License, Version 2.0 (the \\\"License\\\"); you may\\n5:43d9| # not use this file except in compliance with the License. You may obtain\\n6:8c04| # a copy of the License at\\n7:71c2| #\\n8:8040| #     http://www.apache.org/licenses/LICENSE-2.0\\n9:71c2| #\\n10:6b4f| # Unless required by applicable law or agreed to in writing, software\\n11:2d3c| # distributed under the License "
+    },
+    {
+      "seq": 3,
+      "turn": 3,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 23281,
+      "argsPreview": "{\"code\":\"const pats = [\\n 'from tornado.options import', 'from tornado import options', 'import tornado.options', 'tornado.options.', 'from . import options', 'from tornado.options', 'options.define(', 'parse_config_file', 'print_help', 'add_parse_callback', 'parse_command_line'\\n];\\nconst out = {};\\nfor (const p of pats) {\\n  const r = await ms.search(p, {maxMatches: 400});\\n  out[p] = r.hits.map(h=>`${h.path}:${h.line}: ${h.text.trim()}`);\\n}\\nconst gitp = await ms.list('.', {recursive: false, includeHidden: true, maxEntries: 200});\\nreturn {out, root: gitp.map(x=>x.path)};\"}",
+      "outputPreview": "ok · 12 calls · 149ms\n{\n \"out\": {\n  \"from tornado.options import\": [\n   \"demos/blog/blog.py:27: from tornado.options import define, options\",\n   \"demos/chat/chatdemo.py:22: from tornado.options import define, options, parse_command_line\",\n   \"demos/facebook/facebook.py:21: from tornado.options import define, options\",\n   \"demos/file_upload/file_uploader.py:21: from tornado.options import define, options\",\n   \"demos/google_auth/main.py:19: from tornado.options import define, options\",\n   \"demos/helloworld/helloworld.py:20: from tornado.options import define, options\",\n   \"demos/s3server/s3serve"
+    },
+    {
+      "seq": 4,
+      "turn": 4,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 62523,
+      "argsPreview": "{\"code\":\"const files = ['tornado/test/options_test.py','tornado/test/runtests.py','tornado/testing.py','tornado/httpclient.py','tornado/test/import_test.py','tornado/__init__.py','tornado/__init__.pyi','docs/options.rst','tornado/test/log_test.py','demos/file_upload/file_receiver.py','demos/chat/chatdemo.py','demos/file_upload/file_uploader.py','demos/s3server/s3server.py','demos/tcpecho/client.py','demos/tcpecho/server.py','demos/google_auth/main.py'];\\nconst out = {};\\nfor (const f of files) { const r = await ms.read(f, {startLine:1, lineCount: 400}); out[f] = r.text; }\\nreturn out;\"}",
+      "outputPreview": "ok · 16 calls · 7ms\n{\n \"tornado/test/options_test.py\": \"rev:3c44ff3c91167d405671e5495ca8884758f5586df71e177b19b6e0c3d0fd14d2 eol:LF lines:1-328/328\\n1:4eae| import datetime\\n2:b9cd| from io import StringIO\\n3:9c21| import os\\n4:6eeb| import sys\\n5:70bd| from unittest import mock\\n6:2714| import unittest\\n7:af13| \\n8:53d7| from tornado.options import OptionParser, Error\\n9:bad3| from tornado.util import basestring_type\\n10:af13| \\n11:44cd| import typing\\n12:af13| \\n13:6f42| if typing.TYPE_CHECKING:\\n14:49db|     from typing import List  # noqa: F401\\n15:af13| \\n16:af13| \\n17:ed26| class Email:\\"
+    }
+  ]
+}

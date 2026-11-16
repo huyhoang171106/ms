@@ -140,12 +140,13 @@ fn tool_definitions() -> Vec<Value> {
     vec![
         json!({
             "name": "ms_exec",
-            "description": "Run a shell/test/build command with ANSI stripping, command-aware distillation, and auto-attached hashline snippets on failure. Saves full raw output under a log_id.",
+            "description": "Run a shell/test/build command with ANSI stripping, command-aware distillation, and auto-attached hashline snippets on failure. Saves full raw output under a log_id. Refuses destructive commands, scrubs credential env vars, and auto-corrects a one-typo binary name.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "command": { "type": "string", "description": "Command to execute in workspace root" },
-                    "timeoutMs": { "type": "integer", "description": "Timeout in ms (default 60000)" }
+                    "timeoutMs": { "type": "integer", "description": "Timeout in ms (default 120000)" },
+                    "keepEnv": { "type": "boolean", "description": "Inherit credential env vars instead of scrubbing them (default false)" }
                 },
                 "required": ["command"]
             }
@@ -302,8 +303,12 @@ async fn dispatch_tool_call(
             let timeout_ms = args
                 .get("timeoutMs")
                 .and_then(|v| v.as_u64())
-                .unwrap_or(60_000);
-            match exec_and_distill(workspace_root, &[cmd], timeout_ms).await {
+                .unwrap_or(120_000);
+            let keep_env = args
+                .get("keepEnv")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            match exec_and_distill(workspace_root, &[cmd], timeout_ms, keep_env).await {
                 Ok(res) => (res.distilled, res.exit_code != 0 || res.timed_out),
                 Err(e) => (e, true),
             }

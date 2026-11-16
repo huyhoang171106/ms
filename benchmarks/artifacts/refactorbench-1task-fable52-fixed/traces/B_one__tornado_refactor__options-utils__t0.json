@@ -1,0 +1,138 @@
+{
+  "pack": "refactorbench",
+  "arm": "B_one",
+  "caseId": "tornado_refactor/options-utils",
+  "trial": 0,
+  "overallPassed": false,
+  "probeOutput": "FAILED (failures=22)",
+  "assistantTurns": [
+    {
+      "turn": 1,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 361,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 2,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 1016,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 3,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 1700,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 4,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 1721,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 5,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 3342,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 6,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 4926,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 7,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 693,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    }
+  ],
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 11620,
+      "argsPreview": "{\"code\":\"const o = await ms.outline('tornado/options.py', {maxSymbolsPerFile: 200});\\nconst s = await ms.search('options', {regex:false, maxMatches: 400});\\nconst byFile = {};\\nfor (const h of s.hits) { (byFile[h.path] ??= []).push(h.line+': '+h.text.trim().slice(0,140)); }\\nconst imp = await ms.search('(from tornado\\\\\\\\.options import|import tornado\\\\\\\\.options|from tornado import .*options|tornado\\\\\\\\.options\\\\\\\\.)', {regex:true, maxMatches:400});\\nreturn {outline:o, count:s.count, truncated:s.truncated, files:Object.keys(byFile).map(f=>f+' ('+byFile[f].length+')'), imp: imp.hits.map(h=>h.pa",
+      "outputPreview": "ok · 3 calls · 45ms\n{\"outline\":[{\"lines\":745,\"path\":\"tornado/options.py\",\"symbols\":[{\"kind\":\"def\",\"line\":37,\"signature\":\"def connect():\"},{\"kind\":\"def\",\"line\":46,\"signature\":\"def start_server():\"},{\"kind\":\"class\",\"line\":127,\"signature\":\"class Error(Exception):\"},{\"kind\":\"class\",\"line\":133,\"signature\":\"class OptionParser:\"},{\"kind\":\"def\",\"line\":140,\"signature\":\"def __init__(self) -> None:\"},{\"kind\":\"def\",\"line\":151,\"signature\":\"def _normalize_name(self, name: str) -> str:\"},{\"kind\":\"def\",\"line\":154,\"signature\":\"def __getattr__(self, name: str) -> Any:\"},{\"kind\":\"def\",\"line\":160,\"signature\":\"def"
+    },
+    {
+      "seq": 2,
+      "turn": 2,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 17675,
+      "argsPreview": "{\"code\":\"const a = await ms.read('tornado/options.py', {startLine:1, lineCount:132, format:'json'});\\nconst b = await ms.read('tornado/options.py', {startLine:676, lineCount:80, format:'json'});\\nconst more = await ms.search('options', {path:'tornado', maxMatches:600});\\nconst files = {};\\nfor (const h of more.hits) if (!h.path.endsWith('tornado/options.py')) (files[h.path] ??= []).push(h.line);\\n// usages of function names via module attribute or bare in other places\\nconst pat = await ms.search('\\\\\\\\b(options|tornado\\\\\\\\.options)\\\\\\\\.(define|parse_command_line|parse_config_file|print_help|ad",
+      "outputPreview": "ok · 6 calls · 44ms\n{\"a\":\"#\\n# Copyright 2009 Facebook\\n#\\n# Licensed under the Apache License, Version 2.0 (the \\\"License\\\"); you may\\n# not use this file except in compliance with the License. You may obtain\\n# a copy of the License at\\n#\\n#     http://www.apache.org/licenses/LICENSE-2.0\\n#\\n# Unless required by applicable law or agreed to in writing, software\\n# distributed under the License is distributed on an \\\"AS IS\\\" BASIS, WITHOUT\\n# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\\n# License for the specific language governing permissions and limitations\\n# un"
+    },
+    {
+      "seq": 3,
+      "turn": 3,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 24405,
+      "argsPreview": "{\"code\":\"const files = ['demos/blog/blog.py','demos/chat/chatdemo.py','demos/facebook/facebook.py','demos/file_upload/file_receiver.py','demos/file_upload/file_uploader.py','demos/google_auth/main.py','demos/helloworld/helloworld.py','demos/s3server/s3server.py','demos/tcpecho/client.py','demos/tcpecho/server.py','demos/websocket/chatdemo.py','maint/benchmark/benchmark.py','maint/benchmark/chunk_benchmark.py','maint/benchmark/gen_benchmark.py','maint/benchmark/parsing_benchmark.py','maint/benchmark/template_benchmark.py','maint/scripts/test_resolvers.py','maint/test/redbot/red_test.py','maint/",
+      "outputPreview": "ok · 29 calls · 51ms\n{\"out\":{\"demos/blog/blog.py\":[\"17: import aiopg\",\"18: import asyncio\",\"19: import bcrypt\",\"20: import markdown\",\"21: import os.path\",\"22: import psycopg2\",\"23: import re\",\"24: import tornado\",\"25: import unicodedata\",\"27: from tornado.options import define, options\",\"27: from tornado.options import define, options\",\"27: from tornado.options import define, options\",\"27: from tornado.options import define, options\",\"29: define(\\\"port\\\", default=8888, help=\\\"run on the given port\\\", type=int)\",\"30: define(\\\"db_host\\\", default=\\\"127.0.0.1\\\", help=\\\"blog database host\\\")\",\"31: "
+    },
+    {
+      "seq": 4,
+      "turn": 4,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 11971,
+      "argsPreview": "{\"code\":\"const init = await ms.read('tornado/__init__.py', {startLine:28, lineCount:60, format:'json'});\\nconst pyi = await ms.read('tornado/__init__.pyi', {format:'json'});\\nconst conf = await ms.read('docs/conf.py', {format:'json'});\\nconst cfg = await ms.exec('git status --short | head; git log --oneline | head -3; ls; ls docs | head -70; python3 -c \\\"import sphinx; print(sphinx.__version__)\\\"; python3 -c \\\"import pytest; print(pytest.__version__)\\\"; python3 -c \\\"import mypy; print(1)\\\"; python3 -c \\\"import flake8; print(flake8.__version__)\\\"; python3 -c \\\"import black; print(black.__versio",
+      "outputPreview": "ok · 6 calls · 665ms\n{\"init\":\"import importlib\\nimport typing\\n\\n__all__ = [\\n    \\\"auth\\\",\\n    \\\"autoreload\\\",\\n    \\\"concurrent\\\",\\n    \\\"curl_httpclient\\\",\\n    \\\"escape\\\",\\n    \\\"gen\\\",\\n    \\\"http1connection\\\",\\n    \\\"httpclient\\\",\\n    \\\"httpserver\\\",\\n    \\\"httputil\\\",\\n    \\\"ioloop\\\",\\n    \\\"iostream\\\",\\n    \\\"locale\\\",\\n    \\\"locks\\\",\\n    \\\"log\\\",\\n    \\\"netutil\\\",\\n    \\\"options\\\",\\n    \\\"platform\\\",\\n    \\\"process\\\",\\n    \\\"queues\\\",\\n    \\\"routing\\\",\\n    \\\"simple_httpclient\\\",\\n    \\\"tcpclient\\\",\\n    \\\"tcpserver\\\",\\n    \\\"template\\\",\\n    \\\"testing\\\",\\n    \\\"util\\\",\\n    \\\"web\\"
+    },
+    {
+      "seq": 5,
+      "turn": 5,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 23009,
+      "argsPreview": "{\"code\":\"const d = await ms.read('tornado/options.py', {startLine:133, lineCount:20});\\nconst d2 = await ms.read('tornado/options.py', {startLine:223, lineCount:150});\\nconst d3 = await ms.read('tornado/options.py', {startLine:436, lineCount:65});\\nconst cfg = await ms.exec('git status --short | head; git log --oneline | head -3; ls -a; echo ---; ls docs; echo ---; cat tox.ini | head -120; echo ---; cat setup.cfg; echo; cat docs/utilities.rst; python3 --version; python3 -m pyflakes --version; python3 -m pytest --version', {timeoutMs:20000});\\nconst raw = await ms.log(cfg.logId, {tail:260});\\nc",
+      "outputPreview": "ok · 6 calls · 195ms\n{\"d\":\"rev:b1695018b618164e84f3b6671c772a85867f90cd18db8095d337b2bb52e82026 eol:LF lines:133-152/745\\n133:344d| class OptionParser:\\n134:d5bc|     \\\"\\\"\\\"A collection of options, a dictionary with object-like access.\\n135:af13| \\n136:29be|     Normally accessed via static functions in the `tornado.options` module,\\n137:7f38|     which reference a global instance.\\n138:4573|     \\\"\\\"\\\"\\n139:af13| \\n140:026f|     def __init__(self) -> None:\\n141:60af|         # we have to use self.__dict__ because we override setattr.\\n142:5241|         self.__dict__[\\\"_options\\\"] = {}\\n143:48"
+    },
+    {
+      "seq": 6,
+      "turn": 6,
+      "name": "ms",
+      "isError": true,
+      "outputBytes": 96,
+      "argsPreview": "{\"code\":\"const fr = await ms.read('demos/file_upload/file_receiver.py', {format:'json'});\\nconst mods = await ms.search('tornado\\\\\\\\.netutil|\\\"netutil\\\"|netutil$', {regex:true, maxMatches:80});\\nconst rel = await ms.exec('ls docs/releases | tail -5; grep -n \\\"options\\\" docs/releases.rst docs/index.rst README.rst | head; grep -rn \\\"options\\\" .github .coveragerc .flake8 pyproject.toml codecov.yml runtests.sh 2>/dev/null | head -20');\\nconst raw = await ms.log(rel.logId, {tail:60});\\nconst relrefs = await ms.search('`[~.]?(tornado\\\\\\\\.)?(options\\\\\\\\.)?(define|parse_command_line|parse_config_file|",
+      "outputPreview": "Error: TypeError: undefined is not an object (evaluating 'id.startsWith')\ncalls: 4 calls · 31ms"
+    },
+    {
+      "seq": 7,
+      "turn": 7,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 9598,
+      "argsPreview": "{\"code\":\"const fr = await ms.read('demos/file_upload/file_receiver.py', {format:'json'});\\nconst rel = await ms.exec('ls docs/releases | tail -3; grep -n \\\"options\\\" docs/releases.rst docs/index.rst README.rst | head; grep -rn \\\"options\\\" .github .coveragerc .flake8 pyproject.toml codecov.yml runtests.sh 2>/dev/null | head -20; echo done');\\nconst relrefs = await ms.search('`[~.]?(tornado\\\\\\\\.)?(options\\\\\\\\.)?(define|parse_command_line|parse_config_file|print_help|add_parse_callback)`', {regex:true, path:'docs', maxMatches:100});\\nconst coderefs = await ms.search('`[~.]?(tornado\\\\\\\\.)?(options",
+      "outputPreview": "ok · 8 calls · 27ms\n{\"fr\":\"#!/usr/bin/env python\\n\\n\\\"\\\"\\\"Usage: python file_receiver.py\\n\\nDemonstrates a server that receives a multipart-form-encoded set of files in an\\nHTTP POST, or streams in the raw data of a single file in an HTTP PUT.\\n\\nSee file_uploader.py in this directory for code that uploads files in this format.\\n\\\"\\\"\\\"\\n\\nimport asyncio\\nimport logging\\nfrom urllib.parse import unquote\\n\\nimport tornado\\nfrom tornado import options\\n\\n\\nclass POSTHandler(tornado.web.RequestHandler):\\n    def post(self):\\n        for field_name, files in self.request.files.items():\\n           "
+    }
+  ]
+}

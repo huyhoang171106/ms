@@ -1,0 +1,75 @@
+{
+  "pack": "refactorbench-js",
+  "arm": "B_one",
+  "caseId": "tournament_manager",
+  "trial": 0,
+  "overallPassed": true,
+  "probeOutput": "nonTrivial=true (+5 files) | Tests  18 passed (18)",
+  "assistantTurns": [
+    {
+      "turn": 1,
+      "toolCalls": 1,
+      "text": "I'll start by reading the target file and surveying the workspace layout.",
+      "completionTokens": 282,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 73
+    },
+    {
+      "turn": 2,
+      "toolCalls": 1,
+      "text": "The workspace has only `src/app/tournaments.jsx`, with no `package.json` or alias config. I'll split the file by slicing its existing JSX blocks, so the moved markup stays byte-identical apart from re-indentation and the prop wiring.",
+      "completionTokens": 15861,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 233
+    },
+    {
+      "turn": 3,
+      "toolCalls": 1,
+      "text": "The batch wrote the files, but I made a mistake: I wrote a placeholder stub to `src/api/tournaments.js` instead of the real fetch helpers. The main screen now imports `fetchTournaments`, `fetchMyProfile`, and `fetchTournamentBracket` from that file, so it's broken. I'll replace the stub with the real fetch functions from the original queries, then verify.",
+      "completionTokens": 2820,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 357
+    },
+    {
+      "turn": 4,
+      "toolCalls": 0,
+      "text": "I split `src/app/tournaments.jsx` into five modules. All six files transpile cleanly with Bun, and every relative import resolves to an existing file.\n\n**New layout**\n- `src/api/tournaments.js`: `fetchTournaments`, `fetchMyProfile`, `fetchTournamentBracket`. These hold the same URLs, error handling, and fallback (`{ tournaments: [] }` on a failed list request) as the original inline `queryFn`s.\n- `src/components/tournaments/TournamentCard.jsx`: the tournament list card. It takes `tournament` and `onPress`.\n- `src/components/tournaments/BracketModal.jsx`: the bracket modal. It takes `visible`, `onClose`, `bracketData`, and `topInset`.\n- `src/components/tournaments/SingleEliminationBracket.jsx`: the elimination bracket renderer, taking `bracket`.\n- `src/components/tournaments/RoundRobinBracket.jsx`: the standings and matchups renderer, taking `bracket`.\n- `src/app/tournaments.jsx`: now about 165 lines. It keeps the default export `TournamentsScreen`, the state, and the three queries, and composes the new components.\n\nThe markup and styles were moved verbatim, only re-indented. The original file exported only the default `TournamentsScreen`, so there was nothing else to re-export. The default export is unchanged, so `./src/app/tournaments.jsx` imports resolve as before.\n\n**Caveats**\n- The workspace has no `package.json`, `tsconfig.json`, or `jsconfig.json`, so I could not confirm the `@/` alias mapping to `src/`. The new files follow the existing relative-path style.\n- `../../utils/useGroupCode` is missing from the workspace. This was already true before my change, and the screen still imports it as before.\n- I wrote an incorrect placeholder to `src/api/tournaments.js` during the first batch and corrected it in a second write. The final file contents are the ones verified above.\n- I did not run the app or any tests, since there is no runtime or test setup in the workspace.",
+      "completionTokens": 1509,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 1902
+    }
+  ],
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 22776,
+      "argsPreview": "{\"code\":\"const list = await ms.list('.', {recursive: true, maxEntries: 300});\\nconst f = await ms.read('src/app/tournaments.jsx', {format: 'json', lineCount: 2000});\\nconst cfg = await ms.exec(['bash','-c','ls -la; cat package.json 2>/dev/null; cat tsconfig.json jsconfig.json 2>/dev/null; cat vite.config.* 2>/dev/null | head -50']);\\nreturn {list: list.map(x=>x.path), totalLines: f.totalLines, text: f.text, cfg: cfg.output};\"}",
+      "outputPreview": "ok · 3 calls · 14ms\n{\"list\":[\"src\",\"src/app\",\"src/app/tournaments.jsx\"],\"totalLines\":651,\"text\":\"import { useState } from \\\"react\\\";\\nimport {\\n  View,\\n  Text,\\n  TouchableOpacity,\\n  ScrollView,\\n  ActivityIndicator,\\n  Modal,\\n} from \\\"react-native\\\";\\nimport { useSafeAreaInsets } from \\\"react-native-safe-area-context\\\";\\nimport { StatusBar } from \\\"expo-status-bar\\\";\\nimport { useQuery } from \\\"@tanstack/react-query\\\";\\nimport { Trophy, Users, Calendar, Plus } from \\\"lucide-react-native\\\";\\nimport { useGroupCode } from \\\"../../utils/useGroupCode\\\";\\nimport { useRouter } from \\\"expo-router\\"
+    },
+    {
+      "seq": 2,
+      "turn": 2,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 1767,
+      "argsPreview": "{\"code\":\"const api = ms.inputs.api;\\nconst src = (await ms.read('src/app/tournaments.jsx', {format:'json', lineCount: 2000})).text.replace(/\\\\r\\\\n/g, '\\\\n');\\nconst L = src.split('\\\\n');\\nconst idx = (pred, from = 0) => { for (let i = from; i < L.length; i++) if (pred(L[i])) return i; throw new Error('not found from ' + from); };\\nconst dedent = (lines, n) => lines.map(l => {\\n  if (l.trim() === '') return '';\\n  const lead = l.match(/^ */)[0].length;\\n  if (lead < n) throw new Error('bad indent: ' + JSON.stringify(l));\\n  return l.slice(n);\\n});\\nconst count = (arr, s) => arr.filter(l => l ==",
+      "outputPreview": "ok · 2 calls · 44ms\n{\n \"batch\": {\n  \"dryRun\": false,\n  \"operationId\": \"2885b17c-9ca3-49f2-aead-21501b6244de\",\n  \"operationsApplied\": 6,\n  \"results\": [\n   {\n    \"afterRevision\": \"95653690a5884873aa8322f6b936bf038779b4d2803c34dfc279eddc5174b64d\",\n    \"beforeRevision\": \"\",\n    \"kind\": \"write_file\",\n    \"path\": \"src/api/tournaments.js\",\n    \"transactionId\": \"tx-1794855808877-000001\"\n   },\n   {\n    \"afterRevision\": \"33193a7a244af00639f74dfcd8a18b22ad238fc5cbccebbd3df1d14d31536a58\",\n    \"beforeRevision\": \"\",\n    \"kind\": \"write_file\",\n    \"path\": \"src/components/tournaments/SingleEliminationBracket.j"
+    },
+    {
+      "seq": 3,
+      "turn": 3,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 1681,
+      "argsPreview": "{\"code\":\"const apiSrc = `export async function fetchTournaments(groupCode) {\\n  const response = await fetch(\\n    \\\\`\\\\${process.env.EXPO_PUBLIC_BASE_URL}/api/tournaments/list?groupCode=\\\\${groupCode}\\\\`,\\n  );\\n  if (!response.ok) return { tournaments: [] };\\n  return response.json();\\n}\\n\\nexport async function fetchMyProfile(groupCode) {\\n  const response = await fetch(\\n    \\\\`\\\\${process.env.EXPO_PUBLIC_BASE_URL}/api/players/my-profile?groupCode=\\\\${groupCode}\\\\`,\\n  );\\n  if (!response.ok) throw new Error(\\\"Failed to fetch profile\\\");\\n  return response.json();\\n}\\n\\nexport async functi",
+      "outputPreview": "ok · 3 calls · 47ms\n{\n \"w\": \"a9cee49e713850f20156c043322ef84e554c38ff245213ed308316d8672f47d7\",\n \"check\": \"[OK | exit:0 | 11ms | raw:13L/729B]\\nOK src/api/tournaments.js\\nOK src/app/tournaments.jsx\\n  import ../../utils/useGroupCode -> MISSING\\n  import ../api/tournaments -> src/api/tournaments.js\\n  import ../components/tournaments/TournamentCard -> src/components/tournaments/TournamentCard.jsx\\n  import ../components/tournaments/BracketModal -> src/components/tournaments/BracketModal.jsx\\nOK src/components/tournaments/SingleEliminationBracket.jsx\\nOK src/components/tournaments/RoundRobinBrac"
+    }
+  ]
+}

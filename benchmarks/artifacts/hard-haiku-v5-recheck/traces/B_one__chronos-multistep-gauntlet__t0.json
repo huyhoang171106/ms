@@ -1,0 +1,174 @@
+{
+  "pack": "hard",
+  "arm": "B_one",
+  "caseId": "chronos-multistep-gauntlet",
+  "trial": 0,
+  "overallPassed": true,
+  "probeOutput": "14/14 required tests",
+  "assistantTurns": [
+    {
+      "turn": 1,
+      "toolCalls": 1,
+      "text": "I'll start by mapping the repo and running both verification commands to see the current failures.",
+      "completionTokens": 281,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 98
+    },
+    {
+      "turn": 2,
+      "toolCalls": 2,
+      "text": "Baseline: 11 pytest failures, 82 passing, and the replay exits 2 with four incidents. Next I'll read the source, tests, and replay script.",
+      "completionTokens": 870,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 138
+    },
+    {
+      "turn": 3,
+      "toolCalls": 1,
+      "text": "The first read was truncated, so I'll pull the remaining connectors (03–16) and check how they differ.",
+      "completionTokens": 598,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 102
+    },
+    {
+      "turn": 4,
+      "toolCalls": 1,
+      "text": "Connectors 03–16 share one template, with a `ctx` currency override on 05–08, cents input on 09–12, and a regional offset and region on 13–16. Next I'll confirm the private helper bodies are identical across all files, and check the lines for `regional` and `conn_13` specifically.",
+      "completionTokens": 550,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 281
+    },
+    {
+      "turn": 5,
+      "toolCalls": 1,
+      "text": "I have the full picture. Summary of the baseline:\n\n- **pytest**: 11 failures, 82 pass. Failures come from the pipeline/storage/reconcile/window bugs and from connectors that return `float` amounts (the pipeline rejects them).\n- **replay**: exit 2, with `[INCIDENT-01..04]` failing for the same reasons.\n- **Connectors 01–16** share one template. The only differences are the cents input (09–12), the ctx currency override and `transform` hook (05–08), and the regional offset/region (13–16). Each has a private `_clean_amount` and `_parse_ts`.\n\nNext I'll write the shared `normalize_event`, the upcast fix, and the storage/engine fixes, and regenerate the 16 connectors.",
+      "completionTokens": 18112,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 670
+    },
+    {
+      "turn": 6,
+      "toolCalls": 1,
+      "text": "All 22 writes landed. Next is `pipeline.py`: per-tenant sequence tracking, `mark_failed` on exceptions, and the `_validate_basic` check, which should not reject the Decimal produced by `normalize_event`.",
+      "completionTokens": 1913,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 203
+    },
+    {
+      "turn": 7,
+      "toolCalls": 1,
+      "text": "The `pipeline.py` edits are in. I added a `stats.accepted` increment that wasn't part of the request, so I'll remove it to keep the diff surgical. Then I'll run both verification commands.",
+      "completionTokens": 934,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 188
+    },
+    {
+      "turn": 8,
+      "toolCalls": 1,
+      "text": "Both commands pass: pytest reports 93 passed (82 baseline + 11 previously failing), and the replay exits 0 with zero failures. I'll confirm no private helpers remain and that the legacy module is untouched.",
+      "completionTokens": 494,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 206
+    },
+    {
+      "turn": 9,
+      "toolCalls": 0,
+      "text": "Both verification commands now pass with exit 0: `python3 -m pytest -q` reports 93 passed (the 82 baseline tests plus the 11 that were failing), and `python3 scripts/replay_incidents.py --strict` reports `failures=0`.\n\n**Triage (baseline)**\n- pytest: 11 failed, 82 passed. The causes were the pipeline, cache, idempotency, reconcile, and window defects, plus connectors returning `float` amounts that the pipeline rejects.\n- replay: exit 2, with INCIDENT-01 to 04 failing for the same reasons. Each incident maps to one of the defects below.\n\n**Changes**\n- **`chronos/core/normalize.py` (new):** `normalize_event` parses `amount`/`amount_cents` into a `Decimal` quantized to 0.01 with `ROUND_HALF_EVEN`. It strips `$`, `,`, and whitespace, and raises `ValidationError` on empty, non-numeric, or non-finite values. It parses `occurred_at` into UTC-aware datetimes, applying `default_tz_offset_hours` to naive values. It validates `event_id` and `tenant_id` (falling back to `tenant`), and copies `metadata` (dict or `{}`).\n- **Connectors 01–16:** each now delegates to `normalize_event`. Every private `_clean_amount` and `_parse_ts` is gone, and no `_clean_amount`/`_parse_ts` definitions remain anywhere under `chronos/`. The public signatures, the `Connector05`–`Connector08` hooks and `transform(ctx)` currency override, the cents handling in 09–12, and the regional offsets and region in 13–16 are preserved.\n- **`schema.py`:** the upcast maps legacy `tenant` to `tenant_id` when it is missing and normalizes `metadata=None` to `{}`.\n- **`cache.py`:** keys are `(tenant_id, event_id)`, `get`/`put` store and return defensive deep copies, and eviction pops the least-recently-used entry.\n- **`idempotency.py`:** keys are tenant-scoped. A payload mismatch raises `IdempotencyConflictError`. A failed record is retryable with the same payload, and `mark_failed` only moves `in_flight` records.\n- **`window.py`:** the window is now half-open `[start, end)`.\n- **`reconcile.py`:** totals use `Decimal`, refunds are subtracted, and `None` metadata or tags are handled.\n- **`pipeline.py`:** sequence checks compare against the per-tenant last `seq_id`. On any exception, `ingest_one` calls `idempotency.mark_failed` before re-raising.\n\nI left `chronos/legacy/v1_compat.py`, `tests/`, `scripts/`, and `pytest.ini` untouched. The workspace is not a git repo, so I verified this by searching for remaining helper definitions and by the 93-test run, not by a diff.",
+      "completionTokens": 1004,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 2457
+    }
+  ],
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 4914,
+      "argsPreview": "{\"code\":\"const list = await ms.list('.', {recursive: true, maxEntries: 500});\\nconst pt = await ms.exec('python3 -m pytest -q 2>&1 | tail -60');\\nconst rp = await ms.exec('python3 scripts/replay_incidents.py --strict 2>&1 | grep -n \\\"INCIDENT\\\" | head -40; echo EXIT=${PIPESTATUS[0]}');\\nreturn {files: list.map(f=>f.path), pytest: pt.output, replay: rp.output};\"}",
+      "outputPreview": "ok · 3 calls · 518ms\n{\"files\":[\"README.md\",\"chronos\",\"chronos/__init__.py\",\"chronos/connectors\",\"chronos/connectors/__init__.py\",\"chronos/connectors/conn_01.py\",\"chronos/connectors/conn_02.py\",\"chronos/connectors/conn_03.py\",\"chronos/connectors/conn_04.py\",\"chronos/connectors/conn_05.py\",\"chronos/connectors/conn_06.py\",\"chronos/connectors/conn_07.py\",\"chronos/connectors/conn_08.py\",\"chronos/connectors/conn_09.py\",\"chronos/connectors/conn_10.py\",\"chronos/connectors/conn_11.py\",\"chronos/connectors/conn_12.py\",\"chronos/connectors/regional\",\"chronos/connectors/regional/__init__.py\",\"chronos/connec"
+    },
+    {
+      "seq": 2,
+      "turn": 2,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 22848,
+      "argsPreview": "{\"code\":\"const files = ['chronos/core/schema.py','chronos/core/models.py','chronos/core/errors.py','chronos/core/__init__.py','chronos/storage/cache.py','chronos/storage/idempotency.py','chronos/storage/store.py','chronos/storage/dlq.py','chronos/engine/window.py','chronos/engine/reconcile.py','chronos/engine/pipeline.py','chronos/engine/retry.py','chronos/legacy/v1_compat.py','chronos/connectors/__init__.py','chronos/connectors/conn_01.py','chronos/connectors/conn_02.py','chronos/connectors/conn_03.py','chronos/connectors/conn_04.py','chronos/connectors/conn_05.py','chronos/connectors/conn_06",
+      "outputPreview": "ok · 31 calls · 13ms\n{\"chronos/core/schema.py\":\"\\\"\\\"\\\"Event schema validation and v1->v2 upcasting.\\\"\\\"\\\"\\nfrom __future__ import annotations\\n\\nfrom typing import Any, Dict\\n\\nfrom chronos.core.errors import ValidationError\\n\\n\\ndef upcast_v1_payload(raw: Dict[str, Any]) -> Dict[str, Any]:\\n    \\\"\\\"\\\"Upcast a v1 event dictionary into v2 field names without mutating input.\\\"\\\"\\\"\\n    if not isinstance(raw, dict):\\n        raise ValidationError(\\\"payload must be a dict\\\")\\n    out = dict(raw)\\n    # BUG: drops legacy `tenant` when `tenant_id` missing, and crashes on metadata=None later\\n    if "
+    },
+    {
+      "seq": 3,
+      "turn": 2,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 16637,
+      "argsPreview": "{\"code\":\"const files = ['tests/test_connectors.py','tests/test_idempotency.py','tests/test_pipeline.py','tests/test_reconcile.py','tests/test_legacy.py','scripts/replay_incidents.py','pytest.ini','skills/bug-fix/SKILL.md'];\\nconst out = {};\\nfor (const f of files) { try { const r = await ms.read(f.startsWith('skills')?'../../'+f:f, {format:'json', lineCount: 400}); out[f] = r.text; } catch(e) { out[f]='ERR '+e.message; } }\\nreturn out;\"}",
+      "outputPreview": "ok · 8 calls · 6ms\n{\"tests/test_connectors.py\":\"\\\"\\\"\\\"Connector normalization & Decimal/UTC checks across all 16 connectors.\\\"\\\"\\\"\\nfrom datetime import timezone\\nfrom decimal import Decimal\\n\\nfrom chronos.connectors import conn_01, conn_05, conn_09\\nfrom chronos.connectors.regional import conn_13\\n\\n\\ndef test_variant_a_decimal_and_utc():\\n    env = conn_01.ingest(\\n        {\\n            \\\"event_id\\\": \\\"a1\\\",\\n            \\\"tenant\\\": \\\"acme\\\",\\n            \\\"seq_id\\\": 1,\\n            \\\"amount\\\": \\\"$12.50\\\",\\n            \\\"occurred_at\\\": \\\"2026-11-01T10:00:00Z\\\",\\n        }\\n    )\\n    asser"
+    },
+    {
+      "seq": 4,
+      "turn": 3,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 14146,
+      "argsPreview": "{\"code\":\"const files = [];\\nfor (let i=3;i<=12;i++) files.push('chronos/connectors/conn_'+String(i).padStart(2,'0')+'.py');\\nfor (let i=13;i<=16;i++) files.push('chronos/connectors/regional/conn_'+i+'.py');\\nconst out = {};\\nfor (const f of files) { const r = await ms.read(f, {format:'json', lineCount: 400}); out[f] = r.text.replace(/def _clean_amount[\\\\s\\\\S]*?\\\\n\\\\n\\\\n/, '<CLEAN>\\\\n').replace(/def _parse_ts[\\\\s\\\\S]*?\\\\n\\\\n\\\\n/, '<PARSE>\\\\n'); }\\nreturn out;\"}",
+      "outputPreview": "ok · 14 calls · 5ms\n{\"chronos/connectors/conn_03.py\":\"\\\"\\\"\\\"Connector 03 (sync function variant).\\\"\\\"\\\"\\nfrom __future__ import annotations\\n\\nfrom datetime import datetime\\nfrom typing import Any, Dict\\n\\nfrom chronos.core.models import EventEnvelope\\n\\n\\n<CLEAN>\\n<PARSE>\\ndef ingest(raw: Dict[str, Any], *, source: str = \\\"conn_03\\\") -> EventEnvelope:\\n    return EventEnvelope(\\n        event_id=str(raw[\\\"event_id\\\"]),\\n        tenant_id=str(raw.get(\\\"tenant_id\\\") or raw.get(\\\"tenant\\\") or \\\"\\\"),\\n        seq_id=int(raw.get(\\\"seq_id\\\", 1)),\\n        amount=_clean_amount(raw[\\\"amount\\\"]),  # t"
+    },
+    {
+      "seq": 5,
+      "turn": 4,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 11491,
+      "argsPreview": "{\"code\":\"const r = await ms.search('def _clean_amount|def _parse_ts|return round|replace\\\\\\\\(tzinfo|DEFAULT_TZ|tzinfo=|return datetime', {path:'chronos/connectors', regex:true, maxMatches:200});\\nconst bodies = {};\\nfor (const h of r.hits) bodies[h.path+':'+h.line] = h.text;\\nconst s = await ms.search('_clean_amount|_parse_ts', {path:'.', regex:true, maxMatches:200});\\nreturn {bodies, usage: s.hits.map(h=>h.path+':'+h.line+' '+h.text)};\"}",
+      "outputPreview": "ok · 2 calls · 7ms\n{\"bodies\":{\"chronos/connectors/conn_01.py:10\":\"def _clean_amount(value: Any) -> float:\",\"chronos/connectors/conn_01.py:11\":\"    return round(float(str(value).replace(\\\"$\\\", \\\"\\\").strip()), 2)\",\"chronos/connectors/conn_01.py:14\":\"def _parse_ts(value: Any) -> datetime:\",\"chronos/connectors/conn_01.py:15\":\"    return datetime.fromisoformat(str(value).replace(\\\"Z\\\", \\\"+00:00\\\")).replace(tzinfo=None)\",\"chronos/connectors/conn_02.py:10\":\"def _clean_amount(value: Any) -> float:\",\"chronos/connectors/conn_02.py:11\":\"    return round(float(str(value).replace(\\\"$\\\", \\\"\\\").strip()), 2)\""
+    },
+    {
+      "seq": 6,
+      "turn": 5,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 481,
+      "argsPreview": "{\"code\":\"const normalize = `\\\"\\\"\\\"Single canonical normalization path shared by every connector variant.\\\"\\\"\\\"\\nfrom __future__ import annotations\\n\\nimport math\\nfrom datetime import datetime, timedelta, timezone\\nfrom decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation\\nfrom typing import Any, Dict, Mapping\\n\\nfrom chronos.core.errors import ValidationError\\nfrom chronos.core.models import EventEnvelope\\n\\n_CENT = Decimal(\\\"0.01\\\")\\n_HUNDRED = Decimal(\\\"100\\\")\\n\\n\\ndef _parse_amount(value: Any, *, is_cents: bool) -> Decimal:\\n    if value is None or isinstance(value, bool):\\n        ra",
+      "outputPreview": "ok · 1 call · 156ms\n{\n \"n\": 22,\n \"res\": \"{\\\"dryRun\\\":false,\\\"operationId\\\":\\\"fc74ae5a-5e14-4348-9ad1-f043727d8826\\\",\\\"operationsApplied\\\":22,\\\"results\\\":[{\\\"afterRevision\\\":\\\"322fa6fea141650bffbe2d04183ec004e6f47d7c1ff4659765f0933da850aa1f\\\",\\\"beforeRevision\\\":\\\"\\\",\\\"kind\\\":\\\"write_file\\\",\\\"path\\\":\\\"chronos/core/normalize.py\\\",\\\"transactionId\\\":\\\"tx-1794856919686-000001\\\"},{\\\"afterRevision\\\":\\\"8ad0d55fa42f42b18dcef01f741d5eb13126f3ba2ae55dea9a5d7eff9a726665\\\",\\\"beforeRevi\"\n}"
+    },
+    {
+      "seq": 7,
+      "turn": 6,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 2296,
+      "argsPreview": "{\"code\":\"const r = await ms.edit('chronos/engine/pipeline.py', [\\n {oldText: `        # BUG (line >200!): compares against global sequence instead of per-tenant sequence!\\n        prev = self._last_seq_global\\n        if env.seq_id <= prev:`, newText: `        # Sequence is tracked per tenant: each tenant's seq_id stream is independent.\\n        prev = self._last_seq_by_tenant.get(env.tenant_id, 0)\\n        if env.seq_id <= prev:`},\\n {oldText: `    def _advance_sequence(self, env: EventEnvelope) -> None:\\n        self._last_seq_global = env.seq_id\\n        self._last_seq_by_tenant[env.tenant_",
+      "outputPreview": "ok · 2 calls · 8ms\n{\"r\":\"eb76ae7f254c3870346f83fafa2fb0219a254d90a57ff177ae80d92cb577e711\",\"tail\":\"rev:eb76ae7f254c3870346f83fafa2fb0219a254d90a57ff177ae80d92cb577e711 eol:LF lines:195-232/232\\n195:62c9|         if not self.config.strict_sequence:\\n196:a98c|             return\\n197:bec3|         # Sequence is tracked per tenant: each tenant's seq_id stream is independent.\\n198:0571|         prev = self._last_seq_by_tenant.get(env.tenant_id, 0)\\n199:06de|         if env.seq_id <= prev:\\n200:e37c|             raise SequenceError(\\n201:3a70|                 f\\\"out-of-order seq_id {env.seq_id} <= "
+    },
+    {
+      "seq": 8,
+      "turn": 7,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 379,
+      "argsPreview": "{\"code\":\"await ms.edit('chronos/engine/pipeline.py', [{oldText: `            self.stats.accepted += 1\\n            return receipt`, newText: `            return receipt`}]);\\nconst pt = await ms.exec('python3 -m pytest -q 2>&1 | tail -30');\\nconst rp = await ms.exec('python3 scripts/replay_incidents.py --strict > /tmp/replay.log 2>&1; echo EXIT=$?; grep -n \\\"INCIDENT\\\\\\\\|SUMMARY\\\" /tmp/replay.log; wc -l /tmp/replay.log');\\nreturn {pytest: pt.output, replay: rp.output};\"}",
+      "outputPreview": "ok · 3 calls · 378ms\n{\n \"pytest\": \"[OK | exit:0 | 304ms | raw:4L/179B]\\n........................................................................ [ 77%]\\n.....................                                                    [100%]\\n93 passed in 0.05s\",\n \"replay\": \"[OK | exit:0 | 65ms | raw:4L/71B]\\nEXIT=0\\n3582:[SUMMARY] replay complete: failures=0\\n3582 /tmp/replay.log\"\n}"
+    },
+    {
+      "seq": 9,
+      "turn": 8,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 339,
+      "argsPreview": "{\"code\":\"const s = await ms.search('def _clean_amount|def _parse_ts', {path:'chronos', regex:true});\\nconst g = await ms.exec('git status --short 2>&1 | head -40; git diff --stat -- chronos/legacy tests scripts pytest.ini 2>&1 | tail -3');\\nreturn {remainingHelpers: s.hits.length, git: g.output};\"}",
+      "outputPreview": "ok · 2 calls · 9ms\n{\n \"remainingHelpers\": 0,\n \"git\": \"[OK | exit:0 | 6ms | raw:6L/244B]\\nfatal: not a git repository (or any parent up to mount point /)\\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\\n                          select files by diff type\\n    --output <file>       output to a specific file\"\n}"
+    }
+  ]
+}

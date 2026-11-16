@@ -1,0 +1,20 @@
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tests/test_format.py b/tests/test_format.py
+--- a/tests/test_format.py	1970-01-01 08:00:00.000000000 +0800
++++ b/tests/test_format.py	2026-11-15 07:59:28.639641595 +0700
+@@ -0,0 +1,9 @@
++from tinydb_demo.format import format_tags
++
++
++def test_format_tags_handles_note_without_tags():
++    assert format_tags({'title': 'hello', 'body': 'x'}) == ''
++
++
++def test_format_tags_sorts_and_joins_tags():
++    assert format_tags({'tags': ['b', 'a']}) == 'a, b'
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tinydb_demo/format.py b/tinydb_demo/format.py
+--- a/tinydb_demo/format.py	2026-10-29 15:19:32.690682172 +0700
++++ b/tinydb_demo/format.py	2026-11-15 07:59:30.067655411 +0700
+@@ -1,2 +1,2 @@
+ def format_tags(note):
+-    return ', '.join(sorted(note['tags']))
++    return ', '.join(sorted(note.get('tags', [])))

@@ -1,0 +1,117 @@
+{
+  "pack": "refactorbench",
+  "arm": "A_eight",
+  "caseId": "celery_refactor/evaluate-promises-to-serialization-test",
+  "trial": 0,
+  "overallPassed": true,
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "search_code",
+      "isError": false,
+      "outputBytes": 135,
+      "argsPreview": "{\"pattern\":\"evaluate_promises\"}",
+      "outputPreview": "celery/utils/functional.py:67: def evaluate_promises(it):\ncelery/utils/functional.py:81:         (v for v in evaluate_promises(it) if ("
+    },
+    {
+      "seq": 2,
+      "turn": 1,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 14885,
+      "argsPreview": "{\"path\":\"celery/utils/functional.py\"}",
+      "outputPreview": "File: celery/utils/functional.py (lines 1-402 of 402):\n     1\t\"\"\"Functional-style utilities.\"\"\"\n     2\timport inspect\n     3\tfrom collections import UserList\n     4\tfrom functools import partial\n     5\tfrom itertools import islice, tee, zip_longest\n     6\tfrom typing import Any, Callable\n     7\t\n     8\tfrom kombu.utils.functional import LRUCache, dictfilter, is_list, lazy, maybe_evaluate, maybe_list, memoize\n     9\tfrom vine import promise\n    10\t\n    11\tfrom celery.utils.log import get_logger\n    12\t\n    13\tlogger = get_logger(__name__)\n    14\t\n    15\t__all__ = (\n    16\t    'LRUCache', 'is_li"
+    },
+    {
+      "seq": 3,
+      "turn": 1,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 10177,
+      "argsPreview": "{\"path\":\"celery/utils/serialization.py\"}",
+      "outputPreview": "File: celery/utils/serialization.py (lines 1-273 of 273):\n     1\t\"\"\"Utilities for safely pickling exceptions.\"\"\"\n     2\timport datetime\n     3\timport numbers\n     4\timport sys\n     5\tfrom base64 import b64decode as base64decode\n     6\tfrom base64 import b64encode as base64encode\n     7\tfrom functools import partial\n     8\tfrom inspect import getmro\n     9\tfrom itertools import takewhile\n    10\t\n    11\tfrom kombu.utils.encoding import bytes_to_str, safe_repr, str_to_bytes\n    12\t\n    13\ttry:\n    14\t    import cPickle as pickle\n    15\texcept ImportError:\n    16\t    import pickle\n    17\t\n    18\t_"
+    },
+    {
+      "seq": 4,
+      "turn": 2,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 417,
+      "argsPreview": "{\"command\":\"grep -rn \\\"evaluate_promises\\\" . --exclude-dir=.git 2>/dev/null; echo \\\"---\\\"; grep -rn \\\"from vine\\\\|import vine\\\\|promise\\\" celery/utils/functional.py celery/utils/serialization.py; echo \\\"---\\\"; grep -rn \\\"utils.serialization\\\\|utils.functional\\\" celery/utils/log.py celery/utils/serialization.py celery/utils/__init__.py 2>/dev/null\"}",
+      "outputPreview": "./celery/utils/functional.py:67:def evaluate_promises(it):\n./celery/utils/functional.py:81:        (v for v in evaluate_promises(it) if (\n---\ncelery/utils/functional.py:9:from vine import promise\ncelery/utils/functional.py:67:def evaluate_promises(it):\ncelery/utils/functional.py:69:        if isinstance(value, promise):\ncelery/utils/functional.py:81:        (v for v in evaluate_promises(it) if (\n---\n\n[exit code 1]"
+    },
+    {
+      "seq": 5,
+      "turn": 3,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 423,
+      "argsPreview": "{\"command\":\"grep -n \\\"^from\\\\|^import\\\" celery/utils/log.py; echo ---; grep -rn \\\"from celery\\\" celery/utils/serialization.py; echo ---; python -c \\\"import sys; sys.path.insert(0,'.'); import vine; print('vine ok')\\\"\"}",
+      "outputPreview": "2:import logging\n3:import numbers\n4:import os\n5:import sys\n6:import threading\n7:import traceback\n8:from contextlib import contextmanager\n9:from typing import AnyStr, Sequence  # noqa\n11:from kombu.log import LOG_LEVELS\n12:from kombu.log import get_logger as _get_logger\n13:from kombu.utils.encoding import safe_str\n15:from .term import colored\n---\n---\n\n[stderr]\n/bin/bash: line 1: python: command not found\n\n[exit code 127]"
+    },
+    {
+      "seq": 6,
+      "turn": 4,
+      "name": "edit",
+      "isError": false,
+      "outputBytes": 180,
+      "argsPreview": "{\"path\":\"celery/utils/serialization.py\",\"oldText\":\"from kombu.utils.encoding import bytes_to_str, safe_repr, str_to_bytes\\n\\ntry:\",\"newText\":\"from kombu.utils.encoding import bytes_to_str, safe_repr, str_to_bytes\\nfrom vine import promise\\n\\ntry:\"}",
+      "outputPreview": "Successfully replaced 1 occurrence of oldText in /tmp/ab1-A_eight-celery_refactor__evaluate-promises-to-serialization-test-6VN6Qe/workspace/celery/utils/serialization.py (+1 lines)"
+    },
+    {
+      "seq": 7,
+      "turn": 4,
+      "name": "edit",
+      "isError": false,
+      "outputBytes": 180,
+      "argsPreview": "{\"path\":\"celery/utils/serialization.py\",\"oldText\":\"def create_exception_cls(name, module, parent=None):\",\"newText\":\"def evaluate_promises(it):\\n    for value in it:\\n        if isinstance(value, promise):\\n            value = value()\\n        yield value\\n\\n\\ndef create_exception_cls(name, module, parent=None):\"}",
+      "outputPreview": "Successfully replaced 1 occurrence of oldText in /tmp/ab1-A_eight-celery_refactor__evaluate-promises-to-serialization-test-6VN6Qe/workspace/celery/utils/serialization.py (+7 lines)"
+    },
+    {
+      "seq": 8,
+      "turn": 5,
+      "name": "edit",
+      "isError": false,
+      "outputBytes": 177,
+      "argsPreview": "{\"path\":\"celery/utils/functional.py\",\"oldText\":\"from kombu.utils.functional import LRUCache, dictfilter, is_list, lazy, maybe_evaluate, maybe_list, memoize\\nfrom vine import promise\\n\\nfrom celery.utils.log import get_logger\",\"newText\":\"from kombu.utils.functional import LRUCache, dictfilter, is_list, lazy, maybe_evaluate, maybe_list, memoize\\n\\nfrom celery.utils.log import get_logger\\nfrom celery.utils.serialization import evaluate_promises\"}",
+      "outputPreview": "Successfully replaced 1 occurrence of oldText in /tmp/ab1-A_eight-celery_refactor__evaluate-promises-to-serialization-test-6VN6Qe/workspace/celery/utils/functional.py (+0 lines)"
+    },
+    {
+      "seq": 9,
+      "turn": 5,
+      "name": "edit",
+      "isError": false,
+      "outputBytes": 177,
+      "argsPreview": "{\"path\":\"celery/utils/functional.py\",\"oldText\":\"def evaluate_promises(it):\\n    for value in it:\\n        if isinstance(value, promise):\\n            value = value()\\n        yield value\\n\\n\\ndef first(\",\"newText\":\"def first(\"}",
+      "outputPreview": "Successfully replaced 1 occurrence of oldText in /tmp/ab1-A_eight-celery_refactor__evaluate-promises-to-serialization-test-6VN6Qe/workspace/celery/utils/functional.py (-7 lines)"
+    },
+    {
+      "seq": 10,
+      "turn": 6,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 615,
+      "argsPreview": "{\"command\":\"grep -rn \\\"evaluate_promises\\\" . --exclude-dir=.git; echo \\\"--- import check\\\"; python3 -c \\\"\\nfrom celery.utils.serialization import evaluate_promises as s\\nfrom celery.utils.functional import evaluate_promises as f, first\\nfrom vine import promise\\np = promise(lambda: 42)\\nprint(list(s([1, p])), f is s, first(None, [None, promise(lambda: 'x')]))\\n\\\" 2>&1; echo \\\"--- flake8\\\"; python3 -m flake8 celery/utils/functional.py celery/utils/serialization.py 2>&1 | head -20\"}",
+      "outputPreview": "./celery/utils/functional.py:11:from celery.utils.serialization import evaluate_promises\n./celery/utils/functional.py:74:        (v for v in evaluate_promises(it) if (\n./celery/utils/serialization.py:74:def evaluate_promises(it):\n--- import check\nTraceback (most recent call last):\n  File \"<string>\", line 2, in <module>\n  File \"/tmp/ab1-A_eight-celery_refactor__evaluate-promises-to-serialization-test-6VN6Qe/workspace/celery/utils/__init__.py\", line 6, in <module>\n    from kombu.utils.objects import cached_property\nModuleNotFoundError: No module named 'kombu'\n--- flake8\n/usr/bin/python3: No modu"
+    },
+    {
+      "seq": 11,
+      "turn": 6,
+      "name": "run_tests",
+      "isError": true,
+      "outputBytes": 232,
+      "argsPreview": "{}",
+      "outputPreview": "Error: run_tests needs the bwrap sandbox (Linux with unprivileged user namespaces) to cut the network and hide host files; the \"local\" backend cannot guarantee that (auto: no sandbox backend available). Tests are not run unisolated."
+    },
+    {
+      "seq": 12,
+      "turn": 7,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 657,
+      "argsPreview": "{\"command\":\"python3 -m py_compile celery/utils/functional.py celery/utils/serialization.py && echo \\\"compile OK\\\"; python3 -m pyflakes --version >/dev/null 2>&1 && python3 -m pyflakes celery/utils/functional.py celery/utils/serialization.py || echo \\\"(pyflakes unavailable)\\\"; echo \\\"--- serialization.py head\\\"; sed -n 10,16p celery/utils/serialization.py; echo \\\"--- new function\\\"; sed -n 74,80p celery/utils/serialization.py; echo \\\"--- functional.py head\\\"; sed -n 8,13p celery/utils/functional.py; echo \\\"--- git status\\\"; git status --short 2>/dev/null\"}",
+      "outputPreview": "compile OK\n(pyflakes unavailable)\n--- serialization.py head\n\nfrom kombu.utils.encoding import bytes_to_str, safe_repr, str_to_bytes\nfrom vine import promise\n\ntry:\n    import cPickle as pickle\nexcept ImportError:\n--- new function\ndef evaluate_promises(it):\n    for value in it:\n        if isinstance(value, promise):\n            value = value()\n        yield value\n\n\n--- functional.py head\nfrom kombu.utils.functional import LRUCache, dictfilter, is_list, lazy, maybe_evaluate, maybe_list, memoize\n\nfrom celery.utils.log import get_logger\nfrom celery.utils.serialization import evaluate_promises\n\nlogg"
+    }
+  ]
+}

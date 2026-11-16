@@ -1,0 +1,7 @@
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tinydb_demo/format.py b/tinydb_demo/format.py
+--- a/tinydb_demo/format.py	2026-10-29 15:19:32.690682172 +0700
++++ b/tinydb_demo/format.py	2026-11-15 09:07:14.889526396 +0700
+@@ -1,2 +1,2 @@
+ def format_tags(note):
+-    return ', '.join(sorted(note['tags']))
++    return ', '.join(sorted(note.get('tags', [])))

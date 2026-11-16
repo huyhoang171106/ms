@@ -1,0 +1,20 @@
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tests/test_search.py b/tests/test_search.py
+--- a/tests/test_search.py	2026-10-29 15:19:32.690593387 +0700
++++ b/tests/test_search.py	2026-11-15 08:54:43.848399368 +0700
+@@ -5,3 +5,9 @@
+     store = Store(tmp_path / 'db.json')
+     store.add({'title': 'Hello World'})
+     assert len(store.search('hello')) == 1
++
++
++def test_format_tags_handles_note_without_tags():
++    from tinydb_demo.format import format_tags
++
++    assert format_tags({'title': 'hello', 'body': 'x'}) == ''
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tinydb_demo/format.py b/tinydb_demo/format.py
+--- a/tinydb_demo/format.py	2026-10-29 15:19:32.690682172 +0700
++++ b/tinydb_demo/format.py	2026-11-15 08:54:41.349383489 +0700
+@@ -1,2 +1,2 @@
+ def format_tags(note):
+-    return ', '.join(sorted(note['tags']))
++    return ', '.join(sorted(note.get('tags') or []))

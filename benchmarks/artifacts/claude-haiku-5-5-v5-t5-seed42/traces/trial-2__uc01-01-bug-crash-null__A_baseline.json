@@ -1,0 +1,375 @@
+{
+  "schemaVersion": "2.0.0",
+  "experimentId": "uc01-controlled-seed42-2026-11-15T06-25-49-384Z",
+  "runId": "trial-2__uc01-01-bug-crash-null__A_baseline",
+  "arm": "A_baseline",
+  "caseId": "uc01-01-bug-crash-null",
+  "trial": 2,
+  "pairOrder": "BA",
+  "durationsMs": {
+    "setupMs": 3.26,
+    "agentMs": 9977.87,
+    "verifyMs": 202.21,
+    "cleanupMs": 0.18,
+    "wallClockMs": 10183.53
+  },
+  "requests": [
+    {
+      "turn": 1,
+      "usage": {
+        "uncachedInput": 337,
+        "cacheRead": 2270,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 223,
+        "totalInputAll": 2607,
+        "totalTokens": 2830
+      },
+      "cost": {
+        "costDollars": 0.000191,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0.000034,
+          "cacheReadUsd": 0.000045,
+          "cacheWriteUsd": 0,
+          "outputUsd": 0.000111
+        }
+      }
+    },
+    {
+      "turn": 2,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 2270,
+        "cacheWrite": 1073,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 339,
+        "totalInputAll": 3345,
+        "totalTokens": 3684
+      },
+      "cost": {
+        "costDollars": 0.000349,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000045,
+          "cacheWriteUsd": 0.000134,
+          "outputUsd": 0.00017
+        }
+      }
+    },
+    {
+      "turn": 3,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 3343,
+        "cacheWrite": 490,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 228,
+        "totalInputAll": 3835,
+        "totalTokens": 4063
+      },
+      "cost": {
+        "costDollars": 0.000242,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000067,
+          "cacheWriteUsd": 0.000061,
+          "outputUsd": 0.000114
+        }
+      }
+    },
+    {
+      "turn": 4,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 3833,
+        "cacheWrite": 899,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 426,
+        "totalInputAll": 4734,
+        "totalTokens": 5160
+      },
+      "cost": {
+        "costDollars": 0.000402,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000077,
+          "cacheWriteUsd": 0.000112,
+          "outputUsd": 0.000213
+        }
+      }
+    },
+    {
+      "turn": 5,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 4732,
+        "cacheWrite": 1005,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 623,
+        "totalInputAll": 5739,
+        "totalTokens": 6362
+      },
+      "cost": {
+        "costDollars": 0.000532,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000095,
+          "cacheWriteUsd": 0.000126,
+          "outputUsd": 0.000311
+        }
+      }
+    }
+  ],
+  "toolCalls": [
+    {
+      "toolCallId": "toolu_01Lbjg5SbHpgmPmidcMwNPti",
+      "turnIndex": 1,
+      "name": "read_file",
+      "startedAtMonoMs": 1724.786,
+      "durationMs": 2,
+      "isError": false,
+      "argsPreview": "{\"path\":\"tinydb_demo/format.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 32,
+      "argsSha256": "4187450ae24a5790239634e672c92254eaaed51441737f538e8f9e64440d5ef8",
+      "outputPreview": "File: tinydb_demo/format.py (lines 1-2 of 2):\n     1\tdef format_tags(note):\n     2\t    return ', '.join(sorted(note['tags']))",
+      "outputTruncated": false,
+      "outputOriginalBytes": 125,
+      "outputSha256": "d5d7e4b7a13cb295e46a4912731392e39a397d71ad85c36c2216f343c469bcd7",
+      "toolOutputBytes": 125,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01S5XcjL9Kes9SM3iAazrahu",
+      "turnIndex": 1,
+      "name": "read_file",
+      "startedAtMonoMs": 1726.832,
+      "durationMs": 1,
+      "isError": false,
+      "argsPreview": "{\"path\":\"tinydb_demo/cli.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 29,
+      "argsSha256": "819b0f809d327c6a226104370a5a54650e06d072234ed75ff82eccc59cf9895c",
+      "outputPreview": "File: tinydb_demo/cli.py (lines 1-13 of 13):\n     1\timport argparse\n     2\tfrom tinydb_demo.format import format_tags\n     3\tfrom tinydb_demo.store import Store\n     4\t\n     5\t\n     6\tdef main():\n     7\t    parser = argparse.ArgumentParser()\n     8\t    parser.add_argument('command', choices=['list'])\n     9\t    parser.add_argument('--format', default='tags')\n    10\t    args = parser.parse_args()\n    11\t    if args.command == 'list':\n    12\t        for note in Store('notes.json').notes:\n    13\t            print(format_tags(note))",
+      "outputTruncated": false,
+      "outputOriginalBytes": 534,
+      "outputSha256": "d6b9f4defdcc9dd4435835c26d7e39d6bc78970422bf1fbddf74ea68fbd9becc",
+      "toolOutputBytes": 534,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01Xn4K4WYS3mFfzoFnPWmZsd",
+      "turnIndex": 1,
+      "name": "search_code",
+      "startedAtMonoMs": 1726.928,
+      "durationMs": 4,
+      "isError": false,
+      "argsPreview": "{\"pattern\":\"tags\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 18,
+      "argsSha256": "9121b56a3fb8a873d3b43887dd826480c326049a94364f4284ff69ceca865e4c",
+      "outputPreview": "README.md:7: The CLI supports `python -m tinydb_demo list --format tags`.\ntinydb_demo/cli.py:2: from tinydb_demo.format import format_tags\ntinydb_demo/cli.py:9:     parser.add_argument('--format', default='tags')\ntinydb_demo/cli.py:13:             print(format_tags(note))\ntinydb_demo/format.py:1: def format_tags(note):\ntinydb_demo/format.py:2:     return ', '.join(sorted(note['tags']))\n.pytest_cache/CACHEDIR.TAG:3: # For information about cache directory tags, see:",
+      "outputTruncated": false,
+      "outputOriginalBytes": 469,
+      "outputSha256": "b95b90b98231fdf6b7eb25fa4ddd0f9c09271d80578cbd37409524943c752a81",
+      "toolOutputBytes": 469,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01Ac4fcr5wYir8bwKMDB6xAU",
+      "turnIndex": 2,
+      "name": "list_dir",
+      "startedAtMonoMs": 3433.95,
+      "durationMs": 1,
+      "isError": false,
+      "argsPreview": "{\"path\":\".\",\"depth\":2}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 22,
+      "argsSha256": "75d7480787d1945a1fa1114c216610ffe6007e3a930c90962bd3822c9ed92347",
+      "outputPreview": "Directory: . (depth 2)\ntests/\ntests/test_search.py\ntinydb_demo/\ntinydb_demo/__init__.py\ntinydb_demo/__main__.py\ntinydb_demo/cli.py\ntinydb_demo/format.py\ntinydb_demo/pretty.py\ntinydb_demo/store.py\nREADME.md",
+      "outputTruncated": false,
+      "outputOriginalBytes": 205,
+      "outputSha256": "f59becea9d5eeabfa2502fe356d73651f2dec3b559db6c0a1e62821826de6ff9",
+      "toolOutputBytes": 205,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01NBrYLdWRtYraribKASB2UY",
+      "turnIndex": 2,
+      "name": "run_command",
+      "startedAtMonoMs": 3434.798,
+      "durationMs": 10,
+      "isError": false,
+      "argsPreview": "{\"command\":\"cd \\\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\\\" && d=$(mktemp -d) && echo '[{\\\"title\\\": \\\"hello\\\", \\\"body\\\": \\\"x\\\"}]' > \\\"$d/notes.json\\\" && cd \\\"$d\\\" && PYTHONPATH=\\\"$OLDPWD\\\" python -m tinydb_demo list --format tags; echo \\\"exit=$?\\\"\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 260,
+      "argsSha256": "c9d8c62c2420735eb3aaed3b17034957252c2e5c42ab3900f38f4b1497199db7",
+      "outputPreview": "exit=127\n\n[stderr]\n/bin/bash: line 1: python: command not found",
+      "outputTruncated": false,
+      "outputOriginalBytes": 63,
+      "outputSha256": "e462f7fc2a441042299f15c7c6ed2efb285017e609ce8755a4a56c1778f6b95d",
+      "toolOutputBytes": 63,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_015V6MUMaksqfVh16f9NXep6",
+      "turnIndex": 3,
+      "name": "run_command",
+      "startedAtMonoMs": 4683.781,
+      "durationMs": 89,
+      "isError": false,
+      "argsPreview": "{\"command\":\"cd \\\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\\\" && d=$(mktemp -d) && echo '[{\\\"title\\\": \\\"hello\\\", \\\"body\\\": \\\"x\\\"}]' > \\\"$d/notes.json\\\" && cd \\\"$d\\\" && PYTHONPATH=\\\"$OLDPWD\\\" python3 -m tinydb_demo list --format tags; echo \\\"exit=$?\\\"\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 261,
+      "argsSha256": "4c2755d67b8f78d18085f43a4846d8b2dba00f3ce01875bce23aa5e6d992824b",
+      "outputPreview": "exit=1\n\n[stderr]\nTraceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/dev/shm/hoang-agent-tmp/ab-A_baseline-uc01-01-bug-crash-null-fuTXiv/workspace/tinydb_demo/__main__.py\", line 3, in <module>\n    main()\n  File \"/dev/shm/hoang-agent-tmp/ab-A_baseline-uc01-01-bug-crash-null-fuTXiv/workspace/tinydb_demo/cli.py\", line 13, in main\n    print(format_tags(note))\n          ^^^^^^^^^^^^^^^^^\n  File \"/dev/shm/hoang-agent-tmp/ab-A_baseline-uc01-01-bug-crash-null-fuTXiv/workspace/tinydb_demo/format.py\", line 2, in format_tags\n    return ', '.join(sorted(note['tags']))\n                            ~~~~^^^^^^^^\nKeyError: 'tags'",
+      "outputTruncated": false,
+      "outputOriginalBytes": 717,
+      "outputSha256": "950e60685b73f9d67b3b81fc81f238b315cfc64f33f7239876b58858cf70d714",
+      "toolOutputBytes": 717,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01AWq6TuATeaWpkC6sXVZjEX",
+      "turnIndex": 3,
+      "name": "read_file",
+      "startedAtMonoMs": 4772.897,
+      "durationMs": 1,
+      "isError": false,
+      "argsPreview": "{\"path\":\"tinydb_demo/store.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 31,
+      "argsSha256": "45465b230aa2527746dda9f6ed02d0ad2ffcf2a3fa2c45200905084c26e6c4b8",
+      "outputPreview": "File: tinydb_demo/store.py (lines 1-17 of 17):\n     1\timport json\n     2\tfrom pathlib import Path\n     3\t\n     4\t\n     5\tclass Store:\n     6\t    def __init__(self, filename):\n     7\t        self.filename = Path(filename)\n     8\t        self.notes = json.loads(self.filename.read_text()) if self.filename.exists() else []\n     9\t\n    10\t    def add(self, note):\n    11\t        self.notes.append(note)\n    12\t\n    13\t    def search(self, query):\n    14\t        return [note for note in self.notes if query in note['title']]\n    15\t\n    16\t    def save(self):\n    17\t        self.filename.write_text(json.dumps(self.notes))",
+      "outputTruncated": false,
+      "outputOriginalBytes": 620,
+      "outputSha256": "0c8bebd4afd2fc9ad054a08451f337adc7bd2944207c38bcccdf6adf7443bd61",
+      "toolOutputBytes": 620,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01GGKuXttE2ThXGvHGUiEMF1",
+      "turnIndex": 4,
+      "name": "edit",
+      "startedAtMonoMs": 6727.007,
+      "durationMs": 2,
+      "isError": false,
+      "argsPreview": "{\"path\":\"tinydb_demo/format.py\",\"oldText\":\"    return ', '.join(sorted(note['tags']))\",\"newText\":\"    return ', '.join(sorted(note.get('tags', [])))\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 150,
+      "argsSha256": "926014aab941db7848b1e5f1a88f39cab7d12bf63a8fb5035a326e28c04258c0",
+      "outputPreview": "Successfully replaced 1 occurrence of oldText in /dev/shm/hoang-agent-tmp/ab-A_baseline-uc01-01-bug-crash-null-fuTXiv/workspace/tinydb_demo/format.py (+0 lines)",
+      "outputTruncated": false,
+      "outputOriginalBytes": 160,
+      "outputSha256": "b36a4310e696d8c47644c65aac82b51173b4e508fde2afcdac7e20888226b2ee",
+      "toolOutputBytes": 160,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01JPagx3BeANsZ8jX4pBbTgJ",
+      "turnIndex": 4,
+      "name": "run_command",
+      "startedAtMonoMs": 6728.574,
+      "durationMs": 36,
+      "isError": false,
+      "argsPreview": "{\"command\":\"cd \\\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\\\" && d=$(mktemp -d) && echo '[{\\\"title\\\": \\\"hello\\\", \\\"body\\\": \\\"x\\\"}, {\\\"title\\\": \\\"t\\\", \\\"tags\\\": [\\\"b\\\",\\\"a\\\"]}]' > \\\"$d/notes.json\\\" && cd \\\"$d\\\" && PYTHONPATH=\\\"$OLDPWD\\\" python3 -m tinydb_demo list --format tags; echo \\\"exit=$?\\\"\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 306,
+      "argsSha256": "d54f3758d474eccb42b7577c361bae3589ab4f8484a3f472cf172a0898cc15ba",
+      "outputPreview": "a, b\nexit=0",
+      "outputTruncated": false,
+      "outputOriginalBytes": 11,
+      "outputSha256": "7183564d7f8ef17d6bb7cde7ddf7990414185ebfa242cb393a2c3a7e86551589",
+      "toolOutputBytes": 11,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01YPGib4AEPAHd4nuPTiNCEq",
+      "turnIndex": 4,
+      "name": "run_tests",
+      "startedAtMonoMs": 6764.771,
+      "durationMs": 151,
+      "isError": false,
+      "argsPreview": "{}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 2,
+      "argsSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "outputPreview": "passed 0, failed 1, skipped 0, collection errors 0\nFailed:\n  tests/test_search.py::test_search_is_case_insensitive\nOutput (tail):\nF                                                                        [100%]\n=================================== FAILURES ===================================\n_______________________ test_search_is_case_insensitive ________________________\n\ntmp_path = PosixPath('/dev/shm/hoang-agent-tmp/pytest-of-hoang/pytest-0/test_search_is_case_insensitiv0')\n\n    def test_search_is_case_insensitive(tmp_path):\n        store = Store(tmp_path / 'db.json')\n        store.add({'title': 'Hello World'})\n>       assert len(store.search('hello')) == 1\nE       AssertionError: assert 0 == 1\nE        +  where 0 = len([])\nE        +    where [] = search('hello')\nE        +      where search = <tinydb_demo.store.Store object at 0x7f1aaff1e1e0>.search\n\ntests/test_search.py:7: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_search.py::test_searc",
+      "outputTruncated": true,
+      "outputOriginalBytes": 1084,
+      "outputSha256": "28abd78fb3ea3b360871c54480c4fb6b7275e4187c7773d49a4f7fb39a13d7d6",
+      "toolOutputBytes": 1084,
+      "exitCode": 1,
+      "timedOut": false
+    }
+  ],
+  "actualFilesChanged": [
+    "tinydb_demo/format.py"
+  ],
+  "diffBytes": 389,
+  "diffTruncated": false
+}

@@ -1,0 +1,467 @@
+{
+  "schemaVersion": "2.0.0",
+  "experimentId": "medium-repo-eval",
+  "runId": "trial-3__med-03-export-csv-escape__A_baseline",
+  "arm": "A_baseline",
+  "caseId": "med-03-export-csv-escape",
+  "trial": 3,
+  "pairOrder": "AB",
+  "durationsMs": {
+    "setupMs": 0,
+    "agentMs": 15616.193585,
+    "verifyMs": 231.90612999998848,
+    "cleanupMs": 0,
+    "wallClockMs": 15853.561132999981
+  },
+  "requests": [
+    {
+      "turn": 1,
+      "usage": {
+        "uncachedInput": 159,
+        "cacheRead": 2270,
+        "cacheWrite": 0,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 152,
+        "totalInputAll": 2429,
+        "totalTokens": 2581
+      },
+      "cost": {
+        "costDollars": 0.000137,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0.000016,
+          "cacheReadUsd": 0.000045,
+          "cacheWriteUsd": 0,
+          "outputUsd": 0.000076
+        }
+      }
+    },
+    {
+      "turn": 2,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 2270,
+        "cacheWrite": 827,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 139,
+        "totalInputAll": 3099,
+        "totalTokens": 3238
+      },
+      "cost": {
+        "costDollars": 0.000218,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000045,
+          "cacheWriteUsd": 0.000103,
+          "outputUsd": 0.000069
+        }
+      }
+    },
+    {
+      "turn": 3,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 3097,
+        "cacheWrite": 509,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 309,
+        "totalInputAll": 3608,
+        "totalTokens": 3917
+      },
+      "cost": {
+        "costDollars": 0.00028,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000062,
+          "cacheWriteUsd": 0.000064,
+          "outputUsd": 0.000154
+        }
+      }
+    },
+    {
+      "turn": 4,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 3606,
+        "cacheWrite": 2009,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 353,
+        "totalInputAll": 5617,
+        "totalTokens": 5970
+      },
+      "cost": {
+        "costDollars": 0.0005,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000072,
+          "cacheWriteUsd": 0.000251,
+          "outputUsd": 0.000177
+        }
+      }
+    },
+    {
+      "turn": 5,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 5615,
+        "cacheWrite": 447,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 335,
+        "totalInputAll": 6064,
+        "totalTokens": 6399
+      },
+      "cost": {
+        "costDollars": 0.000336,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000112,
+          "cacheWriteUsd": 0.000056,
+          "outputUsd": 0.000168
+        }
+      }
+    },
+    {
+      "turn": 6,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 6062,
+        "cacheWrite": 394,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 252,
+        "totalInputAll": 6458,
+        "totalTokens": 6710
+      },
+      "cost": {
+        "costDollars": 0.000297,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000121,
+          "cacheWriteUsd": 0.000049,
+          "outputUsd": 0.000126
+        }
+      }
+    },
+    {
+      "turn": 7,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 6456,
+        "cacheWrite": 216,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 161,
+        "totalInputAll": 6674,
+        "totalTokens": 6835
+      },
+      "cost": {
+        "costDollars": 0.000237,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000129,
+          "cacheWriteUsd": 0.000027,
+          "outputUsd": 0.000081
+        }
+      }
+    },
+    {
+      "turn": 8,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 6672,
+        "cacheWrite": 1277,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 781,
+        "totalInputAll": 7951,
+        "totalTokens": 8732
+      },
+      "cost": {
+        "costDollars": 0.000684,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000133,
+          "cacheWriteUsd": 0.00016,
+          "outputUsd": 0.000391
+        }
+      }
+    }
+  ],
+  "toolCalls": [
+    {
+      "toolCallId": "toolu_01Rirhe4B2FbEVRGkp23ZRw7",
+      "turnIndex": 1,
+      "name": "search_code",
+      "startedAtMonoMs": 1078.371,
+      "durationMs": 7,
+      "isError": false,
+      "argsPreview": "{\"pattern\":\"export_tasks_csv\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 30,
+      "argsSha256": "167626da3271123837fbcfcb7bb30fba89deeaeba2ab486bb46637b2102ffb82",
+      "outputPreview": "tests/test_export.py:3: from taskflow.plugins.csv_export import export_tasks_csv\ntests/test_export.py:11:     out = export_tasks_csv(tasks)\ntaskflow/plugins/csv_export.py:7: def export_tasks_csv(tasks: Iterable[Task]) -> str:",
+      "outputTruncated": false,
+      "outputOriginalBytes": 225,
+      "outputSha256": "4c094f20a156a007a753023bdab22db3d731bc5177740daa492775f8f5360bef",
+      "toolOutputBytes": 225,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01TtxXDAHy9Mp2grQwRFBGrf",
+      "turnIndex": 1,
+      "name": "read_file",
+      "startedAtMonoMs": 1085.699,
+      "durationMs": 2,
+      "isError": false,
+      "argsPreview": "{\"path\":\"tests/test_export.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 31,
+      "argsSha256": "7777d0b20524e32679cd4402f15159ee9deffaaf8ae5ca0261162fed7d511464",
+      "outputPreview": "File: tests/test_export.py (lines 1-20 of 20):\n     1\timport pytest\n     2\tfrom taskflow.core.models import Task\n     3\tfrom taskflow.plugins.csv_export import export_tasks_csv\n     4\t\n     5\t\n     6\tdef test_csv_export_handles_none_metadata():\n     7\t    tasks = [\n     8\t        Task(id=\"1\", title=\"Alpha\", priority=2, metadata=None),\n     9\t        Task(id=\"2\", title=\"Beta\", priority=1, metadata={\"source\": \"cli\"}),\n    10\t    ]\n    11\t    out = export_tasks_csv(tasks)\n    12\t    assert \"1,Alpha,2,\" in out\n    13\t    assert \"2,Beta,1,cli\" in out\n    14\t\n    15\t\n    16\t@pytest.mark.parametrize(\"n\", range(40))\n    17\tdef test_task_summary_bulk(n):\n    18\t    t = Task(id=f\"s-{n}\", title=f\"Sum {n}\", tags=[\"b\", \"a\"])\n    19\t    print(f\"rendered summary for {t.id}: {t.summary()}\")\n    20\t    assert \"a, b\" in t.summary()",
+      "outputTruncated": false,
+      "outputOriginalBytes": 825,
+      "outputSha256": "2e20d5d55a72f51502ce1050854aa1aaba5b1f29517389256a76b485a0e35b87",
+      "toolOutputBytes": 825,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01LDsbqMdq3sRyQUwsg1wJDj",
+      "turnIndex": 2,
+      "name": "read_file",
+      "startedAtMonoMs": 2250.3,
+      "durationMs": 3,
+      "isError": false,
+      "argsPreview": "{\"path\":\"taskflow/plugins/csv_export.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 41,
+      "argsSha256": "808bf8a2c6e2b54e7f6caebb116ac63abe43804d0f3381de9f77d16aa35d49d8",
+      "outputPreview": "File: taskflow/plugins/csv_export.py (lines 1-15 of 15):\n     1\timport csv\n     2\timport io\n     3\tfrom typing import Iterable\n     4\tfrom taskflow.core.models import Task\n     5\t\n     6\t\n     7\tdef export_tasks_csv(tasks: Iterable[Task]) -> str:\n     8\t    buf = io.StringIO()\n     9\t    writer = csv.writer(buf, lineterminator=\"\\n\")\n    10\t    writer.writerow([\"id\", \"title\", \"priority\", \"source\"])\n    11\t    for t in tasks:\n    12\t        # BUG med-03: crashes with AttributeError when t.metadata is None\n    13\t        source = t.metadata.get(\"source\", \"\")\n    14\t        writer.writerow([t.id, t.title, str(t.priority), source])\n    15\t    return buf.getvalue()",
+      "outputTruncated": false,
+      "outputOriginalBytes": 667,
+      "outputSha256": "75b9ce9da142b555ec3eb82550b75632b5af3fe239cce74b8eb20adc172f46b0",
+      "toolOutputBytes": 667,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_016zqTbMCEFLjeUAQ4mq9Way",
+      "turnIndex": 2,
+      "name": "search_code",
+      "startedAtMonoMs": 2252.901,
+      "durationMs": 4,
+      "isError": false,
+      "argsPreview": "{\"pattern\":\"metadata\",\"path\":\"taskflow/core/models.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 55,
+      "argsSha256": "fdb30dd855fa6933fa8623cc43a492dd2419a0dcf537f75240edd76f010dc207",
+      "outputPreview": "taskflow/core/models.py:11:     metadata: Optional[Dict[str, Any]] = None",
+      "outputTruncated": false,
+      "outputOriginalBytes": 73,
+      "outputSha256": "58f4ae3279fc55c2ed5fe245fd591e232ca041e2b09c8bd6310912c326283609",
+      "toolOutputBytes": 73,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01GFaRMLg7dQJC7oy8KPAvr6",
+      "turnIndex": 3,
+      "name": "edit",
+      "startedAtMonoMs": 3979.78,
+      "durationMs": 1,
+      "isError": false,
+      "argsPreview": "{\"path\":\"taskflow/plugins/csv_export.py\",\"oldText\":\"        # BUG med-03: crashes with AttributeError when t.metadata is None\\n        source = t.metadata.get(\\\"source\\\", \\\"\\\")\",\"newText\":\"        metadata = t.metadata or {}\\n        source = metadata.get(\\\"source\\\", \\\"\\\")\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 275,
+      "argsSha256": "950060f3afecc1dbb108cfb96a808f6c54ca0c2b70704206d3fbd900bf0fb7c3",
+      "outputPreview": "Successfully replaced 1 occurrence of oldText in /dev/shm/hoang-agent-tmp/med-A_baseline-med-03-export-csv-escape-YvvVGM/workspace/taskflow/plugins/csv_export.py (+0 lines)",
+      "outputTruncated": false,
+      "outputOriginalBytes": 172,
+      "outputSha256": "dcf153eff8f26f3d6c7bd66dbded03e41825e5d661da6c37fba0c768dbaabe7a",
+      "toolOutputBytes": 172,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_013gmiSimebfQGysahTQX55Q",
+      "turnIndex": 3,
+      "name": "run_tests",
+      "startedAtMonoMs": 3980.98,
+      "durationMs": 225,
+      "isError": false,
+      "argsPreview": "{}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 2,
+      "argsSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "outputPreview": "passed 121, failed 3, skipped 0, collection errors 0\nFailed:\n  tests/test_api_pagination.py::test_pagination_first_page\n  tests/test_api_pagination.py::test_pagination_second_page\n  tests/test_scheduler.py::test_backoff_caps_at_max_delay\nOutput (tail):\nt.py::test_task_summary_bulk[35]\nPASSED tests/test_export.py::test_task_summary_bulk[36]\nPASSED tests/test_export.py::test_task_summary_bulk[37]\nPASSED tests/test_export.py::test_task_summary_bulk[38]\nPASSED tests/test_export.py::test_task_summary_bulk[39]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[0]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[1]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[2]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[3]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[4]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[5]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[6]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[7]\nPASSED tests/test_schedule",
+      "outputTruncated": true,
+      "outputOriginalBytes": 3253,
+      "outputSha256": "ee6e1a1b8d14efa40cf07619cadead61458d1463156992da6d3a4d14ccd675fa",
+      "toolOutputBytes": 3253,
+      "exitCode": 1,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01RUcdhMrv9U2LthWQCzsytd",
+      "turnIndex": 4,
+      "name": "run_command",
+      "startedAtMonoMs": 6368.756,
+      "durationMs": 12,
+      "isError": false,
+      "argsPreview": "{\"command\":\"cd \\\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\\\" && git stash && (python -m pytest -q tests/test_api_pagination.py tests/test_scheduler.py tests/test_export.py::test_csv_export_handles_none_metadata 2>&1 | tail -8); git stash pop && git diff --stat\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 272,
+      "argsSha256": "82070d7e89bf2ef4e325d0b2644c4cb99c57c4b13b1b45cf7b20264bb9c52361",
+      "outputPreview": "[stderr]\nfatal: not a git repository (or any parent up to mount point /dev/shm/hoang-agent-tmp/med-A_baseline-med-03-export-csv-escape-YvvVGM)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\nfatal: not a git repository (or any parent up to mount point /dev/shm/hoang-agent-tmp/med-A_baseline-med-03-export-csv-escape-YvvVGM)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n\n[exit code 128]",
+      "outputTruncated": false,
+      "outputOriginalBytes": 443,
+      "outputSha256": "2e0111fcc373b890c6acec4d2eab290cd98609d0d297ef128f85eff10669c41e",
+      "toolOutputBytes": 443,
+      "exitCode": 128,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01F4RdXvvWaqFUqWnRC4Cwzn",
+      "turnIndex": 5,
+      "name": "run_command",
+      "startedAtMonoMs": 8278.935,
+      "durationMs": 12,
+      "isError": false,
+      "argsPreview": "{\"command\":\"cd /dev/shm/hoang-agent-tmp/med-A_baseline-med-03-export-csv-escape-YvvVGM/workspace && grep -rn \\\"csv_export\\\\|export_tasks_csv\\\" --include=*.py . ; echo ---; python -m pytest -q tests/test_api_pagination.py tests/test_scheduler.py::test_backoff_caps_at_max_delay 2>&1 | grep -E \\\"Error|assert|def |FAILED\\\" | head -30\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 333,
+      "argsSha256": "699c83df3e6d8c13520dd4d0f24e306e49cf4a7048dc70646cbfbef2744cb1d7",
+      "outputPreview": "./taskflow/plugins/csv_export.py:7:def export_tasks_csv(tasks: Iterable[Task]) -> str:\n./tests/test_export.py:3:from taskflow.plugins.csv_export import export_tasks_csv\n./tests/test_export.py:6:def test_csv_export_handles_none_metadata():\n./tests/test_export.py:11:    out = export_tasks_csv(tasks)\n---",
+      "outputTruncated": false,
+      "outputOriginalBytes": 302,
+      "outputSha256": "1ef2223a43813f4105686fa7cac5888db3e2fe615be91957111d741279a63988",
+      "toolOutputBytes": 302,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01VV93exoEkrMuFiwTNRNeDL",
+      "turnIndex": 6,
+      "name": "run_command",
+      "startedAtMonoMs": 10052.349,
+      "durationMs": 10,
+      "isError": false,
+      "argsPreview": "{\"command\":\"cd /dev/shm/hoang-agent-tmp/med-A_baseline-med-03-export-csv-escape-YvvVGM/workspace && python -m pytest -q tests/test_api_pagination.py tests/test_scheduler.py::test_backoff_caps_at_max_delay 2>&1 | tail -60\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 222,
+      "argsSha256": "49b62e0af8eae85d721364841d5ba674f25ab67c95e57e2517a64b5720ef9c7c",
+      "outputPreview": "/bin/bash: line 1: python: command not found",
+      "outputTruncated": false,
+      "outputOriginalBytes": 44,
+      "outputSha256": "85d7f9c10d564f0509488e9945c51719161193d0589a8f49fdc3e0eb493ac1b4",
+      "toolOutputBytes": 44,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01C49wt1TmUQ62dsA82zkrFA",
+      "turnIndex": 7,
+      "name": "run_command",
+      "startedAtMonoMs": 11189.411,
+      "durationMs": 270,
+      "isError": false,
+      "argsPreview": "{\"command\":\"cd /dev/shm/hoang-agent-tmp/med-A_baseline-med-03-export-csv-escape-YvvVGM/workspace && (python3 -m pytest -q tests/test_api_pagination.py tests/test_scheduler.py::test_backoff_caps_at_max_delay 2>&1 || true) | tail -60\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 233,
+      "argsSha256": "a460cf56cf03f8cd30a3f0ea7eef9c74977d70be04c6ee23bd1c0207bb76e3b5",
+      "outputPreview": ".verified bulk item 21 successfully in store\n.verified bulk item 22 successfully in store\n.verified bulk item 23 successfully in store\n.verified bulk item 24 successfully in store\n.verified bulk item 25 successfully in store\n.verified bulk item 26 successfully in store\n.verified bulk item 27 successfully in store\n.verified bulk item 28 successfully in store\n.verified bulk item 29 successfully in store\n.verified bulk item 30 successfully in store\n.verified bulk item 31 successfully in store\n.verified bulk item 32 successfully in store\n.verified bulk item 33 successfully in store\n.verified bulk item 34 successfully in store\n.verified bulk item 35 successfully in store\n.verified bulk item 36 successfully in store\n.verified bulk item 37 successfully in store\n.verified bulk item 38 successfully in store\n.verified bulk item 39 successfully in store\n.F\n=================================== FAILURES ===================================\n__________________________ test_pagination_first_page __________________________\n\n   ",
+      "outputTruncated": true,
+      "outputOriginalBytes": 2818,
+      "outputSha256": "2909e6f82bf0362642c0ebe0a1baffa93dbbcf81279564cba8f79acb6601ce20",
+      "toolOutputBytes": 2818,
+      "exitCode": 0,
+      "timedOut": false
+    }
+  ],
+  "diffBytes": 735
+}

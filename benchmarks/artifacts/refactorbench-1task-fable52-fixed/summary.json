@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "1.1.0",
+  "options": {
+    "packName": "refactorbench",
+    "model": "trollllm/claude-fable-5-2",
+    "trials": 1,
+    "cases": [
+      "tornado_refactor/options-utils"
+    ],
+    "maxSteps": 25,
+    "outDir": "/home/hoang/ms/benchmarks/artifacts/refactorbench-1task-fable52-fixed"
+  },
+  "baseline": {
+    "exitCode": 0,
+    "failed": [],
+    "passed": [],
+    "collectionError": false,
+    "summary": "per-case suites"
+  },
+  "arms": {
+    "A_eight": {
+      "runs": 1,
+      "passed": 0,
+      "targetFixed": 0,
+      "requiredTests": 0,
+      "regressions": 0,
+      "testTampering": 0,
+      "errors": 0,
+      "toolFailures": 1,
+      "medianTurns": 22,
+      "medianToolCalls": 69,
+      "medianOutputBytes": 114719,
+      "totalTokens": 129781,
+      "medianWallClockMs": 1065137.3
+    },
+    "B_one": {
+      "runs": 1,
+      "passed": 0,
+      "targetFixed": 0,
+      "requiredTests": 0,
+      "regressions": 0,
+      "testTampering": 0,
+      "errors": 1,
+      "toolFailures": 1,
+      "medianTurns": 7,
+      "medianToolCalls": 7,
+      "medianOutputBytes": 98374,
+      "totalTokens": 39011,
+      "medianWallClockMs": 172882.2
+    }
+  },
+  "records": [
+    {
+      "pack": "refactorbench",
+      "arm": "A_eight",
+      "caseId": "tornado_refactor/options-utils",
+      "trial": 0,
+      "pairOrder": "AB",
+      "agentStatus": "ok",
+      "targetFixed": false,
+      "probeOutput": "FAILED (failures=18)",
+      "requiredTestsPassed": 0,
+      "requiredTestsTotal": 0,
+      "noRegressions": true,
+      "newFailures": [],
+      "collectionError": false,
+      "testsIntact": true,
+      "tamperedTestFiles": [],
+      "overallPassed": false,
+      "llmTurns": 22,
+      "toolCalls": 69,
+      "toolFailures": 1,
+      "toolOutputBytes": 114719,
+      "promptTokens": 42803,
+      "completionTokens": 86978,
+      "cachedTokens": 834487,
+      "cacheWriteTokens": 0,
+      "cacheHitRate": 0.9512,
+      "estimatedCostUsd": null,
+      "wallClockMs": 1065137.3,
+      "toolErrorSamples": [
+        "run_tests: Error: run_tests needs the bwrap sandbox (Linux with unprivileged user namespaces) to cut the network and hide host files; the \"local\" backend cannot guarantee that (auto: no sandbox backend available). Tests are not run unisolated."
+      ]
+    },
+    {
+      "pack": "refactorbench",
+      "arm": "B_one",
+      "caseId": "tornado_refactor/options-utils",
+      "trial": 0,
+      "pairOrder": "AB",
+      "agentStatus": "error",
+      "targetFixed": false,
+      "probeOutput": "FAILED (failures=22)",
+      "requiredTestsPassed": 0,
+      "requiredTestsTotal": 0,
+      "noRegressions": true,
+      "newFailures": [],
+      "collectionError": false,
+      "testsIntact": true,
+      "tamperedTestFiles": [],
+      "overallPassed": false,
+      "llmTurns": 7,
+      "toolCalls": 7,
+      "toolFailures": 1,
+      "toolOutputBytes": 98374,
+      "promptTokens": 25252,
+      "completionTokens": 13759,
+      "cachedTokens": 98955,
+      "cacheWriteTokens": 0,
+      "cacheHitRate": 0.7967,
+      "estimatedCostUsd": null,
+      "wallClockMs": 172882.2,
+      "toolErrorSamples": [
+        "ms: Error: TypeError: undefined is not an object (evaluating 'id.startsWith')\ncalls: 4 calls · 31ms"
+      ],
+      "error": "LLM provider error: trollllm API error (403 Forbidden): API key credit limit exceeded. Please increase the limit or use a different key."
+    }
+  ]
+}

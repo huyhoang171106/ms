@@ -1,0 +1,467 @@
+{
+  "schemaVersion": "2.0.0",
+  "experimentId": "medium-repo-eval",
+  "runId": "trial-3__med-02-retry-backoff__A_baseline",
+  "arm": "A_baseline",
+  "caseId": "med-02-retry-backoff",
+  "trial": 3,
+  "pairOrder": "BA",
+  "durationsMs": {
+    "setupMs": 0,
+    "agentMs": 14684.234167999995,
+    "verifyMs": 210.94157100000302,
+    "cleanupMs": 0,
+    "wallClockMs": 14902.609399000008
+  },
+  "requests": [
+    {
+      "turn": 1,
+      "usage": {
+        "uncachedInput": 162,
+        "cacheRead": 1879,
+        "cacheWrite": 469,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 127,
+        "totalInputAll": 2510,
+        "totalTokens": 2637
+      },
+      "cost": {
+        "costDollars": 0.000176,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0.000016,
+          "cacheReadUsd": 0.000038,
+          "cacheWriteUsd": 0.000059,
+          "outputUsd": 0.000063
+        }
+      }
+    },
+    {
+      "turn": 2,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 2348,
+        "cacheWrite": 886,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 112,
+        "totalInputAll": 3236,
+        "totalTokens": 3348
+      },
+      "cost": {
+        "costDollars": 0.000214,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000047,
+          "cacheWriteUsd": 0.000111,
+          "outputUsd": 0.000056
+        }
+      }
+    },
+    {
+      "turn": 3,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 3234,
+        "cacheWrite": 543,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 398,
+        "totalInputAll": 3779,
+        "totalTokens": 4177
+      },
+      "cost": {
+        "costDollars": 0.000332,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000065,
+          "cacheWriteUsd": 0.000068,
+          "outputUsd": 0.000199
+        }
+      }
+    },
+    {
+      "turn": 4,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 3777,
+        "cacheWrite": 1991,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 295,
+        "totalInputAll": 5770,
+        "totalTokens": 6065
+      },
+      "cost": {
+        "costDollars": 0.000472,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000076,
+          "cacheWriteUsd": 0.000249,
+          "outputUsd": 0.000148
+        }
+      }
+    },
+    {
+      "turn": 5,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 5768,
+        "cacheWrite": 2903,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 315,
+        "totalInputAll": 8673,
+        "totalTokens": 8988
+      },
+      "cost": {
+        "costDollars": 0.000636,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000115,
+          "cacheWriteUsd": 0.000363,
+          "outputUsd": 0.000158
+        }
+      }
+    },
+    {
+      "turn": 6,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 8671,
+        "cacheWrite": 344,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 101,
+        "totalInputAll": 9017,
+        "totalTokens": 9118
+      },
+      "cost": {
+        "costDollars": 0.000267,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000173,
+          "cacheWriteUsd": 0.000043,
+          "outputUsd": 0.000051
+        }
+      }
+    },
+    {
+      "turn": 7,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 9015,
+        "cacheWrite": 122,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 112,
+        "totalInputAll": 9139,
+        "totalTokens": 9251
+      },
+      "cost": {
+        "costDollars": 0.000252,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.00018,
+          "cacheWriteUsd": 0.000015,
+          "outputUsd": 0.000056
+        }
+      }
+    },
+    {
+      "turn": 8,
+      "usage": {
+        "uncachedInput": 2,
+        "cacheRead": 9137,
+        "cacheWrite": 1645,
+        "cacheWriteType": "ephemeral_5m",
+        "output": 752,
+        "totalInputAll": 10784,
+        "totalTokens": 11536
+      },
+      "cost": {
+        "costDollars": 0.000765,
+        "costKind": "estimated",
+        "pricing": {
+          "pricingStatus": "priced",
+          "canonicalId": "claude-haiku-5.5",
+          "inputPer1M": 0.1,
+          "outputPer1M": 0.5,
+          "cacheReadPer1M": 0.02,
+          "cacheWrite5mPer1M": 0.125,
+          "source": "nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier",
+          "asOfDate": "2026-11-14"
+        },
+        "breakdown": {
+          "uncachedInputUsd": 0,
+          "cacheReadUsd": 0.000183,
+          "cacheWriteUsd": 0.000206,
+          "outputUsd": 0.000376
+        }
+      }
+    }
+  ],
+  "toolCalls": [
+    {
+      "toolCallId": "toolu_01KogxCXZiaBrMKFcBzEbDhG",
+      "turnIndex": 1,
+      "name": "search_code",
+      "startedAtMonoMs": 1084.436,
+      "durationMs": 5,
+      "isError": false,
+      "argsPreview": "{\"pattern\":\"compute_backoff_ms\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 32,
+      "argsSha256": "8f542f109b3f5e1100670f0efe9600c0241a5a7283547d81ea8e8780379dca0a",
+      "outputPreview": "tests/test_scheduler.py:3: from taskflow.core.scheduler import compute_backoff_ms\ntests/test_scheduler.py:8:     assert compute_backoff_ms(1, cfg) == 100\ntests/test_scheduler.py:9:     assert compute_backoff_ms(2, cfg) == 200\ntests/test_scheduler.py:10:     assert compute_backoff_ms(4, cfg) == 500\ntaskflow/core/scheduler.py:4: def compute_backoff_ms(attempt: int, cfg: RetryConfig) -> int:",
+      "outputTruncated": false,
+      "outputOriginalBytes": 391,
+      "outputSha256": "e51ab83022805223d662bad7e6669a057dd1758b7f8f2dbee77b21ca8f3ced2a",
+      "toolOutputBytes": 391,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01VNiPtdwuzfzek4cL37vPNk",
+      "turnIndex": 1,
+      "name": "read_file",
+      "startedAtMonoMs": 1089.637,
+      "durationMs": 1,
+      "isError": false,
+      "argsPreview": "{\"path\":\"tests/test_scheduler.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 34,
+      "argsSha256": "3cc8537ff8b459871dc60a29a9ddfb4fa0e3a433f94f2b1d47b4b99131ddab23",
+      "outputPreview": "File: tests/test_scheduler.py (lines 1-17 of 17):\n     1\timport pytest\n     2\tfrom taskflow.core.config import RetryConfig\n     3\tfrom taskflow.core.scheduler import compute_backoff_ms\n     4\t\n     5\t\n     6\tdef test_backoff_caps_at_max_delay():\n     7\t    cfg = RetryConfig(max_attempts=5, base_delay_ms=100, max_delay_ms=500)\n     8\t    assert compute_backoff_ms(1, cfg) == 100\n     9\t    assert compute_backoff_ms(2, cfg) == 200\n    10\t    assert compute_backoff_ms(4, cfg) == 500\n    11\t\n    12\t\n    13\t@pytest.mark.parametrize(\"n\", range(40))\n    14\tdef test_config_defaults_bulk(n):\n    15\t    cfg = RetryConfig(base_delay_ms=50 + n)\n    16\t    print(f\"checked retry config variant {n} with base={cfg.base_delay_ms}\")\n    17\t    assert cfg.max_attempts == 3",
+      "outputTruncated": false,
+      "outputOriginalBytes": 763,
+      "outputSha256": "6288095672555e1bfe3da352d5aba43b48d68a781699aa9ad5f9f03cd51e5065",
+      "toolOutputBytes": 763,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_014TZ5o3psjnQr35714oQMXt",
+      "turnIndex": 2,
+      "name": "read_file",
+      "startedAtMonoMs": 1988.563,
+      "durationMs": 1,
+      "isError": false,
+      "argsPreview": "{\"path\":\"taskflow/core/scheduler.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 37,
+      "argsSha256": "b91ae8e880971d10881db18a362ddfebd3ca1c2d81fd71a0a0dab4627f60b2d5",
+      "outputPreview": "File: taskflow/core/scheduler.py (lines 1-10 of 10):\n     1\tfrom taskflow.core.config import RetryConfig\n     2\t\n     3\t\n     4\tdef compute_backoff_ms(attempt: int, cfg: RetryConfig) -> int:\n     5\t    \"\"\"Return exponential backoff capped at cfg.max_delay_ms.\"\"\"\n     6\t    if attempt <= 0:\n     7\t        return 0\n     8\t    raw = cfg.base_delay_ms * (2 ** (attempt - 1))\n     9\t    # BUG med-02: uses min? No, accidentally uses max instead of min, ignoring cap!\n    10\t    return max(raw, cfg.max_delay_ms)",
+      "outputTruncated": false,
+      "outputOriginalBytes": 508,
+      "outputSha256": "4849358afde99b474bdde6dcc8b9e2b7abd761861cb1f9dcc8b6e8ed0bbd541f",
+      "toolOutputBytes": 508,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01HzF1bKPdr3uSo6sh1qTUBn",
+      "turnIndex": 2,
+      "name": "read_file",
+      "startedAtMonoMs": 1989.709,
+      "durationMs": 1,
+      "isError": false,
+      "argsPreview": "{\"path\":\"taskflow/core/config.py\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 34,
+      "argsSha256": "cd5f50fcd7ee2286b2f6f2f1316ceb6b91ab6898190684be4eed4e7813de134d",
+      "outputPreview": "File: taskflow/core/config.py (lines 1-9 of 9):\n     1\tfrom dataclasses import dataclass\n     2\t\n     3\t\n     4\t@dataclass(frozen=True)\n     5\tclass RetryConfig:\n     6\t    max_attempts: int = 3\n     7\t    base_delay_ms: int = 100\n     8\t    max_delay_ms: int = 1000\n     9\t    jitter: bool = False",
+      "outputTruncated": false,
+      "outputOriginalBytes": 298,
+      "outputSha256": "cc8e9da37b823b2a4327c45f755dc1f58ec69188d755b96039521b345b5cdc89",
+      "toolOutputBytes": 298,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_015VujsyUZuuDN5AqURs1d8M",
+      "turnIndex": 3,
+      "name": "edit",
+      "startedAtMonoMs": 4051.788,
+      "durationMs": 1,
+      "isError": false,
+      "argsPreview": "{\"path\":\"taskflow/core/scheduler.py\",\"oldText\":\"    # BUG med-02: uses min? No, accidentally uses max instead of min, ignoring cap!\\n    return max(raw, cfg.max_delay_ms)\",\"newText\":\"    return min(raw, cfg.max_delay_ms)\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 222,
+      "argsSha256": "54a4a4d2e400868541cd39caaaf7d450484b7d0aa17de20545225177d733c895",
+      "outputPreview": "Successfully replaced 1 occurrence of oldText in /dev/shm/hoang-agent-tmp/med-A_baseline-med-02-retry-backoff-2FHBu0/workspace/taskflow/core/scheduler.py (-1 lines)",
+      "outputTruncated": false,
+      "outputOriginalBytes": 164,
+      "outputSha256": "4a1610cc0e1e5833100121d670c5a5a3358b388d4b4ffb595e05854cfa315597",
+      "toolOutputBytes": 164,
+      "exitCode": null,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01UvJnwM6qrdZj4fx22t8ve9",
+      "turnIndex": 3,
+      "name": "run_tests",
+      "startedAtMonoMs": 4053.034,
+      "durationMs": 221,
+      "isError": false,
+      "argsPreview": "{}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 2,
+      "argsSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "outputPreview": "passed 121, failed 3, skipped 0, collection errors 0\nFailed:\n  tests/test_api_pagination.py::test_pagination_first_page\n  tests/test_api_pagination.py::test_pagination_second_page\n  tests/test_export.py::test_csv_export_handles_none_metadata\nOutput (tail):\nest_task_summary_bulk[36]\nPASSED tests/test_export.py::test_task_summary_bulk[37]\nPASSED tests/test_export.py::test_task_summary_bulk[38]\nPASSED tests/test_export.py::test_task_summary_bulk[39]\nPASSED tests/test_scheduler.py::test_backoff_caps_at_max_delay\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[0]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[1]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[2]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[3]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[4]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[5]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[6]\nPASSED tests/test_scheduler.py::test_config_defaults_bulk[7]\nPASSED tests/test_sche",
+      "outputTruncated": true,
+      "outputOriginalBytes": 3257,
+      "outputSha256": "286c61d007e05874d47179511a1989206243a2e89a73976d6551420249d86ca5",
+      "toolOutputBytes": 3257,
+      "exitCode": 1,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01FkVV9qVTNJcwSTeX5fakbU",
+      "turnIndex": 4,
+      "name": "run_command",
+      "startedAtMonoMs": 6264.299,
+      "durationMs": 16,
+      "isError": false,
+      "argsPreview": "{\"command\":\"cd . && (git stash list >/dev/null 2>&1; git status --short; git diff --stat) ; grep -rn \\\"scheduler\\\\|backoff\\\" tests/test_api_pagination.py tests/test_export.py | head; git stash && python -m pytest -q tests/test_api_pagination.py tests/test_export.py 2>&1 | tail -5; git stash pop && git diff\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 309,
+      "argsSha256": "768661c2c94b18461c5d0f9b84e973a26797fefe41e554b846b28ba429f2f247",
+      "outputPreview": "[stderr]\nfatal: not a git repository (or any parent up to mount point /dev/shm/hoang-agent-tmp/med-A_baseline-med-02-retry-backoff-2FHBu0)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\nwarning: Not a git repository. Use --no-index to compare two paths outside a working tree\nusage: git diff --no-index [<options>] <path> <path>\n\nDiff output format options\n    -p, --patch           generate patch\n    -s, --no-patch        suppress diff output\n    -u                    generate patch\n    -U, --unified[=<n>]   generate diffs with <n> lines context\n    -W, --[no-]function-context\n                          generate diffs with <n> lines context\n    --raw                 generate the diff in raw format\n    --patch-with-raw      synonym for '-p --raw'\n    --patch-with-stat     synonym for '-p --stat'\n    --numstat             machine friendly --stat\n    --shortstat           output only the last line of --stat\n    -X, --dirstat[=<param1,param2>...]\n                          output the distr",
+      "outputTruncated": true,
+      "outputOriginalBytes": 7997,
+      "outputSha256": "474e6c1210a8d5859890c7a1ca6bbea3d389881f596fb8431d434d320e0846c2",
+      "toolOutputBytes": 7997,
+      "exitCode": 128,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_014HdSSZdrSKqNw5MamvsQW2",
+      "turnIndex": 5,
+      "name": "run_command",
+      "startedAtMonoMs": 8243.757,
+      "durationMs": 10,
+      "isError": false,
+      "argsPreview": "{\"command\":\"cat taskflow/core/scheduler.py; echo ---; python -m pytest -q tests/test_api_pagination.py tests/test_export.py::test_csv_export_handles_none_metadata 2>&1 | grep -E \\\"Error|assert|^E \\\" | head -30\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 211,
+      "argsSha256": "f59571c1e71ae4b0097b4d33b8909eb88dc9a3cd80e3240a010b4f950f731a9a",
+      "outputPreview": "from taskflow.core.config import RetryConfig\n\n\ndef compute_backoff_ms(attempt: int, cfg: RetryConfig) -> int:\n    \"\"\"Return exponential backoff capped at cfg.max_delay_ms.\"\"\"\n    if attempt <= 0:\n        return 0\n    raw = cfg.base_delay_ms * (2 ** (attempt - 1))\n    return min(raw, cfg.max_delay_ms)\n---",
+      "outputTruncated": false,
+      "outputOriginalBytes": 305,
+      "outputSha256": "d0b07e6e5b81fa2ec22a3c11f75e25327bf7ad7af90280c8a726b85d1fa6c7bc",
+      "toolOutputBytes": 305,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_018WDW6Z5nWAt4Sj8CMjmQ9S",
+      "turnIndex": 6,
+      "name": "run_command",
+      "startedAtMonoMs": 9204.165,
+      "durationMs": 9,
+      "isError": false,
+      "argsPreview": "{\"command\":\"python -m pytest -q tests/test_api_pagination.py tests/test_export.py::test_csv_export_handles_none_metadata 2>&1 | tail -80\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 138,
+      "argsSha256": "572205f654614de93f17a3eb5d78586eb9fc93bfd987105c0f5560b1ab98f71c",
+      "outputPreview": "/bin/bash: line 1: python: command not found",
+      "outputTruncated": false,
+      "outputOriginalBytes": 44,
+      "outputSha256": "85d7f9c10d564f0509488e9945c51719161193d0589a8f49fdc3e0eb493ac1b4",
+      "toolOutputBytes": 44,
+      "exitCode": 0,
+      "timedOut": false
+    },
+    {
+      "toolCallId": "toolu_01HR4zeP4C818HviRzZhbiAn",
+      "turnIndex": 7,
+      "name": "run_command",
+      "startedAtMonoMs": 10353.86,
+      "durationMs": 235,
+      "isError": false,
+      "argsPreview": "{\"command\":\"ls -a; (python3 -m pytest -q tests/test_api_pagination.py tests/test_export.py::test_csv_export_handles_none_metadata 2>&1 || true) | tail -80\"}",
+      "argsTruncated": false,
+      "argsOriginalBytes": 156,
+      "argsSha256": "a51a5d7c8e5ca578b6497a275562c55cf2b286688cf50ec6ad42036597658604",
+      "outputPreview": ".\n..\n.pytest_cache\npytest.ini\nREADME.md\ntaskflow\ntests\n.verified bulk item 18 successfully in store\n.verified bulk item 19 successfully in store\n.verified bulk item 20 successfully in store\n.verified bulk item 21 successfully in store\n.verified bulk item 22 successfully in store\n.verified bulk item 23 successfully in store\n.verified bulk item 24 successfully in store\n.verified bulk item 25 successfully in store\n.verified bulk item 26 successfully in store\n.verified bulk item 27 successfully in store\n.verified bulk item 28 successfully in store\n.verified bulk item 29 successfully in store\n.verified bulk item 30 successfully in store\n.verified bulk item 31 successfully in store\n.verified bulk item 32 successfully in store\n.verified bulk item 33 successfully in store\n.verified bulk item 34 successfully in store\n.verified bulk item 35 successfully in store\n.verified bulk item 36 successfully in store\n.verified bulk item 37 successfully in store\n.verified bulk item 38 successfully in store\n.verified bulk item 39 s",
+      "outputTruncated": true,
+      "outputOriginalBytes": 3748,
+      "outputSha256": "5beefda45b4d33b94e5492daacf23ca57344cd64fcfd45b844bcadd33010c85e",
+      "toolOutputBytes": 3748,
+      "exitCode": 0,
+      "timedOut": false
+    }
+  ],
+  "diffBytes": 544
+}

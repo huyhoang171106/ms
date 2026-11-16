@@ -248,6 +248,19 @@ export function extractExitMetadata(toolName: string, output: string, isError: b
   return { exitCode: 1, timedOut: false };
 }
 
+function resolveDirectBundledSkillPath(rawPath: string): { relPath: string; bundledPath: string } | null {
+  const trimmed = rawPath.trim();
+  if (!trimmed || trimmed.includes('\0') || !path.isAbsolute(trimmed)) return null;
+  const resolvedInput = path.resolve(trimmed);
+  for (const allowedRel of BUNDLED_SKILL_ALLOWLIST) {
+    const candidate = path.resolve(BUNDLED_SKILLS_DIR, allowedRel.slice('skills/'.length));
+    if (resolvedInput === candidate && isBundledSkillFile(candidate)) {
+      return { relPath: allowedRel, bundledPath: candidate };
+    }
+  }
+  return null;
+}
+
 export function resolveAllowlistedBundledSkill(
   rawPath: string,
   workspaceRoot?: string,
@@ -257,6 +270,8 @@ export function resolveAllowlistedBundledSkill(
 
   let relPosix: string;
   if (path.isAbsolute(trimmed)) {
+    const directBundled = resolveDirectBundledSkillPath(trimmed);
+    if (directBundled) return directBundled;
     if (!workspaceRoot) return null;
     let realRoot: string;
     try {
@@ -304,23 +319,19 @@ function formatBundledSkillHashline(
   lineCount: number,
 ): string {
   const raw = fs.readFileSync(bundledPath, 'utf8');
-  const eol = raw.includes('\r\n') ? 'CRLF' : raw.includes('\n') ? 'LF' : 'NONE';
-  const fileRev = crypto.createHash('sha256').update(raw, 'utf8').digest('hex');
   const allLines = raw.split(/\r?\n/);
   if (allLines.length > 0 && allLines[allLines.length - 1] === '') {
     allLines.pop();
   }
   const totalLines = allLines.length;
   if (totalLines === 0) {
-    return `rev:${fileRev} eol:${eol} lines:0-0/0`;
+    return '(empty file)';
   }
   const start = Math.max(1, Math.min(startLine, totalLines));
   const end = Math.max(start, Math.min(start + lineCount - 1, totalLines));
-  const out = [`rev:${fileRev} eol:${eol} lines:${start}-${end}/${totalLines}`];
+  const out: string[] = [];
   for (let ln = start; ln <= end; ln++) {
-    const text = allLines[ln - 1] ?? '';
-    const tag = crypto.createHash('sha256').update(`${ln}:${text}`, 'utf8').digest('hex').slice(0, 4);
-    out.push(`${ln}:${tag}| ${text}`);
+    out.push(`${ln}\t${allLines[ln - 1] ?? ''}`);
   }
   return out.join('\n');
 }
@@ -355,6 +366,58 @@ export class BaselineReadTool extends BaseTool {
   }
 }
 
+export class RevisionAliasRegistry {
+  private readonly byAlias = new Map<string, { path: string; fullRevision: string }>();
+  private readonly bySnapshot = new Map<string, string>();
+
+  register(filePath: string, fullRevision: string): string {
+    const snapKey = `${filePath}\0${fullRevision}`;
+    const existing = this.bySnapshot.get(snapKey);
+    if (existing) return existing;
+
+    let len = 8;
+    let alias = fullRevision.slice(0, len);
+    while (this.byAlias.has(alias)) {
+      const bound = this.byAlias.get(alias)!;
+      if (bound.path === filePath && bound.fullRevision === fullRevision) {
+        return alias;
+      }
+      if (len < fullRevision.length) {
+        len = Math.min(fullRevision.length, len + 2);
+        alias = fullRevision.slice(0, len);
+      } else {
+        alias = `${fullRevision.slice(0, 8)}-${this.byAlias.size}`;
+      }
+    }
+
+    this.byAlias.set(alias, { path: filePath, fullRevision });
+    this.bySnapshot.set(snapKey, alias);
+    return alias;
+  }
+
+  resolve(filePath: string, aliasOrFull?: string): string | undefined {
+    if (!aliasOrFull) return undefined;
+    if (/^[0-9a-f]{64}$/i.test(aliasOrFull)) return aliasOrFull;
+    const entry = this.byAlias.get(aliasOrFull);
+    if (entry && entry.path === filePath) {
+      return entry.fullRevision;
+    }
+    return aliasOrFull;
+  }
+
+  shortenHashline(hashline: string, filePath: string, fullRevision?: string): string {
+    const m = hashline.match(/^rev:([0-9a-f]{64})(\s|$)/i);
+    if (m) {
+      const alias = this.register(filePath, m[1]!);
+      return `rev:${alias}${hashline.slice(4 + m[1]!.length)}`;
+    }
+    if (fullRevision && /^[0-9a-f]{64}$/i.test(fullRevision)) {
+      this.register(filePath, fullRevision);
+    }
+    return hashline;
+  }
+}
+
 class MsReadTool extends BaseTool {
   readonly name = 'read_file';
   readonly isReadOnly = true;
@@ -375,14 +438,13 @@ class MsReadTool extends BaseTool {
     private readonly ms: MsAxiomAdapter,
     private readonly sessionId: string,
     private readonly bundledSkillMode: BundledSkillMode = 'on',
+    private readonly revAliases: RevisionAliasRegistry = new RevisionAliasRegistry(),
   ) {
     super();
   }
 
   async execute(args: Record<string, unknown>, context?: ToolExecutionContext): Promise<string> {
     const rawPath = typeof args.path === 'string' ? args.path : '';
-    const filePath = toWorkspaceRel(rawPath, context);
-    if (!filePath) return 'Error: path is required';
     let startLine = typeof args.offset === 'number' && args.offset >= 1 ? Math.floor(args.offset) : 1;
     let lineCount = typeof args.limit === 'number' && args.limit >= 1 ? Math.floor(args.limit) : 200;
     if (typeof args.lineRange === 'string' && args.lineRange.trim()) {
@@ -393,10 +455,18 @@ class MsReadTool extends BaseTool {
         lineCount = endLine - startLine + 1;
       }
     }
+    if (this.bundledSkillMode === 'on') {
+      const directBundled = resolveDirectBundledSkillPath(rawPath);
+      if (directBundled) {
+        return formatBundledSkillHashline(directBundled.bundledPath, startLine, lineCount);
+      }
+    }
+    const filePath = toWorkspaceRel(rawPath, context);
+    if (!filePath) return 'Error: path is required';
     const { completed } = await this.ms.readFile(this.sessionId, filePath, startLine, lineCount, { format: 'hashline' });
     if (completed.status === 'ok' && completed.result) {
-      const res = completed.result as { hashline?: string };
-      return res.hashline ?? '';
+      const res = completed.result as { hashline?: string; fileRevision?: string };
+      return this.revAliases.shortenHashline(res.hashline ?? '', filePath, res.fileRevision);
     }
     if (
       this.bundledSkillMode === 'on' &&
@@ -419,6 +489,7 @@ class MsListTool extends BaseTool {
     type: 'object',
     properties: {
       path: { type: 'string', description: 'Directory to list (default ".")' },
+      depth: { type: 'number', description: 'Maximum directory depth (default 2)' },
       recursive: { type: 'boolean', description: 'Recurse into subdirectories (default true)' },
       maxEntries: { type: 'number', description: 'Maximum entries to return (default 200)' },
     },
@@ -432,6 +503,12 @@ class MsListTool extends BaseTool {
     const rawPath = typeof args.path === 'string' ? toWorkspaceRel(args.path, context) : '';
     const dirPath = rawPath && rawPath !== '.' ? rawPath : undefined;
     const recursive = typeof args.recursive === 'boolean' ? args.recursive : true;
+    const depth =
+      typeof args.depth === 'number' && args.depth >= 1
+        ? Math.floor(args.depth)
+        : typeof args.recursive === 'boolean'
+          ? undefined
+          : 2;
     const maxEntries = typeof args.maxEntries === 'number' ? Math.floor(args.maxEntries) : 200;
     const { records, completed } = await (this.ms as unknown as {
       sendRequest: (
@@ -443,7 +520,13 @@ class MsListTool extends BaseTool {
       }>;
     }).sendRequest('call', {
       sessionId: this.sessionId,
-      operation: { kind: 'list', path: dirPath, recursive, maxEntries },
+      operation: {
+        kind: 'list',
+        path: dirPath,
+        recursive,
+        ...(depth !== undefined ? { depth } : {}),
+        maxEntries,
+      },
     });
     if (completed.status !== 'ok') return formatMsError(completed);
     const entries = records as Array<{ kind: string; path: string }>;
@@ -494,10 +577,40 @@ class MsSearchTool extends BaseTool {
   }
 }
 
+async function buildPostEditSnippet(
+  ms: MsAxiomAdapter,
+  sessionId: string,
+  filePath: string,
+  edits: readonly EditSpec[],
+): Promise<string | undefined> {
+  const first = edits[0];
+  let centerLine: number | undefined;
+  if (first && 'startLine' in first && typeof first.startLine === 'number') {
+    centerLine = first.startLine;
+  } else if (first && 'newText' in first && typeof first.newText === 'string') {
+    const needle = first.newText.split('\n').map((l) => l.trim()).find((l) => l.length > 0);
+    if (needle) {
+      const searchRes = await ms.search(sessionId, needle, { path: filePath, regex: false, maxMatches: 1 });
+      if (searchRes.completed.status === 'ok' && Array.isArray(searchRes.records) && searchRes.records.length > 0) {
+        const rec = searchRes.records[0] as { lineNumber?: number };
+        if (typeof rec.lineNumber === 'number') {
+          centerLine = rec.lineNumber;
+        }
+      }
+    }
+  }
+  const startLine = centerLine ? Math.max(1, centerLine - 2) : 1;
+  const { completed } = await ms.readFile(sessionId, filePath, startLine, 5, { format: 'hashline' });
+  if (completed.status !== 'ok' || !completed.result) return undefined;
+  const hashline = (completed.result as { hashline?: string }).hashline;
+  if (!hashline) return undefined;
+  return hashline.replace(/^rev:[0-9a-f]+\s+/i, '');
+}
+
 class MsEditTool extends BaseTool {
   readonly name = 'edit';
   readonly description =
-    'Edit a file durably via `ms` RPC (WAL + openat2 + test-guard). Supports `edits` array, `oldText`+`newText`, or `startLine`+`endLine`+`replacement`.';
+    'Edit a file durably via `ms` RPC (WAL + openat2 + test-guard). Returns updated `rev:` and a 5-line hashline snippet around the edit. Supports `edits` array, `oldText`+`newText`, or `startLine`+`endLine`+`replacement`.';
   readonly parameters = {
     type: 'object',
     properties: {
@@ -519,7 +632,11 @@ class MsEditTool extends BaseTool {
     required: ['path'],
   };
 
-  constructor(private readonly ms: MsAxiomAdapter, private readonly sessionId: string) {
+  constructor(
+    private readonly ms: MsAxiomAdapter,
+    private readonly sessionId: string,
+    private readonly revAliases: RevisionAliasRegistry = new RevisionAliasRegistry(),
+  ) {
     super();
   }
 
@@ -553,11 +670,16 @@ class MsEditTool extends BaseTool {
     }
 
     const opId = `op-${crypto.randomUUID()}`;
-    const expectedRevision = typeof args.expectedRevision === 'string' ? args.expectedRevision : undefined;
+    const rawExpectedRevision = typeof args.expectedRevision === 'string' ? args.expectedRevision : undefined;
+    const expectedRevision = this.revAliases.resolve(filePath, rawExpectedRevision);
     const { completed } = await this.ms.editFile(this.sessionId, opId, filePath, edits, { expectedRevision });
     if (completed.status !== 'ok' || !completed.result) return formatMsError(completed);
-    const res = completed.result as { newRevision?: string; transactionId?: string };
-    return `Edited ${filePath} (rev:${res.newRevision ?? 'ok'}, tx:${res.transactionId ?? ''})`;
+    const res = completed.result as { afterRevision?: string; newRevision?: string; transactionId?: string };
+    const fullRev = res.afterRevision ?? res.newRevision;
+    const revOut = fullRev ? this.revAliases.register(filePath, fullRev) : 'ok';
+    const snippet = await buildPostEditSnippet(this.ms, this.sessionId, filePath, edits);
+    const header = `Edited ${filePath} (rev:${revOut}, tx:${res.transactionId ?? ''})`;
+    return snippet ? `${header}\n${snippet}` : header;
   }
 }
 
@@ -574,7 +696,11 @@ class MsWriteTool extends BaseTool {
     required: ['path', 'content'],
   };
 
-  constructor(private readonly ms: MsAxiomAdapter, private readonly sessionId: string) {
+  constructor(
+    private readonly ms: MsAxiomAdapter,
+    private readonly sessionId: string,
+    private readonly revAliases: RevisionAliasRegistry = new RevisionAliasRegistry(),
+  ) {
     super();
   }
 
@@ -589,14 +715,24 @@ class MsWriteTool extends BaseTool {
       overwrite,
     });
     if (completed.status !== 'ok' || !completed.result) return formatMsError(completed);
-    const res = completed.result as { newRevision?: string; transactionId?: string };
-    return `Wrote ${filePath} (rev:${res.newRevision ?? 'ok'}, tx:${res.transactionId ?? ''})`;
+    const res = completed.result as {
+      afterRevision?: string;
+      newRevision?: string;
+      transactionId?: string;
+      bytesWritten?: number;
+    };
+    const fullRev = res.afterRevision ?? res.newRevision;
+    const revOut = fullRev ? this.revAliases.register(filePath, fullRev) : 'ok';
+    const lineCount = content.length === 0 ? 0 : content.split('\n').length;
+    const bytes = res.bytesWritten ?? Buffer.byteLength(content, 'utf8');
+    return `Wrote ${filePath} (rev:${revOut}, lines:${lineCount}, bytes:${bytes}, tx:${res.transactionId ?? ''})`;
   }
 }
 
 class MsExecTool extends BaseTool {
   readonly name = 'run_command';
-  readonly description = 'Execute a shell command in the workspace (fast distilled output).';
+  readonly description =
+    'Run a shell command in the workspace. Prefer `read_file`, `search_code`, and `list_dir` for inspecting files and directories.';
   readonly parameters = {
     type: 'object',
     properties: {
@@ -650,7 +786,9 @@ class MsExecTool extends BaseTool {
       command,
     });
     if (firstPass.hasFailures) {
-      const snippets = await attachFailureSnippetsViaRpc(this.ms, this.sessionId, cwd, firstPass.cleanedLines);
+      const snippets = await attachFailureSnippetsViaRpc(this.ms, this.sessionId, cwd, firstPass.cleanedLines, {
+        renderedOutput: firstPass.output,
+      });
       if (snippets.length > 0) {
         return distillCommandOutput(res.rawOutput, {
           exitCode: res.exitCode,
@@ -661,6 +799,16 @@ class MsExecTool extends BaseTool {
           snippets,
         }).output;
       }
+    }
+    if (
+      !firstPass.hasFailures &&
+      res.exitCode === 0 &&
+      !res.timedOut &&
+      firstPass.cleanedLines.length <= 40 &&
+      Buffer.byteLength(res.rawOutput, 'utf8') <= 2048
+    ) {
+      const body = firstPass.cleanedLines.filter((l) => l.trim().length > 0).join('\n');
+      return body || '(Command produced no output)';
     }
     return firstPass.output || '(Command produced no output)';
   }
@@ -715,7 +863,9 @@ class MsRunTestsTool extends BaseTool {
       kind: 'pytest',
     });
     if (firstPass.hasFailures) {
-      const snippets = await attachFailureSnippetsViaRpc(this.ms, this.sessionId, cwd, firstPass.cleanedLines);
+      const snippets = await attachFailureSnippetsViaRpc(this.ms, this.sessionId, cwd, firstPass.cleanedLines, {
+        renderedOutput: firstPass.output,
+      });
       if (snippets.length > 0) {
         return distillCommandOutput(res.rawOutput, {
           exitCode: res.exitCode,
@@ -843,12 +993,13 @@ export function registerMsTools(
   sandboxPlan: SandboxPlan = planSandbox(),
   options?: { includeExtraTools?: boolean; bundledSkillMode?: BundledSkillMode },
 ): void {
+  const revAliases = new RevisionAliasRegistry();
   registry.unregisterTool('apply_patch');
-  registry.registerTool(new MsReadTool(msAdapter, msSessionId, options?.bundledSkillMode ?? 'on'));
+  registry.registerTool(new MsReadTool(msAdapter, msSessionId, options?.bundledSkillMode ?? 'on', revAliases));
   registry.registerTool(new MsListTool(msAdapter, msSessionId));
   registry.registerTool(new MsSearchTool(msAdapter, msSessionId));
-  registry.registerTool(new MsEditTool(msAdapter, msSessionId));
-  registry.registerTool(new MsWriteTool(msAdapter, msSessionId));
+  registry.registerTool(new MsEditTool(msAdapter, msSessionId, revAliases));
+  registry.registerTool(new MsWriteTool(msAdapter, msSessionId, revAliases));
   registry.registerTool(new MsExecTool(msAdapter, msSessionId, mode, sandboxPlan));
   registry.registerTool(new MsRunTestsTool(msAdapter, msSessionId, mode, sandboxPlan));
   if (options?.includeExtraTools) {

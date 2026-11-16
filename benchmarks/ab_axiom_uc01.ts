@@ -401,7 +401,7 @@ export async function runSingle(
       sessionManager: new SessionManager({ workspaceRoot: workspaceDir, sessionsDir, autoSave: false }),
       costTracker,
       eventBus: bus,
-      systemPrompt: buildSystemPrompt(DEFAULT_SYSTEM_PROMPT, workspaceDir),
+      systemPrompt: `${buildSystemPrompt(DEFAULT_SYSTEM_PROMPT, workspaceDir)}\n\nEnvironment:\n- Workspace root: ${workspaceDir}\n- Use relative paths from the workspace root for project files.`,
       maxSteps: ctx.opts.maxSteps,
       budgetLimitDollars: ctx.opts.budgetDollars,
     });

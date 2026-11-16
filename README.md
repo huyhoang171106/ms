@@ -54,6 +54,7 @@ Coding agents and orchestrators (such as Axiom) spawn `ms` as a subprocess or us
 
 - **TypeScript / Axiom Adapter**: [`examples/axiom_adapter.ts`](examples/axiom_adapter.ts) — typed `MsClient` and `MsAxiomAdapter` (preserving `test-guard` protections, in-process `exec` + `readLog`, `hashline` snippets, and `operationId` idempotency).
 - **Python Client**: [`examples/python_client.py`](examples/python_client.py) — end-to-end NDJSON stdio example.
+- **Single Axiom Tool (code mode)**: [`integrations/axiom/`](integrations/axiom/README.md) — replaces Axiom's eight file/shell tools with one `ms` tool that runs a JavaScript program on this runtime (**−48.7%** tool-definition bytes, 1 call instead of 4), keeping revision checks, atomic batches, durable undo, the test-guard and distilled output. Check: `bun integrations/axiom/selftest.ts`.
 - See [`examples/README.md`](examples/README.md) for usage details.
 
 ## Verification & Benchmarks

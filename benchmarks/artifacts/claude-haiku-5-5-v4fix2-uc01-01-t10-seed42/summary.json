@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "2.0.0",
+  "experimentId": "uc01-controlled-seed42-2026-11-15T01-54-00-518Z",
+  "generatedAt": "2026-11-15T02:00:24.894Z",
+  "totalRuns": 20,
+  "mode": "controlled",
+  "seed": 42,
+  "trials": 10,
+  "byArm": {
+    "A_baseline": {
+      "attempted": 10,
+      "verifiedSuccess": 10,
+      "targetFixed": 10,
+      "noRegressions": 10,
+      "infraErrors": 0,
+      "timeouts": 0,
+      "totalWallClockMs": 151954.05,
+      "totalLlmTurns": 72,
+      "totalToolCalls": 112,
+      "totalToolFailures": 0,
+      "totalCommandNonZeroExits": 18,
+      "totalCommandTimeouts": 0,
+      "totalToolOutputBytes": 53178,
+      "totalUncachedInputTokens": 3494,
+      "totalCacheReadTokens": 291226,
+      "totalCacheWriteTokens": 39014,
+      "totalOutputTokens": 24686,
+      "totalTokens": 358420,
+      "totalCostDollars": 0.023393,
+      "costPerAttemptedTask": 0.002339,
+      "costPerVerifiedSuccess": 0.002339
+    },
+    "B_ms": {
+      "attempted": 10,
+      "verifiedSuccess": 10,
+      "targetFixed": 10,
+      "noRegressions": 10,
+      "infraErrors": 0,
+      "timeouts": 0,
+      "totalWallClockMs": 232100.11,
+      "totalLlmTurns": 103,
+      "totalToolCalls": 148,
+      "totalToolFailures": 1,
+      "totalCommandNonZeroExits": 18,
+      "totalCommandTimeouts": 0,
+      "totalToolOutputBytes": 60767,
+      "totalUncachedInputTokens": 3556,
+      "totalCacheReadTokens": 501222,
+      "totalCacheWriteTokens": 54004,
+      "totalOutputTokens": 38296,
+      "totalTokens": 597078,
+      "totalCostDollars": 0.036278,
+      "costPerAttemptedTask": 0.003628,
+      "costPerVerifiedSuccess": 0.003628
+    }
+  },
+  "pairedDeltasByCase": {
+    "uc01-01-bug-crash-null": {
+      "pairs": 10,
+      "passDeltaBMinusA": 0,
+      "wallClockMsMedianDeltaBMinusA": 6646.91,
+      "costDollarsMedianDeltaBMinusA": 0.001197,
+      "turnsMedianDeltaBMinusA": 3
+    }
+  }
+}

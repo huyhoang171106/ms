@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "1.1.0",
+  "options": {
+    "packName": "refactorbench",
+    "model": "trollllm/claude-fable-5-2",
+    "trials": 1,
+    "cases": [
+      "tornado_refactor/options-utils"
+    ],
+    "maxSteps": 25,
+    "outDir": "/home/hoang/ms/benchmarks/artifacts/diag-thinking-fable52",
+    "arms": [
+      "B_one"
+    ]
+  },
+  "baseline": {
+    "exitCode": 0,
+    "failed": [],
+    "passed": [],
+    "collectionError": false,
+    "summary": "per-case suites"
+  },
+  "arms": {
+    "A_eight": {
+      "runs": 0,
+      "passed": 0,
+      "targetFixed": 0,
+      "requiredTests": 0,
+      "regressions": 0,
+      "testTampering": 0,
+      "errors": 0,
+      "toolFailures": 0,
+      "medianTurns": 0,
+      "medianToolCalls": 0,
+      "medianOutputBytes": 0,
+      "totalTokens": 0,
+      "medianWallClockMs": 0
+    },
+    "B_one": {
+      "runs": 1,
+      "passed": 0,
+      "targetFixed": 0,
+      "requiredTests": 0,
+      "regressions": 0,
+      "testTampering": 0,
+      "errors": 0,
+      "toolFailures": 1,
+      "medianTurns": 6,
+      "medianToolCalls": 5,
+      "medianOutputBytes": 72958,
+      "totalTokens": 14825,
+      "medianWallClockMs": 152427.9
+    }
+  },
+  "records": [
+    {
+      "pack": "refactorbench",
+      "arm": "B_one",
+      "caseId": "tornado_refactor/options-utils",
+      "trial": 0,
+      "pairOrder": "AB",
+      "agentStatus": "ok",
+      "targetFixed": false,
+      "probeOutput": "FAILED (failures=22)",
+      "requiredTestsPassed": 0,
+      "requiredTestsTotal": 0,
+      "noRegressions": true,
+      "newFailures": [],
+      "collectionError": false,
+      "testsIntact": true,
+      "tamperedTestFiles": [],
+      "overallPassed": false,
+      "llmTurns": 6,
+      "toolCalls": 5,
+      "toolFailures": 1,
+      "toolOutputBytes": 72958,
+      "promptTokens": 14,
+      "completionTokens": 14811,
+      "cachedTokens": 89134,
+      "cacheWriteTokens": 0,
+      "cacheHitRate": 0.9998,
+      "estimatedCostUsd": null,
+      "wallClockMs": 152427.9,
+      "toolErrorSamples": [
+        "ms: Error: `code` is required: a JavaScript program body using the `ms` capability table."
+      ]
+    }
+  ]
+}

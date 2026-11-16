@@ -1,4 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
+use std::ffi::OsString;
+use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::LazyLock;
@@ -37,6 +39,9 @@ pub struct ExecDistillResult {
 
 const LOG_RETENTION_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 const LOG_RETENTION_MAX_FILES: usize = 200;
+/// Bound on how often the retention sweep may scan the log directory. It used to run on every `ms exec`,
+/// costing a full `readdir` + 200 `stat` calls per command; the TTL is 24h, so every 5 minutes is plenty.
+const LOG_GC_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 pub fn log_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os("MS_LOG_DIR")
@@ -62,7 +67,16 @@ fn persist_raw_log(log_id: &str, cmd_display: &str, raw: &str) -> Result<PathBuf
     let path = dir.join(format!("{log_id}.log"));
     let content = format!("# cmd: {cmd_display}\n{raw}");
     std::fs::write(&path, content)?;
-    let _ = gc_log_dir(&dir, LOG_RETENTION_MAX_AGE, LOG_RETENTION_MAX_FILES);
+    let stamp = dir.join(".last-gc");
+    let due = std::fs::metadata(&stamp)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .is_none_or(|age| age >= LOG_GC_INTERVAL);
+    if due {
+        let _ = gc_log_dir(&dir, LOG_RETENTION_MAX_AGE, LOG_RETENTION_MAX_FILES);
+        let _ = std::fs::write(&stamp, b"");
+    }
     Ok(path)
 }
 
@@ -153,17 +167,648 @@ pub fn read_log(log_id: &str, tail: Option<usize>, grep: Option<&str>) -> Result
     Ok(out)
 }
 
+/// Env var names that are never passed on to a child, mirroring the harness-side scrub: `printenv` or
+/// `echo $X_API_KEY` inside the command must not be able to read the agent's own credentials.
+/// A substring test rather than a regex so `ms exec` pays no regex compile on its hot path.
+const SECRET_ENV_MARKERS: [&str; 8] = [
+    "KEY",
+    "SECRET",
+    "TOKEN",
+    "PASSWORD",
+    "PASS",
+    "AUTH",
+    "CREDENTIAL",
+    "PRIVATE",
+];
+/// Variables that would break ordinary commands if scrubbed.
+const ENV_ALWAYS_KEPT: [&str; 4] = ["PATH", "HOME", "LANG", "TERM"];
+
+fn scrubbed_env() -> Vec<(OsString, OsString)> {
+    std::env::vars_os()
+        .filter(|(k, _)| {
+            let name = k.to_string_lossy().to_ascii_uppercase();
+            ENV_ALWAYS_KEPT.contains(&name.as_str())
+                || !SECRET_ENV_MARKERS.iter().any(|m| name.contains(m))
+        })
+        .collect()
+}
+
+/// Strips quote characters so `rm -rf "/"` and `rm -rf /` compare equal. Quoted text that only prints
+/// (`echo "rm -rf /"`) is dropped by the segment filter below instead.
+fn unquoted(token: &str) -> String {
+    token.replace(['"', '\''], "")
+}
+
+/// Collapses `//`, `/./` and `/../` so `/tmp/../../etc` is seen as the `/etc` the kernel would open.
+fn canonical_path(token: &str) -> String {
+    if !token.starts_with('/') {
+        return token.to_string();
+    }
+    let mut parts: Vec<&str> = Vec::new();
+    for part in token.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop();
+            }
+            other => parts.push(other),
+        }
+    }
+    format!("/{}", parts.join("/"))
+}
+
+/// A shell-text guard, not a security boundary (the workspace sandbox is): it refuses the handful of
+/// commands an agent never means, which have no other recovery than a lost machine.
+fn destructive_reason(command: &str) -> Option<&'static str> {
+    let flattened = command
+        .replace(['"', '\''], "")
+        .replace("\\/", "/")
+        .replace("${HOME}", "~")
+        .replace("$HOME", "~");
+    let whole = flattened.split_whitespace().collect::<Vec<_>>().join(" ");
+
+    // `d=~; rm -rf $d` hides the target behind a variable: treat a recursive rm next to a home-ish
+    // assignment as aimed at the home tree.
+    let home_assignment = whole.split_whitespace().any(|t| {
+        t.split_once('=')
+            .is_some_and(|(_, v)| v.contains('~') || v.contains("/home/") || v.contains("/Users/"))
+    });
+
+    for segment in command.split(['&', '|', ';', '\n']) {
+        let segment = segment.trim();
+        if segment.is_empty() {
+            continue;
+        }
+        if segment.starts_with("echo ") || segment.starts_with("printf ") {
+            continue;
+        }
+        let tokens: Vec<String> = segment.split_whitespace().map(unquoted).collect();
+        let bin = |t: &str| -> String {
+            Path::new(&canonical_path(t))
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default()
+                .to_ascii_lowercase()
+        };
+
+        for token in &tokens {
+            if token == ">" || token == ">>" {
+                continue;
+            }
+            if let Some(target) = token.strip_prefix(">>").or_else(|| token.strip_prefix('>')) {
+                let target = canonical_path(target);
+                if target.starts_with("/dev/") && !is_safe_device(&target) {
+                    return Some("raw write to a block device");
+                }
+            }
+        }
+
+        for (i, token) in tokens.iter().enumerate() {
+            let base = bin(token);
+            match base.as_str() {
+                "shutdown" | "reboot" | "poweroff" | "halt" => {
+                    return Some("system shutdown/reboot command");
+                }
+                "init" | "telinit" => {
+                    if tokens.get(i + 1).is_some_and(|a| a == "0" || a == "6") {
+                        return Some("system shutdown/reboot command");
+                    }
+                }
+                "systemctl" => {
+                    if tokens
+                        .get(i + 1)
+                        .is_some_and(|a| matches!(a.as_str(), "reboot" | "poweroff" | "halt"))
+                    {
+                        return Some("system shutdown/reboot command");
+                    }
+                }
+                "killall5" => return Some("kills every process the user owns"),
+                "kill" => {
+                    if tokens.get(i + 1).is_some_and(|a| a == "-1" || a == "0") {
+                        return Some("kills every process the user owns");
+                    }
+                }
+                "rm" => {
+                    let mut recursive = false;
+                    for operand in tokens.iter().skip(i + 1) {
+                        if operand.starts_with('-') && !operand.starts_with("--") {
+                            recursive |= operand.contains(['r', 'R']);
+                            continue;
+                        }
+                        if operand == "--recursive" {
+                            recursive = true;
+                            continue;
+                        }
+                        if !recursive {
+                            continue;
+                        }
+                        let target = canonical_path(
+                            &operand
+                                .replace("${HOME}", "~")
+                                .replace("$HOME", "~")
+                                .replace('~', "/home/~"),
+                        );
+                        if target == "/" || target.starts_with("/*") {
+                            return Some("recursive delete of the root directory");
+                        }
+                        if target.starts_with("/home/~")
+                            || operand.contains("HOME")
+                            || home_assignment
+                        {
+                            return Some("recursive delete of the home directory");
+                        }
+                    }
+                }
+                "dd" | "cp" | "tee" | "install" | "truncate" | "shred" | "blkdiscard"
+                | "wipefs" | "fdisk" | "sfdisk" | "parted" | "sgdisk" => {
+                    if let Some(target) = tokens
+                        .iter()
+                        .rev()
+                        .map(|t| canonical_path(t.trim_start_matches("of=")))
+                        .find(|t| t.starts_with("/dev/"))
+                        && !is_safe_device(&target)
+                    {
+                        return Some("raw write to a block device");
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // `:(){ :|:& };:` has to be matched before segment splitting, which would cut the function body apart.
+    let compact: String = flattened.chars().filter(|c| !c.is_whitespace()).collect();
+    if compact.contains("(){") && compact.contains('|') && compact.contains("};") {
+        return Some("fork bomb");
+    }
+    None
+}
+
+fn is_safe_device(path: &str) -> bool {
+    [
+        "/dev/null",
+        "/dev/zero",
+        "/dev/stdout",
+        "/dev/stderr",
+        "/dev/stdin",
+        "/dev/random",
+        "/dev/urandom",
+        "/dev/full",
+        "/dev/tty",
+        "/dev/shm/",
+        "/dev/pts/",
+        "/dev/fd/",
+    ]
+    .iter()
+    .any(|safe| path.starts_with(safe))
+}
+
+const SHELL_BUILTINS: &[&str] = &[
+    "cd", "echo", "printf", "export", "source", ".", "test", "[", "true", "false", "exec", "eval",
+    "exit", "read", "set", "unset", "shift", "wait", "kill", "type", "hash", "alias", "umask",
+    "pwd", "trap", "local", "return", "let", "jobs", "fg", "bg", "times", "ulimit", "readonly",
+    "declare", "getopts", "time", "command", "builtin",
+];
+
+fn path_dirs() -> Vec<PathBuf> {
+    std::env::var_os("PATH")
+        .map(|path| std::env::split_paths(&path).collect())
+        .unwrap_or_default()
+}
+
+fn is_executable_file(path: &Path) -> bool {
+    std::fs::metadata(path).is_ok_and(|m| m.is_file()) && is_exec_mode(path)
+}
+
+fn is_exec_mode(path: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::metadata(path).is_ok_and(|m| m.permissions().mode() & 0o111 != 0)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        true
+    }
+}
+
+fn resolves_on_path(name: &str) -> bool {
+    path_dirs()
+        .iter()
+        .any(|dir| is_executable_file(&dir.join(name)))
+}
+
+/// True when `a` and `b` differ by exactly one insertion, deletion, substitution or adjacent transposition.
+fn within_one_edit(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a == b || a.len().abs_diff(b.len()) > 1 {
+        return false;
+    }
+    let (long, short) = if a.len() >= b.len() { (a, b) } else { (b, a) };
+    if long.len() == short.len() {
+        let diffs: Vec<usize> = (0..long.len()).filter(|&i| long[i] != short[i]).collect();
+        return diffs.len() == 1
+            || (diffs.len() == 2
+                && diffs[1] == diffs[0] + 1
+                && long[diffs[0]] == short[diffs[1]]
+                && long[diffs[1]] == short[diffs[0]]);
+    }
+    let mut i = 0;
+    let mut skipped = false;
+    while i < short.len() {
+        if long[i + usize::from(skipped)] == short[i] {
+            i += 1;
+        } else if skipped {
+            return false;
+        } else {
+            skipped = true;
+        }
+    }
+    true
+}
+
+/// Every executable on `PATH` within one edit of `name`, deduplicated across directories.
+fn typo_candidates(name: &str, dirs: &[PathBuf]) -> Vec<String> {
+    let mut found = BTreeSet::new();
+    for dir in dirs {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let Ok(fname) = entry.file_name().into_string() else {
+                continue;
+            };
+            if !within_one_edit(name, &fname) || !is_executable_file(&entry.path()) {
+                continue;
+            }
+            found.insert(fname);
+        }
+    }
+    found.into_iter().collect()
+}
+
+/// Rewrites `command_args[0]` when its binary name is one typo away from a real command, so
+/// `ms exec -- carog test` runs `cargo test` instead of failing with a bare "not found". Returns the
+/// rewritten argument vector plus `(from, to)` for the report line.
+fn autocorrect_args(command_args: &[String]) -> (Vec<String>, Option<(String, String)>) {
+    let mut args = command_args.to_vec();
+    let head = args[0].clone();
+    let (name, tail) = match head.split_once(char::is_whitespace) {
+        Some((name, tail)) => (name.to_string(), tail.to_string()),
+        None => (head.clone(), String::new()),
+    };
+    let (name, tail) = (name.as_str(), tail.as_str());
+    // An explicit path, an assignment, or a shell builtin is intentional: never rewrite it.
+    if name.is_empty()
+        || name.contains('/')
+        || name.contains('=')
+        || SHELL_BUILTINS.contains(&name)
+        || resolves_on_path(name)
+    {
+        return (args, None);
+    }
+    let candidates = typo_candidates(name, &path_dirs());
+    let [only] = candidates.as_slice() else {
+        return (args, None);
+    };
+    let corrected = if tail.is_empty() {
+        only.clone()
+    } else {
+        format!("{only} {tail}")
+    };
+    args[0] = corrected;
+    (args, Some((name.to_string(), only.clone())))
+}
+
+/// Identity of a pid that survives pid reuse: field 22 (`starttime`) of `/proc/<pid>/stat`.
+/// Without it, `kill -9 -<pgid>` on a stale handle can take down an unrelated process group.
+fn process_start_id(pid: u32) -> Option<String> {
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    // `comm` (field 2) is parenthesised and may contain spaces, so count from the last ')'.
+    let rest = stat.rsplit_once(')')?.1;
+    rest.split_whitespace().nth(19).map(str::to_string)
+}
+
+fn pid_alive(pid: u32, start_id: Option<&String>) -> bool {
+    match (process_start_id(pid), start_id) {
+        (None, _) => false,
+        (Some(_), None) => true,
+        (Some(current), Some(expected)) => &current == expected,
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct RunRecord {
+    cmd: String,
+    supervisor_pid: u32,
+    supervisor_start: Option<String>,
+    started_at_ms: u64,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct DoneRecord {
+    exit_code: i32,
+    timed_out: bool,
+    duration_ms: u64,
+}
+
+fn run_path(log_id: &str) -> PathBuf {
+    log_dir().join(format!("{log_id}.run"))
+}
+
+fn done_path(log_id: &str) -> PathBuf {
+    log_dir().join(format!("{log_id}.done"))
+}
+
+fn pgid_path(log_id: &str) -> PathBuf {
+    log_dir().join(format!("{log_id}.pgid"))
+}
+
+fn log_path(log_id: &str) -> PathBuf {
+    log_dir().join(format!("{log_id}.log"))
+}
+
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
+fn kill_group(pgid: u32) {
+    let _ = std::process::Command::new("kill")
+        .args(["-9", &format!("-{pgid}")])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+}
+
+/// Starts `command_args` in the background and returns at once with a handle.
+///
+/// The child is owned by a detached `ms __supervise` process rather than by this one, so the caller can
+/// exit (or be killed) without the run dying, and the exit status still has an owner that can record it.
+pub fn exec_background(
+    workspace_root: &Path,
+    command_args: &[String],
+    timeout_ms: u64,
+    keep_env: bool,
+) -> Result<String, String> {
+    if command_args.is_empty() {
+        return Err("command cannot be empty".to_string());
+    }
+    guard(command_args)?;
+    let (command_args, autocorrect) = autocorrect_args(command_args);
+    reap_orphans();
+
+    let log_id = next_log_id();
+    let exe = std::env::current_exe().map_err(|e| format!("cannot locate ms binary: {e}"))?;
+    let mut cmd = std::process::Command::new(exe);
+    cmd.arg("__supervise")
+        .arg("--root")
+        .arg(workspace_root)
+        .arg("--log")
+        .arg(&log_id)
+        .arg("--timeout")
+        .arg(timeout_ms.to_string());
+    if keep_env {
+        cmd.arg("--keep-env");
+    }
+    cmd.arg("--").args(&command_args);
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(unix)]
+    cmd.process_group(0);
+
+    let supervisor_pid = cmd
+        .spawn()
+        .map_err(|e| format!("failed to start supervisor: {e}"))?
+        .id();
+    let record = RunRecord {
+        cmd: command_args.join(" "),
+        supervisor_pid,
+        supervisor_start: process_start_id(supervisor_pid),
+        started_at_ms: now_ms(),
+    };
+    let text = serde_json::to_string(&record).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(log_dir()).map_err(|e| e.to_string())?;
+    std::fs::write(run_path(&log_id), text).map_err(|e| e.to_string())?;
+
+    let mut out = format!(
+        "[STARTED | pid:{supervisor_pid} | log:{log_id} | raw:{}/{}]\nrun: ms wait {log_id}\ntail: ms log --id {log_id} --tail 40",
+        log_path(&log_id).display(),
+        workspace_root.display()
+    );
+    if let Some((from, to)) = &autocorrect {
+        out.push_str(&format!("\n[autocorrect] {from} -> {to}"));
+    }
+    Ok(out)
+}
+
+/// The detached owner of one background run: starts the command, journals its process group, enforces the
+/// deadline, and records the exit status. Runs as `ms __supervise`, so the caller never blocks.
+pub fn supervise(
+    workspace_root: &Path,
+    log_id: &str,
+    timeout_ms: u64,
+    keep_env: bool,
+    command_args: &[String],
+) -> Result<(), String> {
+    if command_args.is_empty() {
+        return Err("command cannot be empty".to_string());
+    }
+    guard(command_args)?;
+    let cmd_display = command_args.join(" ");
+    let use_shell = command_args.len() == 1
+        && command_args[0]
+            .chars()
+            .any(|c| " |&;<>".contains(c) || c == '$');
+    let mut cmd = if use_shell {
+        let mut c = std::process::Command::new("sh");
+        c.arg("-c").arg(&command_args[0]);
+        c
+    } else {
+        let mut c = std::process::Command::new(&command_args[0]);
+        c.args(&command_args[1..]);
+        c
+    };
+
+    std::fs::create_dir_all(log_dir()).map_err(|e| e.to_string())?;
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path(log_id))
+        .map_err(|e| e.to_string())?;
+    use std::io::Write as _;
+    let _ = writeln!(file, "# cmd: {cmd_display}");
+    let log_handle = file.try_clone().map_err(|e| e.to_string())?;
+
+    cmd.current_dir(workspace_root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(log_handle.try_clone().map_err(|e| e.to_string())?))
+        .stderr(Stdio::from(log_handle));
+    if !keep_env {
+        cmd.env_clear();
+        cmd.envs(scrubbed_env());
+    }
+    #[cfg(unix)]
+    cmd.process_group(0);
+
+    let started = Instant::now();
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("failed to spawn '{}': {e}", command_args[0]))?;
+    let pgid = child.id();
+    // Journal the group before waiting: if this supervisor is killed, `reap_orphans` still knows what to kill.
+    let _ = std::fs::write(pgid_path(log_id), pgid.to_string());
+
+    let deadline = Duration::from_millis(timeout_ms);
+    let mut timed_out = false;
+    let exit_code = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status.code().unwrap_or(1),
+            Ok(None) => {}
+            Err(e) => return Err(format!("wait failed: {e}")),
+        }
+        if started.elapsed() >= deadline {
+            timed_out = true;
+            kill_group(pgid);
+            let _ = child.wait();
+            break 124;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+
+    let done = DoneRecord {
+        exit_code,
+        timed_out,
+        duration_ms: started.elapsed().as_millis() as u64,
+    };
+    let _ = std::fs::write(
+        done_path(log_id),
+        serde_json::to_string(&done).unwrap_or_default(),
+    );
+    let _ = std::fs::remove_file(pgid_path(log_id));
+    Ok(())
+}
+
+/// Waits for a background run to finish, then prints the same distilled report a blocking run would.
+pub fn wait_run(workspace_root: &Path, log_id: &str, timeout_ms: u64) -> Result<String, String> {
+    let log_id = log_id.strip_prefix("log:").unwrap_or(log_id);
+    let run: RunRecord = serde_json::from_str(
+        &std::fs::read_to_string(run_path(log_id))
+            .map_err(|_| format!("unknown run '{log_id}' (no active handle)"))?,
+    )
+    .map_err(|e| format!("corrupt run record '{log_id}': {e}"))?;
+
+    let started = Instant::now();
+    let deadline = Duration::from_millis(timeout_ms);
+    let done: DoneRecord = loop {
+        if let Ok(text) = std::fs::read_to_string(done_path(log_id))
+            && let Ok(done) = serde_json::from_str(&text)
+        {
+            break done;
+        }
+        if !pid_alive(run.supervisor_pid, run.supervisor_start.as_ref()) {
+            return Err(format!(
+                "run '{log_id}' ended without a status (supervisor pid {} was killed); raw log: ms log --id {log_id}",
+                run.supervisor_pid
+            ));
+        }
+        if started.elapsed() >= deadline {
+            return Err(format!(
+                "run '{log_id}' still running; tail: ms log --id {log_id} --tail 40"
+            ));
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+
+    let raw = std::fs::read_to_string(log_path(log_id)).unwrap_or_default();
+    // Drop the `# cmd:` line this module writes so the report counts only the command's own output.
+    let body = raw
+        .split_once('\n')
+        .filter(|(first, _)| first.starts_with("# cmd: "))
+        .map(|(_, rest)| rest)
+        .unwrap_or(&raw);
+    let report = build_report(
+        workspace_root,
+        &run.cmd.split_whitespace().map(str::to_string).collect::<Vec<_>>(),
+        &run.cmd,
+        done.exit_code,
+        done.timed_out,
+        done.duration_ms,
+        body,
+        log_id.to_string(),
+        None,
+    );
+    let _ = std::fs::remove_file(run_path(log_id));
+    Ok(report.distilled)
+}
+
+/// Kills process groups whose supervisor died without recording a status, then drops the stale handles.
+/// A run whose supervisor is still alive is left alone.
+fn reap_orphans() {
+    let Ok(entries) = std::fs::read_dir(log_dir()) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("run") {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(run) = serde_json::from_str::<RunRecord>(&text) else {
+            let _ = std::fs::remove_file(&path);
+            continue;
+        };
+        if pid_alive(run.supervisor_pid, run.supervisor_start.as_ref()) {
+            continue;
+        }
+        let log_id = path
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if done_path(&log_id).exists() {
+            continue;
+        }
+        // The supervisor is gone and never recorded a status: kill whatever it left behind.
+        if let Ok(text) = std::fs::read_to_string(pgid_path(&log_id))
+            && let Ok(pgid) = text.trim().parse::<u32>()
+            && pgid > 0
+        {
+            kill_group(pgid);
+            let _ = std::fs::remove_file(pgid_path(&log_id));
+        }
+        let _ = std::fs::remove_file(&path);
+    }
+}
+
+/// The refusal decision, split out so it can be checked without spawning anything.
+fn guard(command_args: &[String]) -> Result<(), String> {
+    match destructive_reason(&command_args.join(" ")) {
+        Some(reason) => Err(format!("refused ({reason}): {}", command_args.join(" "))),
+        None => Ok(()),
+    }
+}
+
 /// Executes `command_args` in `workspace_root`, captures stdout+stderr, strips ANSI/CR noise,
 /// persists raw output, and distills into a token-efficient summary (plus hashline snippets on failure).
 pub async fn exec_and_distill(
     workspace_root: &Path,
     command_args: &[String],
     timeout_ms: u64,
+    keep_env: bool,
 ) -> Result<ExecDistillResult, String> {
     if command_args.is_empty() {
         return Err("command cannot be empty".to_string());
     }
+    guard(command_args)?;
 
+    let (command_args, autocorrect) = autocorrect_args(command_args);
+    let command_args = &command_args[..];
     let cmd_display = command_args.join(" ");
     let use_shell = command_args.len() == 1
         && (command_args[0].contains(' ')
@@ -187,6 +832,10 @@ pub async fn exec_and_distill(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    if !keep_env {
+        cmd.env_clear();
+        cmd.envs(scrubbed_env());
+    }
     #[cfg(unix)]
     cmd.process_group(0);
 
@@ -255,13 +904,39 @@ pub async fn exec_and_distill(
         combined.push_str(&String::from_utf8_lossy(&err_bytes));
     }
 
-    let raw_bytes = combined.len();
-    let raw_lines = combined.lines().count();
     let log_id = next_log_id();
     let _ = persist_raw_log(&log_id, &cmd_display, &combined);
+    Ok(build_report(
+        workspace_root,
+        command_args,
+        &cmd_display,
+        exit_code,
+        timed_out,
+        duration_ms,
+        &combined,
+        log_id,
+        autocorrect.as_ref(),
+    ))
+}
 
-    let cleaned_lines = clean_and_collapse_lines(&combined);
-    let kind = detect_command_kind(command_args, &cmd_display);
+/// Turns raw output plus an exit status into the token-efficient report. Shared by the blocking
+/// `exec` path and the `wait` path that reads a background run's log.
+#[allow(clippy::too_many_arguments)]
+fn build_report(
+    workspace_root: &Path,
+    command_args: &[String],
+    cmd_display: &str,
+    exit_code: i32,
+    timed_out: bool,
+    duration_ms: u64,
+    combined: &str,
+    log_id: String,
+    autocorrect: Option<&(String, String)>,
+) -> ExecDistillResult {
+    let raw_bytes = combined.len();
+    let raw_lines = combined.lines().count();
+    let cleaned_lines = clean_and_collapse_lines(combined);
+    let kind = detect_command_kind(command_args, cmd_display);
     let is_inspection = is_inspection_kind(kind);
     let failure_markers = !is_inspection && has_failure_markers(&cleaned_lines);
     let effective_passed = exit_code == 0 && !timed_out && !failure_markers;
@@ -288,6 +963,10 @@ pub async fn exec_and_distill(
         )
     };
 
+    if let Some((from, to)) = &autocorrect {
+        header.push_str(&format!("\n[autocorrect] {from} -> {to}"));
+    }
+
     if !body.is_empty() {
         header.push('\n');
         header.push_str(&body);
@@ -304,7 +983,7 @@ pub async fn exec_and_distill(
         }
     }
 
-    Ok(ExecDistillResult {
+    ExecDistillResult {
         exit_code,
         timed_out,
         duration_ms,
@@ -312,7 +991,7 @@ pub async fn exec_and_distill(
         raw_bytes,
         raw_lines,
         distilled: header,
-    })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1007,6 +1686,7 @@ mod tests {
                 "for i in range(1, 9): print(f'line-{i}')".to_string(),
             ],
             5_000,
+            false,
         )
         .await
         .unwrap();
@@ -1024,7 +1704,7 @@ mod tests {
     async fn exec_timeout_kills_shell_grandchild_promptly() {
         let dir = tempfile::tempdir().unwrap();
         let started = Instant::now();
-        let res = exec_and_distill(dir.path(), &["sleep 5".to_string()], 150)
+        let res = exec_and_distill(dir.path(), &["sleep 5".to_string()], 150, false)
             .await
             .unwrap();
         assert!(res.timed_out);
@@ -1100,6 +1780,7 @@ mod tests {
             dir.path(),
             &["python3 emit.py | tail -30 # pytest".to_string()],
             5_000,
+            false,
         )
         .await
         .unwrap();
@@ -1159,7 +1840,7 @@ mod tests {
         )
         .unwrap();
 
-        let res = exec_and_distill(dir.path(), &["git diff".to_string()], 5_000)
+        let res = exec_and_distill(dir.path(), &["git diff".to_string()], 5_000, false)
             .await
             .unwrap();
         assert_eq!(res.exit_code, 0);
@@ -1195,7 +1876,9 @@ mod tests {
             vec!["rg \"FAILED|AssertionError\" tests/".to_string()],
             vec!["cat tests/test_sample.py".to_string()],
         ] {
-            let res = exec_and_distill(dir.path(), &cmd, 5_000).await.unwrap();
+            let res = exec_and_distill(dir.path(), &cmd, 5_000, false)
+                .await
+                .unwrap();
             assert_eq!(res.exit_code, 0, "cmd={cmd:?} failed: {}", res.distilled);
             assert!(
                 res.distilled.starts_with("[OK | exit:0"),
@@ -1210,6 +1893,7 @@ mod tests {
             dir.path(),
             &["echo \"$(printf 'FAILED: boom\\n')\"".to_string()],
             5_000,
+            false,
         )
         .await
         .unwrap();
@@ -1256,5 +1940,105 @@ mod tests {
         assert!(dir.path().join("fresh-3.log").exists());
         assert!(dir.path().join("fresh-4.log").exists());
         assert!(dir.path().join("keep.txt").exists());
+    }
+
+    #[test]
+    fn destructive_guard_refuses_catastrophes_but_allows_normal_commands() {
+        for refused in [
+            "rm -rf /",
+            "rm -rf /*",
+            "sudo rm -rf --no-preserve-root /",
+            "rm -rf \"/\"",
+            "rm -rf ~/",
+            "rm -rf $HOME",
+            "d=$HOME; rm -rf $d",
+            "shutdown -h now",
+            "systemctl reboot",
+            "kill -1",
+            "dd if=/dev/zero of=/dev/sda",
+            ":(){ :|:& };:",
+        ] {
+            assert!(
+                destructive_reason(refused).is_some(),
+                "should refuse: {refused}"
+            );
+        }
+        for allowed in [
+            "rm -rf target",
+            "rm -rf ./build",
+            "rm file.txt",
+            "git status && cargo test",
+            "echo \"rm -rf /\"",
+            "dd if=/dev/urandom of=/tmp/blob bs=1k count=1",
+            "cargo test -- --nocapture",
+            "cd / && ls",
+        ] {
+            assert_eq!(destructive_reason(allowed), None, "should allow: {allowed}");
+        }
+    }
+
+    #[test]
+    fn within_one_edit_only_accepts_a_single_typo() {
+        for (a, b) in [
+            ("gti", "git"),
+            ("carog", "cargo"),
+            ("pytest", "pyest"),
+            ("python", "python3"),
+            ("grep", "gerp"),
+        ] {
+            assert!(within_one_edit(a, b), "{a} vs {b}");
+            assert!(within_one_edit(b, a), "{b} vs {a}");
+        }
+        assert!(!within_one_edit("git", "git"), "equal is not a typo");
+        assert!(!within_one_edit("git", "gritty"));
+        assert!(!within_one_edit("cargo", "tar"));
+    }
+
+    #[test]
+    fn typo_candidates_returns_only_near_miss_executables() {
+        let dir = tempfile::tempdir().unwrap();
+        let bin = dir.path().join("git");
+        std::fs::write(&bin, b"#!/bin/sh\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let not_exec = dir.path().join("gti");
+        std::fs::write(&not_exec, b"data").unwrap();
+
+        let found = typo_candidates("gti", &[dir.path().to_path_buf()]);
+        assert_eq!(found, vec!["git".to_string()], "got {found:?}");
+        assert!(typo_candidates("totally-different", &[dir.path().to_path_buf()]).is_empty());
+    }
+
+    #[test]
+    fn guard_wiring_refuses_before_anything_is_spawned() {
+        // Pure decision check: the refusal path must be reachable through the same function
+        // `exec_and_distill` calls, and it must never depend on spawning the command to find out.
+        let err = guard(&["rm -rf /".to_string()]).unwrap_err();
+        assert!(err.contains("refused"), "got: {err}");
+        assert!(err.contains("root directory"), "got: {err}");
+        assert!(guard(&["cargo test".to_string()]).is_ok());
+    }
+
+    #[tokio::test]
+    async fn exec_scrubs_credential_env_unless_keep_env_is_set() {
+        let dir = tempfile::tempdir().unwrap();
+        let cmd = vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            "printf '%s|' \"$MS_TEST_API_KEY\" \"$HOME\"".to_string(),
+        ];
+        unsafe { std::env::set_var("MS_TEST_API_KEY", "super-secret-value") };
+        let scrubbed = exec_and_distill(dir.path(), &cmd, 5_000, false)
+            .await
+            .unwrap();
+        assert!(!scrubbed.distilled.contains("super-secret-value"));
+        let kept = exec_and_distill(dir.path(), &cmd, 5_000, true)
+            .await
+            .unwrap();
+        assert!(kept.distilled.contains("super-secret-value"));
+        unsafe { std::env::remove_var("MS_TEST_API_KEY") };
     }
 }

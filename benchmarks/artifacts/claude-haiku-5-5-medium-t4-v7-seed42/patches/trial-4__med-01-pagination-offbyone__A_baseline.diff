@@ -1,0 +1,12 @@
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/taskflow/storage/query.py b/taskflow/storage/query.py
+--- a/taskflow/storage/query.py	2026-11-15 09:15:14.111443117 +0700
++++ b/taskflow/storage/query.py	2026-11-15 14:05:35.632314220 +0700
+@@ -7,7 +7,6 @@
+     """Return 1-based page slice of items."""
+     if page < 1 or page_size < 1:
+         raise ValueError("page and page_size must be >= 1")
+-    # BUG med-01: off-by-one uses `page * page_size` instead of `(page - 1) * page_size`
+-    start = page * page_size
++    start = (page - 1) * page_size
+     end = start + page_size
+     return list(items[start:end])

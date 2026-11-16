@@ -1,0 +1,10 @@
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/taskflow/core/scheduler.py b/taskflow/core/scheduler.py
+--- a/taskflow/core/scheduler.py	2026-11-15 09:15:14.111378852 +0700
++++ b/taskflow/core/scheduler.py	2026-11-15 13:54:24.795175932 +0700
+@@ -6,5 +6,4 @@
+     if attempt <= 0:
+         return 0
+     raw = cfg.base_delay_ms * (2 ** (attempt - 1))
+-    # BUG med-02: uses min? No, accidentally uses max instead of min, ignoring cap!
+-    return max(raw, cfg.max_delay_ms)
++    return min(raw, cfg.max_delay_ms)

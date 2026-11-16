@@ -1,0 +1,12 @@
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/tinydb_demo/store.py b/tinydb_demo/store.py
+--- a/tinydb_demo/store.py	2026-10-29 15:19:32.690682172 +0700
++++ b/tinydb_demo/store.py	2026-11-15 08:42:14.978579110 +0700
+@@ -11,7 +11,7 @@
+         self.notes.append(note)
+ 
+     def search(self, query):
+-        return [note for note in self.notes if query in note['title']]
++        return [note for note in self.notes if query.lower() in note['title'].lower()]
+ 
+     def save(self):
+         self.filename.write_text(json.dumps(self.notes))

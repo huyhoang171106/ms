@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "1.1.0",
+  "options": {
+    "packName": "refactorbench",
+    "model": "trollllm/claude-fable-5-2",
+    "trials": 1,
+    "cases": [
+      "tornado_refactor/options-utils"
+    ],
+    "maxSteps": 25,
+    "outDir": "/home/hoang/ms/benchmarks/artifacts/refactorbench-1task-fable52"
+  },
+  "baseline": {
+    "exitCode": 0,
+    "failed": [],
+    "passed": [],
+    "collectionError": false,
+    "summary": "per-case suites"
+  },
+  "arms": {
+    "A_eight": {
+      "runs": 1,
+      "passed": 0,
+      "targetFixed": 0,
+      "requiredTests": 0,
+      "regressions": 0,
+      "testTampering": 0,
+      "errors": 0,
+      "toolFailures": 0,
+      "medianTurns": 6,
+      "medianToolCalls": 9,
+      "medianOutputBytes": 68893,
+      "totalTokens": 12426,
+      "medianWallClockMs": 126039.1
+    },
+    "B_one": {
+      "runs": 1,
+      "passed": 0,
+      "targetFixed": 0,
+      "requiredTests": 0,
+      "regressions": 0,
+      "testTampering": 0,
+      "errors": 0,
+      "toolFailures": 0,
+      "medianTurns": 6,
+      "medianToolCalls": 5,
+      "medianOutputBytes": 69220,
+      "totalTokens": 14232,
+      "medianWallClockMs": 145754.9
+    }
+  },
+  "records": [
+    {
+      "pack": "refactorbench",
+      "arm": "A_eight",
+      "caseId": "tornado_refactor/options-utils",
+      "trial": 0,
+      "pairOrder": "AB",
+      "agentStatus": "ok",
+      "targetFixed": false,
+      "probeOutput": "FAILED (failures=22)",
+      "requiredTestsPassed": 0,
+      "requiredTestsTotal": 0,
+      "noRegressions": true,
+      "newFailures": [],
+      "collectionError": false,
+      "testsIntact": true,
+      "tamperedTestFiles": [],
+      "overallPassed": false,
+      "llmTurns": 6,
+      "toolCalls": 9,
+      "toolFailures": 0,
+      "toolOutputBytes": 68893,
+      "promptTokens": 14,
+      "completionTokens": 12412,
+      "cachedTokens": 69578,
+      "cacheWriteTokens": 0,
+      "cacheHitRate": 0.9998,
+      "estimatedCostUsd": null,
+      "wallClockMs": 126039.1
+    },
+    {
+      "pack": "refactorbench",
+      "arm": "B_one",
+      "caseId": "tornado_refactor/options-utils",
+      "trial": 0,
+      "pairOrder": "AB",
+      "agentStatus": "ok",
+      "targetFixed": false,
+      "probeOutput": "FAILED (failures=22)",
+      "requiredTestsPassed": 0,
+      "requiredTestsTotal": 0,
+      "noRegressions": true,
+      "newFailures": [],
+      "collectionError": false,
+      "testsIntact": true,
+      "tamperedTestFiles": [],
+      "overallPassed": false,
+      "llmTurns": 6,
+      "toolCalls": 5,
+      "toolFailures": 0,
+      "toolOutputBytes": 69220,
+      "promptTokens": 14,
+      "completionTokens": 14218,
+      "cachedTokens": 69308,
+      "cacheWriteTokens": 0,
+      "cacheHitRate": 0.9998,
+      "estimatedCostUsd": null,
+      "wallClockMs": 145754.9
+    }
+  ]
+}

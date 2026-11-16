@@ -1,0 +1,144 @@
+{
+  "pack": "refactorbench",
+  "arm": "A_eight",
+  "caseId": "tornado_refactor/options-utils",
+  "trial": 0,
+  "overallPassed": false,
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "search_code",
+      "isError": false,
+      "outputBytes": 16549,
+      "argsPreview": "{\"pattern\":\"options\",\"glob\":\"**/*.py\",\"maxResults\":200}",
+      "outputPreview": "demos/tcpecho/server.py:8: from tornado.options import options, define\ndemos/tcpecho/server.py:32:     options.parse_command_line()\ndemos/tcpecho/server.py:33:     logger.info(\"Listening on TCP port %d\", options.port)\ndemos/tcpecho/server.py:35:     server.listen(options.port)\ndocs/conf.py:131:     \"tornado.options._Mockable\",\nmaint/benchmark/chunk_benchmark.py:9: from tornado.options import define, options, parse_command_line\nmaint/benchmark/chunk_benchmark.py:24:         for i in xrange(options.num_chunks):\nmaint/benchmark/chunk_benchmark.py:25:             self.write('A' * options.chunk_siz"
+    },
+    {
+      "seq": 2,
+      "turn": 1,
+      "name": "list_dir",
+      "isError": false,
+      "outputBytes": 2112,
+      "argsPreview": "{\"path\":\".\",\"depth\":2}",
+      "outputPreview": "Directory: . (depth 2)\n.github/\n.github/workflows/\ndemos/\ndemos/blog/\ndemos/chat/\ndemos/facebook/\ndemos/file_upload/\ndemos/google_auth/\ndemos/helloworld/\ndemos/s3server/\ndemos/tcpecho/\ndemos/websocket/\ndemos/webspider/\ndemos/.DS_Store\ndemos/README.rst\ndocs/\ndocs/guide/\ndocs/releases/\ndocs/.DS_Store\ndocs/asyncio.rst\ndocs/auth.rst\ndocs/autoreload.rst\ndocs/caresresolver.rst\ndocs/concurrent.rst\ndocs/conf.py\ndocs/coroutine.rst\ndocs/escape.rst\ndocs/faq.rst\ndocs/favicon.ico\ndocs/gen.rst\ndocs/guide.rst\ndocs/http.rst\ndocs/http1connection.rst\ndocs/httpclient.rst\ndocs/httpserver.rst\ndocs/httputil.rst\ndoc"
+    },
+    {
+      "seq": 3,
+      "turn": 2,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 2822,
+      "argsPreview": "{\"path\":\"tornado/options.py\",\"lineRange\":\"[660, 760]\"}",
+      "outputPreview": "File: tornado/options.py (lines 660-745 of 745):\n   660\t                num = float(m.group(1))\n   661\t                units = m.group(2) or \"seconds\"\n   662\t                units = self._TIMEDELTA_ABBREV_DICT.get(units, units)\n   663\t\n   664\t                sum += datetime.timedelta(**{units: num})\n   665\t                start = m.end()\n   666\t            return sum\n   667\t        except Exception:\n   668\t            raise\n   669\t\n   670\t    def _parse_bool(self, value: str) -> bool:\n   671\t        return value.lower() not in (\"false\", \"0\", \"f\")\n   672\t\n   673\t    def _parse_string(self, valu"
+    },
+    {
+      "seq": 4,
+      "turn": 2,
+      "name": "search_code",
+      "isError": false,
+      "outputBytes": 11104,
+      "argsPreview": "{\"pattern\":\"(from tornado\\\\.options import|import tornado\\\\.options|tornado\\\\.options\\\\.|from tornado import options|options\\\\.(define|parse_))\",\"maxResults\":200}",
+      "outputPreview": "demos/tcpecho/server.py:8: from tornado.options import options, define\ndemos/tcpecho/server.py:32:     options.parse_command_line()\ndemos/tcpecho/client.py:5: from tornado.options import options, define\ndemos/tcpecho/client.py:21:     options.parse_command_line()\nmaint/benchmark/chunk_benchmark.py:9: from tornado.options import define, options, parse_command_line\ndocs/conf.py:131:     \"tornado.options._Mockable\",\nmaint/benchmark/parsing_benchmark.py:8: from tornado.options import define, options, parse_command_line\nmaint/benchmark/template_benchmark.py:9: from tornado.options import options, d"
+    },
+    {
+      "seq": 5,
+      "turn": 2,
+      "name": "list_dir",
+      "isError": false,
+      "outputBytes": 925,
+      "argsPreview": "{\"path\":\"demos\",\"depth\":2}",
+      "outputPreview": "Directory: demos (depth 2)\ndemos/blog/\ndemos/blog/static/\ndemos/blog/templates/\ndemos/blog/blog.py\ndemos/blog/docker-compose.yml\ndemos/blog/Dockerfile\ndemos/blog/README\ndemos/blog/requirements.txt\ndemos/blog/schema.sql\ndemos/chat/\ndemos/chat/static/\ndemos/chat/templates/\ndemos/chat/chatdemo.py\ndemos/facebook/\ndemos/facebook/static/\ndemos/facebook/templates/\ndemos/facebook/facebook.py\ndemos/facebook/README\ndemos/file_upload/\ndemos/file_upload/file_receiver.py\ndemos/file_upload/file_uploader.py\ndemos/google_auth/\ndemos/google_auth/.gitignore\ndemos/google_auth/main.py\ndemos/helloworld/\ndemos/hell"
+    },
+    {
+      "seq": 6,
+      "turn": 3,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 773,
+      "argsPreview": "{\"path\":\"tornado/options.py\",\"lineRange\":\"[100, 130]\"}",
+      "outputPreview": "File: tornado/options.py (lines 100-130 of 745):\n   100\t\"\"\"\n   101\t\n   102\timport datetime\n   103\timport numbers\n   104\timport re\n   105\timport sys\n   106\timport os\n   107\timport textwrap\n   108\t\n   109\tfrom tornado.escape import _unicode, native_str\n   110\tfrom tornado.log import define_logging_options\n   111\tfrom tornado.util import basestring_type, exec_in\n   112\t\n   113\tfrom typing import (\n   114\t    Any,\n   115\t    Iterator,\n   116\t    Iterable,\n   117\t    Tuple,\n   118\t    Set,\n   119\t    Dict,\n   120\t    Callable,\n   121\t    List,\n   122\t    TextIO,\n   123\t    Optional,\n   124\t)\n   125"
+    },
+    {
+      "seq": 7,
+      "turn": 3,
+      "name": "search_code",
+      "isError": false,
+      "outputBytes": 10048,
+      "argsPreview": "{\"pattern\":\"(tornado\\\\.options\\\\.(define|parse_command_line|parse_config_file|print_help|add_parse_callback)\\\\b|from tornado\\\\.options import .*\\\\b(define|parse_command_line|parse_config_file|print_help|add_parse_callback)\\\\b|from tornado import options|options\\\\.(define|parse_command_line|parse_config_file|print_help|add_parse_callback)\\\\(|IMPORT =)\",\"maxResults\":200}",
+      "outputPreview": "maint/benchmark/chunk_benchmark.py:9: from tornado.options import define, options, parse_command_line\nmaint/benchmark/parsing_benchmark.py:8: from tornado.options import define, options, parse_command_line\ndemos/tcpecho/server.py:8: from tornado.options import options, define\ndemos/tcpecho/server.py:32:     options.parse_command_line()\ndemos/s3server/s3server.py:45: from tornado.options import options, define\ndemos/s3server/s3server.py:269:     options.parse_command_line()\nmaint/benchmark/template_benchmark.py:9: from tornado.options import options, define, parse_command_line\ndemos/tcpecho/cli"
+    },
+    {
+      "seq": 8,
+      "turn": 3,
+      "name": "search_code",
+      "isError": false,
+      "outputBytes": 6540,
+      "argsPreview": "{\"pattern\":\"options\",\"glob\":\"docs/**\",\"maxResults\":100}",
+      "outputPreview": "docs/conf.py:131:     \"tornado.options._Mockable\",\ndocs/utilities.rst:9:    options\ndocs/httpserver.rst:8:    .. autoclass:: HTTPServer(request_callback: Union[httputil.HTTPServerConnectionDelegate, Callable[[httputil.HTTPServerRequest], None]], no_keep_alive: bool = False, xheaders: bool = False, ssl_options: Union[Dict[str, Any], ssl.SSLContext] = None, protocol: Optional[str] = None, decompress_reques... (600 chars)\ndocs/web.rst:48:    .. automethod:: RequestHandler.options\ndocs/options.rst:1: ``tornado.options`` --- Command-line parsing\ndocs/options.rst:4: .. automodule:: tornado.options\nd"
+    },
+    {
+      "seq": 9,
+      "turn": 3,
+      "name": "run_tests",
+      "isError": true,
+      "outputBytes": 232,
+      "argsPreview": "{}",
+      "outputPreview": "Error: run_tests needs the bwrap sandbox (Linux with unprivileged user namespaces) to cut the network and hide host files; the \"local\" backend cannot guarantee that (auto: no sandbox backend available). Tests are not run unisolated."
+    },
+    {
+      "seq": 10,
+      "turn": 4,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 3398,
+      "argsPreview": "{\"path\":\"tornado/options.py\",\"lineRange\":\"[240, 316]\"}",
+      "outputPreview": "File: tornado/options.py (lines 240-316 of 745):\n   240\t\n   241\t        If ``multiple`` is True, the option value is a list of ``type``\n   242\t        instead of an instance of ``type``.\n   243\t\n   244\t        ``help`` and ``metavar`` are used to construct the\n   245\t        automatically generated command line help string. The help\n   246\t        message is formatted like::\n   247\t\n   248\t           --name=METAVAR      help string\n   249\t\n   250\t        ``group`` is used to group the defined options in logical\n   251\t        groups. By default, command line options are grouped by the\n   252\t "
+    },
+    {
+      "seq": 11,
+      "turn": 4,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 1871,
+      "argsPreview": "{\"path\":\"tornado/test/log_test.py\",\"lineRange\":\"[180, 215]\"}",
+      "outputPreview": "File: tornado/test/log_test.py (lines 180-215 of 233):\n   180\t                handler.flush()\n   181\t                handler.close()\n   182\t\n   183\t\n   184\tclass LoggingOptionTest(unittest.TestCase):\n   185\t    \"\"\"Test the ability to enable and disable Tornado's logging hooks.\"\"\"\n   186\t\n   187\t    def logs_present(self, statement, args=None):\n   188\t        # Each test may manipulate and/or parse the options and then logs\n   189\t        # a line at the 'info' level.  This level is ignored in the\n   190\t        # logging module by default, but Tornado turns it on by default\n   191\t        # so"
+    },
+    {
+      "seq": 12,
+      "turn": 4,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 899,
+      "argsPreview": "{\"path\":\"tornado/test/options_test.py\",\"lineRange\":\"[1, 30]\"}",
+      "outputPreview": "File: tornado/test/options_test.py (lines 1-30 of 328):\n     1\timport datetime\n     2\tfrom io import StringIO\n     3\timport os\n     4\timport sys\n     5\tfrom unittest import mock\n     6\timport unittest\n     7\t\n     8\tfrom tornado.options import OptionParser, Error\n     9\tfrom tornado.util import basestring_type\n    10\t\n    11\timport typing\n    12\t\n    13\tif typing.TYPE_CHECKING:\n    14\t    from typing import List  # noqa: F401\n    15\t\n    16\t\n    17\tclass Email:\n    18\t    def __init__(self, value):\n    19\t        if isinstance(value, str) and \"@\" in value:\n    20\t            self._value = valu"
+    },
+    {
+      "seq": 13,
+      "turn": 4,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 1535,
+      "argsPreview": "{\"path\":\"tornado/test/runtests.py\",\"lineRange\":\"[1, 40]\"}",
+      "outputPreview": "File: tornado/test/runtests.py (lines 1-40 of 223):\n     1\tfrom functools import reduce\n     2\timport gc\n     3\timport io\n     4\timport locale  # system locale module, not tornado.locale\n     5\timport logging\n     6\timport operator\n     7\timport textwrap\n     8\timport sys\n     9\timport unittest\n    10\timport warnings\n    11\t\n    12\tfrom tornado.httpclient import AsyncHTTPClient\n    13\tfrom tornado.httpserver import HTTPServer\n    14\tfrom tornado.netutil import Resolver\n    15\tfrom tornado.options import define, add_parse_callback, options\n    16\tfrom tornado.test.util import ABT_SKIP_MESSAGE\n "
+    },
+    {
+      "seq": 14,
+      "turn": 4,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 1410,
+      "argsPreview": "{\"path\":\"tornado/testing.py\",\"lineRange\":\"[800, 830]\"}",
+      "outputPreview": "File: tornado/testing.py (lines 800-830 of 866):\n   800\t\n   801\t    Additional keyword arguments passed through to ``unittest.main()``.\n   802\t    For example, use ``tornado.testing.main(verbosity=2)``\n   803\t    to show many test details as they are run.\n   804\t    See http://docs.python.org/library/unittest.html#unittest.main\n   805\t    for full argument list.\n   806\t\n   807\t    .. versionchanged:: 5.0\n   808\t\n   809\t       This function produces no output of its own; only that produced\n   810\t       by the `unittest` module (previously it would add a PASS or FAIL\n   811\t       log message)."
+    },
+    {
+      "seq": 15,
+      "turn": 4,
+      "name": "read_file",
+      "isError": false,
+      "outputBytes": 1163,
+      "argsPreview": "{\"path\":\"tornado/httpclient.py\",\"lineRange\":\"[750, 775]\"}",
+      "outputPreview": "File: tornado/httpclient.py (lines 750-775 of 790):\n   750\t            return request_attr\n   751\t        elif self.defaults is not None:\n   752\t            return self.defaults.get(name, None)\n   753\t        else:\n   754\t            return None\n   755\t\n   756\t\n   757\tdef main() -> None:\n   758\t    from tornado.options import define, options, parse_command_line\n   759\t\n   760\t    define(\"print_headers\", type=bool, default=False)\n   761\t    define(\"print_body\", type=bool, default=True)\n   762\t    define(\"follow_redirects\", type=bool, default=True)\n   763\t    define(\"validate_cert\", type=bool, d"
+    }
+  ]
+}

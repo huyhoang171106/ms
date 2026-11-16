@@ -1,0 +1,73 @@
+{
+  "pack": "refactorbench",
+  "arm": "B_one",
+  "caseId": "tornado_refactor/options-utils",
+  "trial": 0,
+  "overallPassed": false,
+  "probeOutput": "FAILED (failures=22)",
+  "assistantTurns": [
+    {
+      "turn": 1,
+      "toolCalls": 1,
+      "text": ""
+    },
+    {
+      "turn": 2,
+      "toolCalls": 1,
+      "text": ""
+    },
+    {
+      "turn": 3,
+      "toolCalls": 1,
+      "text": ""
+    },
+    {
+      "turn": 4,
+      "toolCalls": 1,
+      "text": ""
+    },
+    {
+      "turn": 5,
+      "toolCalls": 0,
+      "text": ""
+    }
+  ],
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 24164,
+      "argsPreview": "{\"code\":\"const o = await ms.outline('tornado/options.py', {maxSymbolsPerFile: 200});\\nconst r = await ms.read('tornado/options.py', {startLine: 1, lineCount: 140, format:'json'});\\nconst s = await ms.search('options', {regex:false, maxMatches: 400, caseSensitive:true});\\nconst files = {};\\nfor (const h of s.hits) { (files[h.path] ||= []).push(h.line+': '+h.text.trim().slice(0,140)); }\\nreturn {o, head: r.text, total: r.totalLines, count: s.count, truncated: s.truncated, files: Object.fromEntries(Object.entries(files).filter(([p])=>p!=='tornado/options.py'))};\"}",
+      "outputPreview": "ok · 3 calls · 20ms\n{\"o\":[{\"lines\":745,\"path\":\"tornado/options.py\",\"symbols\":[{\"kind\":\"def\",\"line\":37,\"signature\":\"def connect():\"},{\"kind\":\"def\",\"line\":46,\"signature\":\"def start_server():\"},{\"kind\":\"class\",\"line\":127,\"signature\":\"class Error(Exception):\"},{\"kind\":\"class\",\"line\":133,\"signature\":\"class OptionParser:\"},{\"kind\":\"def\",\"line\":140,\"signature\":\"def __init__(self) -> None:\"},{\"kind\":\"def\",\"line\":151,\"signature\":\"def _normalize_name(self, name: str) -> str:\"},{\"kind\":\"def\",\"line\":154,\"signature\":\"def __getattr__(self, name: str) -> Any:\"},{\"kind\":\"def\",\"line\":160,\"signature\":\"def __set"
+    },
+    {
+      "seq": 2,
+      "turn": 2,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 22775,
+      "argsPreview": "{\"code\":\"const r = await ms.read('tornado/options.py', {startLine: 676, lineCount: 80, format:'json'});\\nconst pats = ['tornado\\\\\\\\.options', 'from tornado import .*\\\\\\\\boptions\\\\\\\\b', 'import tornado$', '\\\\\\\\boptions\\\\\\\\.(define|parse_command_line|parse_config_file|print_help|add_parse_callback)\\\\\\\\b', '\\\\\\\\b(define|parse_command_line|parse_config_file|print_help|add_parse_callback)\\\\\\\\b'];\\nconst out = {};\\nfor (const p of pats) {\\n  const s = await ms.search(p, {regex:true, maxMatches: 500, caseSensitive:true});\\n  const files = {};\\n  for (const h of s.hits) { if (h.path.startsWith('docs/r",
+      "outputPreview": "ok · 7 calls · 85ms\n{\"tail\":\"\\noptions = OptionParser()\\n\\\"\\\"\\\"Global options object.\\n\\nAll defined options are available as attributes on this object.\\n\\\"\\\"\\\"\\n\\n\\ndef define(\\n    name: str,\\n    default: Any = None,\\n    type: Optional[type] = None,\\n    help: Optional[str] = None,\\n    metavar: Optional[str] = None,\\n    multiple: bool = False,\\n    group: Optional[str] = None,\\n    callback: Optional[Callable[[Any], None]] = None,\\n) -> None:\\n    \\\"\\\"\\\"Defines an option in the global namespace.\\n\\n    See `OptionParser.define`.\\n    \\\"\\\"\\\"\\n    return options.define(\\n        name,\\n   "
+    },
+    {
+      "seq": 3,
+      "turn": 3,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 12518,
+      "argsPreview": "{\"code\":\"const out = {};\\nout.optionsRst = (await ms.read('docs/options.rst', {format:'json'})).text;\\nout.conf = (await ms.read('docs/conf.py', {format:'json', startLine: 1, lineCount: 180})).text;\\nout.init = (await ms.read('tornado/__init__.py', {format:'json', startLine: 20, lineCount: 60})).text;\\nout.pyi = (await ms.read('tornado/__init__.pyi', {format:'json'})).text;\\nconst s = await ms.search('import_test|\\\"tornado\\\\\\\\.[a-z_]+\\\",?$|^import tornado\\\\\\\\.', {regex:true, path:'tornado/test', maxMatches:100});\\nout.importish = s.hits.map(h=>h.path+':'+h.line+': '+h.text.trim());\\n// docstri",
+      "outputPreview": "ok · 17 calls · 31ms\n{\"optionsRst\":\"``tornado.options`` --- Command-line parsing\\n============================================\\n\\n.. automodule:: tornado.options\\n\\n\\n\\n   Global functions\\n   ----------------\\n   \\n   .. autofunction:: define\\n\\n   .. py:data:: options\\n\\n       Global options object.  All defined options are available as attributes\\n       on this object.\\n\\n   .. autofunction:: parse_command_line\\n   .. autofunction:: parse_config_file\\n   .. autofunction:: print_help(file=sys.stderr)\\n   .. autofunction:: add_parse_callback\\n   .. autoexception:: Error\\n\\n   OptionParser c"
+    },
+    {
+      "seq": 4,
+      "turn": 4,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 23168,
+      "argsPreview": "{\"code\":\"const out = {};\\nout.define = (await ms.read('tornado/options.py', {format:'json', startLine:223, lineCount:92})).text;\\nout.receiver = (await ms.read('demos/file_upload/file_receiver.py', {format:'json', startLine:1, lineCount:60})).text;\\nout.uploader = (await ms.read('demos/file_upload/file_uploader.py', {format:'json', startLine:10, lineCount:14})).text + '\\\\n...\\\\n' + (await ms.read('demos/file_upload/file_uploader.py', {format:'json', startLine:100, lineCount:16})).text;\\nout.tox = (await ms.read('tox.ini', {format:'json'})).text;\\nout.importTest = (await ms.read('tornado/test/i",
+      "outputPreview": "ok · 20 calls · 238ms\n{\"define\":\"    def define(\\n        self,\\n        name: str,\\n        default: Any = None,\\n        type: Optional[type] = None,\\n        help: Optional[str] = None,\\n        metavar: Optional[str] = None,\\n        multiple: bool = False,\\n        group: Optional[str] = None,\\n        callback: Optional[Callable[[Any], None]] = None,\\n    ) -> None:\\n        \\\"\\\"\\\"Defines a new command line option.\\n\\n        ``type`` can be any of `str`, `int`, `float`, `bool`,\\n        `~datetime.datetime`, or `~datetime.timedelta`. If no ``type``\\n        is given but a ``default`` is"
+    }
+  ]
+}

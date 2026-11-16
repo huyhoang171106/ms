@@ -1,0 +1,111 @@
+{
+  "pack": "refactorbench",
+  "arm": "B_one",
+  "caseId": "tornado_refactor/options-utils",
+  "trial": 0,
+  "overallPassed": false,
+  "probeOutput": "FAILED (failures=22)",
+  "assistantTurns": [
+    {
+      "turn": 1,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 292,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 2,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 761,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 3,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 2943,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 4,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 2623,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 5,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 4096,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 6,
+      "toolCalls": 0,
+      "text": "",
+      "completionTokens": 4096,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    }
+  ],
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 19454,
+      "argsPreview": "{\"code\":\"const o = await ms.outline('tornado/options.py', {maxSymbolsPerFile: 200});\\nconst r = await ms.read('tornado/options.py', {startLine: 1, lineCount: 140, format:'json'});\\nconst hits = await ms.search('options', {regex:false, maxMatches: 600, caseSensitive:true});\\nconst filt = hits.hits.filter(h => /import|tornado\\\\.options|automodule|autofunction|currentmodule/.test(h.text)).map(h=>`${h.path}:${h.line}: ${h.text.trim()}`);\\nreturn {o, head: r.text, total: r.totalLines, count: hits.count, trunc: hits.truncated, filt};\"}",
+      "outputPreview": "ok · 3 calls · 22ms\n{\"o\":[{\"lines\":745,\"path\":\"tornado/options.py\",\"symbols\":[{\"kind\":\"def\",\"line\":37,\"signature\":\"def connect():\"},{\"kind\":\"def\",\"line\":46,\"signature\":\"def start_server():\"},{\"kind\":\"class\",\"line\":127,\"signature\":\"class Error(Exception):\"},{\"kind\":\"class\",\"line\":133,\"signature\":\"class OptionParser:\"},{\"kind\":\"def\",\"line\":140,\"signature\":\"def __init__(self) -> None:\"},{\"kind\":\"def\",\"line\":151,\"signature\":\"def _normalize_name(self, name: str) -> str:\"},{\"kind\":\"def\",\"line\":154,\"signature\":\"def __getattr__(self, name: str) -> Any:\"},{\"kind\":\"def\",\"line\":160,\"signature\":\"def __set"
+    },
+    {
+      "seq": 2,
+      "turn": 2,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 13156,
+      "argsPreview": "{\"code\":\"const r = await ms.read('tornado/options.py', {startLine: 674, lineCount: 80, format:'json'});\\nconst pats = ['tornado\\\\\\\\.options', 'from tornado import .*\\\\\\\\boptions\\\\\\\\b', 'from \\\\\\\\. import .*options', '\\\\\\\\boptions\\\\\\\\.(define|parse_command_line|parse_config_file|print_help|add_parse_callback)\\\\\\\\b', 'global_options'];\\nconst out = {};\\nfor (const p of pats) {\\n  const h = await ms.search(p, {regex:true, maxMatches: 1000, caseSensitive:true, includeHidden:true});\\n  const seen = new Set();\\n  out[p] = {count:h.count, trunc:h.truncated, hits: h.hits.filter(x=>!x.path.startsWith('",
+      "outputPreview": "ok · 7 calls · 76ms\n{\"tail\":\"        return _unicode(value)\\n\\n\\noptions = OptionParser()\\n\\\"\\\"\\\"Global options object.\\n\\nAll defined options are available as attributes on this object.\\n\\\"\\\"\\\"\\n\\n\\ndef define(\\n    name: str,\\n    default: Any = None,\\n    type: Optional[type] = None,\\n    help: Optional[str] = None,\\n    metavar: Optional[str] = None,\\n    multiple: bool = False,\\n    group: Optional[str] = None,\\n    callback: Optional[Callable[[Any], None]] = None,\\n) -> None:\\n    \\\"\\\"\\\"Defines an option in the global namespace.\\n\\n    See `OptionParser.define`.\\n    \\\"\\\"\\\"\\n    return o"
+    },
+    {
+      "seq": 3,
+      "turn": 3,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 17588,
+      "argsPreview": "{\"code\":\"const out = {};\\nout.init = (await ms.read('tornado/__init__.py', {format:'json'})).text.split('\\\\n').slice(15).join('\\\\n');\\nout.pyi = (await ms.read('tornado/__init__.pyi', {format:'json'})).text;\\nout.rst = (await ms.read('docs/options.rst', {format:'json'})).text;\\nout.util = (await ms.read('docs/utilities.rst', {format:'json'})).text;\\nout.conf = (await ms.read('docs/conf.py', {startLine: 100, lineCount: 50, format:'json'})).text;\\nconst files = ['demos/blog/blog.py','demos/chat/chatdemo.py','demos/facebook/facebook.py','demos/file_upload/file_receiver.py','demos/file_upload/file",
+      "outputPreview": "ok · 31 calls · 46ms\n{\"init\":\"\\\"\\\"\\\"The Tornado web server and tools.\\\"\\\"\\\"\\n\\n# version is a human-readable version number.\\n\\n# version_info is a four-tuple for programmatic comparison. The first\\n# three numbers are the components of the version number.  The fourth\\n# is zero for an official release, positive for a development branch,\\n# or negative for a release candidate or beta (after the base version\\n# number has been incremented)\\nversion = \\\"6.5.dev1\\\"\\nversion_info = (6, 5, 0, -100)\\n\\nimport importlib\\nimport typing\\n\\n__all__ = [\\n    \\\"auth\\\",\\n    \\\"autoreload\\\",\\n    \\\"concurre"
+    },
+    {
+      "seq": 4,
+      "turn": 4,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 22675,
+      "argsPreview": "{\"code\":\"const out = {};\\nout.define = (await ms.read('tornado/options.py', {startLine: 186, lineCount: 130, format:'json'})).text;\\nout.mock = (await ms.read('tornado/options.py', {startLine: 366, lineCount: 135, format:'json'})).text;\\nconst s = async (q, o={}) => { const h = await ms.search(q, {regex:true, maxMatches:300, includeHidden:true, ...o}); const seen=new Set(); return h.hits.map(x=>`${x.path}:${x.line}: ${x.text.trim()}`).filter(s=>!seen.has(s)&&seen.add(s)); };\\nout.modlists = await s('simple_httpclient|\\\"netutil\\\"|tornado\\\\\\\\.netutil\\\\\\\\b', {path:'.'});\\nout.modlists = out.modli",
+      "outputPreview": "ok · 9 calls · 390ms\n{\"define\":\"    def groups(self) -> Set[str]:\\n        \\\"\\\"\\\"The set of option-groups created by ``define``.\\n\\n        .. versionadded:: 3.1\\n        \\\"\\\"\\\"\\n        return {opt.group_name for opt in self._options.values()}\\n\\n    def group_dict(self, group: str) -> Dict[str, Any]:\\n        \\\"\\\"\\\"The names and values of options in a group.\\n\\n        Useful for copying options into Application settings::\\n\\n            from tornado.options import define, parse_command_line, options\\n\\n            define('template_path', group='application')\\n            define('static_path"
+    },
+    {
+      "seq": 5,
+      "turn": 5,
+      "name": "ms",
+      "isError": true,
+      "outputBytes": 85,
+      "argsPreview": "{}",
+      "outputPreview": "Error: `code` is required: a JavaScript program body using the `ms` capability table."
+    }
+  ]
+}

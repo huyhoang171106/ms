@@ -1,0 +1,165 @@
+{
+  "pack": "refactor",
+  "arm": "B_one",
+  "caseId": "refactor-slug-migration",
+  "trial": 0,
+  "overallPassed": true,
+  "probeOutput": "4/4 required tests",
+  "assistantTurns": [
+    {
+      "turn": 1,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 241,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 2,
+      "toolCalls": 1,
+      "text": "Let me look at a few job modules, their copies of the helper, and the core package to see whether the copies are identical.",
+      "completionTokens": 352,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 123
+    },
+    {
+      "turn": 3,
+      "toolCalls": 1,
+      "text": "The existing copies use `strip().lower().replace(\" \", \"-\")`, which differs from the new rules (for example, punctuation). Before changing anything I'll confirm all 24 copies are identical and see what the tests expect.",
+      "completionTokens": 506,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 218
+    },
+    {
+      "turn": 4,
+      "toolCalls": 1,
+      "text": "All 24 copies are identical. Let me read the full job test to check the new rules against its expectations.",
+      "completionTokens": 217,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 107
+    },
+    {
+      "turn": 5,
+      "toolCalls": 1,
+      "text": "All 24 copies are identical. The new rules differ from the old body (old: `strip().lower().replace(\" \", \"-\")`, which leaves punctuation in place), but the test titles (`\"Hello World\"`, `\"Ship It\"`, `\"a b\"`, `\"One Item\"`) produce the same output under both. I'll create the shared helper, swap the 24 private copies for an import, then run the suite.",
+      "completionTokens": 1378,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 349
+    },
+    {
+      "turn": 6,
+      "toolCalls": 1,
+      "text": "All 25 operations applied, and the only remaining `def make_slug` is the shared one. Now I'll run the test suite and check the helper's edge cases.",
+      "completionTokens": 450,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 147
+    },
+    {
+      "turn": 7,
+      "toolCalls": 1,
+      "text": "The suite shows 4 failures in `test_api_pagination`, `test_export`, and `test_scheduler`. None of those modules touch slugs, but I need to confirm they fail without my change too rather than assume.",
+      "completionTokens": 287,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 198
+    },
+    {
+      "turn": 8,
+      "toolCalls": 1,
+      "text": "No git repo here, so I'll check the baseline another way: whether the four failing modules import anything I changed.",
+      "completionTokens": 595,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 117
+    },
+    {
+      "turn": 9,
+      "toolCalls": 0,
+      "text": "The 24 job modules now import one shared `make_slug` from `taskflow/core/slugs.py`, but the full suite is not green: **283 passed, 4 failed**. The four failures are in modules that don't touch the slug code, so I believe they predate this change, but I couldn't prove it because the workspace isn't a git repo.\n\n**What changed**\n- **New:** `taskflow/core/slugs.py` defines `make_slug`. It lowercases, replaces each run of non-`[a-z0-9]` characters with one `-`, and strips leading and trailing `-`. `make_slug(\"\")` and `make_slug(\"   \")` both return `\"\"`.\n- **Edited:** all 24 `taskflow/jobs/job_NN.py` files. Each private copy is removed and replaced with `from taskflow.core.slugs import make_slug`. `label_NN` and `summary_NN` are untouched, so their output formats are unchanged.\n- **Not touched:** anything under `tests/`, and `pytest.ini`.\n\n**Behaviour change to be aware of:** the old copies only did `strip().lower().replace(\" \", \"-\")`, so punctuation survived. The new rules strip it. For example, `\"Ship, It!\"` used to produce `ship,-it!` and now produces `ship-it`. The existing job tests use only space-separated words, so they are unaffected. Any production data with punctuation in titles will now get different slugs.\n\n**Verification**\n- `make_slug` edge cases: `\"\"`→`\"\"`, `\"   \"`→`\"\"`, `\"Hello World\"`→`hello-world`, `\"  --Ship, It!! \"`→`ship-it`, `\"a  b\\tc\"`→`a-b-c`.\n- `label_01(Task(\"Hello World\", 2))` → `hello-world-2`; `summary_24(Task(\"Ship It\"))` → `job24:ship-it`.\n- The job tests in `tests/test_jobs.py` pass.\n\n**Remaining failures (not caused by the slug change, as far as I can tell):**\n- `tests/test_api_pagination.py::test_pagination_first_page` and `::test_pagination_second_page`\n- `tests/test_export.py::test_csv_export_handles_none_metadata` (AttributeError)\n- `tests/test_scheduler.py::test_backoff_caps_at_max_delay`: `compute_backoff_ms(1, cfg)` returns 500 where the test expects 100\n\nI checked that the modules these tests import (`taskflow.api.router`, `taskflow.plugins.csv_export`, `taskflow.core.scheduler`, `taskflow.storage.memory_store`) do not load `taskflow.jobs` or `taskflow.core.slugs`. I did not fix these failures since they are outside the scope of this task. Confirming they predate my change would need the original source, which I don't have as a git baseline.",
+      "completionTokens": 1231,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 2317
+    }
+  ],
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 3402,
+      "argsPreview": "{\"code\":\"const list = await ms.list('.', {recursive: true, maxEntries: 400});\\nconst hits = await ms.search('def make_slug', {maxMatches: 200});\\nconst cfg = await ms.search('pytest|python_requires|requires-python', {maxMatches: 20});\\nreturn {files: list.map(f=>f.path).filter(p=>!p.includes('.git/')), hits: hits.hits.map(h=>[h.path,h.line,h.text]), cfg: cfg.hits.map(h=>[h.path,h.line,h.text])};\"}",
+      "outputPreview": "ok · 3 calls · 17ms\n{\"files\":[\"README.md\",\"pytest.ini\",\"taskflow\",\"taskflow/__init__.py\",\"taskflow/api\",\"taskflow/api/__init__.py\",\"taskflow/api/auth.py\",\"taskflow/api/health.py\",\"taskflow/api/middleware.py\",\"taskflow/api/rate_limit.py\",\"taskflow/api/router.py\",\"taskflow/cli\",\"taskflow/cli/args.py\",\"taskflow/cli/commands.py\",\"taskflow/cli/formatter.py\",\"taskflow/core\",\"taskflow/core/__init__.py\",\"taskflow/core/config.py\",\"taskflow/core/context.py\",\"taskflow/core/errors.py\",\"taskflow/core/events.py\",\"taskflow/core/hooks.py\",\"taskflow/core/metrics.py\",\"taskflow/core/models.py\",\"taskflow/core/sch"
+    },
+    {
+      "seq": 2,
+      "turn": 2,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 1830,
+      "argsPreview": "{\"code\":\"const out = {};\\nfor (const n of ['01','02','13','24']) out['job_'+n] = (await ms.read(`taskflow/jobs/job_${n}.py`, {format:'json'})).text;\\nout.init = (await ms.read('taskflow/jobs/__init__.py')).text;\\nout.coreInit = (await ms.read('taskflow/core/__init__.py')).text;\\nout.pytest = (await ms.read('pytest.ini')).text;\\nconst s = await ms.search('make_slug|slug', {maxMatches: 200});\\nout.slugRefs = s.hits.filter(h=>!/^taskflow\\\\/jobs\\\\/job_\\\\d\\\\d\\\\.py$/.test(h.path) || !/def make_slug/.test(h.text)).map(h=>[h.path,h.line,h.text]);\\nreturn out;\"}",
+      "outputPreview": "ok · 8 calls · 5ms\n{\n \"job_01\": \"\\\"\\\"\\\"Job handler 01.\\\"\\\"\\\"\\n\\nfrom taskflow.core.models import Task\\n\\n\\ndef make_slug(title: str) -> str:\\n    return title.strip().lower().replace(\\\" \\\", \\\"-\\\")\\n\\n\\ndef label_01(task: Task) -> str:\\n    return f\\\"{make_slug(task.title)}-{task.priority}\\\"\\n\\n\\ndef summary_01(task: Task) -> str:\\n    return f\\\"job01:{make_slug(task.title)}\\\"\",\n \"job_02\": \"\\\"\\\"\\\"Job handler 02.\\\"\\\"\\\"\\n\\nfrom taskflow.core.models import Task\\n\\n\\ndef make_slug(title: str) -> str:\\n    return title.strip().lower().replace(\\\" \\\", \\\"-\\\")\\n\\n\\ndef label_02(task: Task) -> str:\\n    "
+    },
+    {
+      "seq": 3,
+      "turn": 3,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 2350,
+      "argsPreview": "{\"code\":\"const bodies = {};\\nfor (let i=1;i<=24;i++){ const n=String(i).padStart(2,'0'); const t=(await ms.read(`taskflow/jobs/job_${n}.py`,{format:'json'})).text; const m=t.match(/def make_slug[\\\\s\\\\S]*?\\\\n\\\\n\\\\n/); bodies[n]= m?m[0]:'NOMATCH'; }\\nconst distinct = [...new Set(Object.values(bodies))];\\nconst t = await ms.search('slug|label_|summary_|job_\\\\\\\\d\\\\\\\\d|from taskflow', {path:'tests', regex:true, maxMatches:200});\\nreturn {distinctCount: distinct.length, distinct, tests: t.hits.map(h=>[h.path,h.line,h.text])};\"}",
+      "outputPreview": "ok · 25 calls · 10ms\n{\"distinctCount\":1,\"distinct\":[\"def make_slug(title: str) -> str:\\n    return title.strip().lower().replace(\\\" \\\", \\\"-\\\")\\n\\n\\n\"],\"tests\":[[\"tests/test_api_pagination.py\",2,\"from taskflow.core.models import Task\"],[\"tests/test_api_pagination.py\",3,\"from taskflow.storage.memory_store import MemoryStore\"],[\"tests/test_api_pagination.py\",4,\"from taskflow.api.router import handle_list_tasks\"],[\"tests/test_export.py\",2,\"from taskflow.core.models import Task\"],[\"tests/test_export.py\",3,\"from taskflow.plugins.csv_export import export_tasks_csv\"],[\"tests/test_export.py\",17,\"def te"
+    },
+    {
+      "seq": 4,
+      "turn": 4,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 2188,
+      "argsPreview": "{\"code\":\"const tj = (await ms.read('tests/test_jobs.py')).text; const cm = (await ms.read('taskflow/core/models.py')).text; return {tj, cm};\"}",
+      "outputPreview": "ok · 2 calls · 1ms\n{\"tj\":\"rev:e30ac7222c16f5bef8d5b465aa7ccb03560dc56fec4239db0134a26adf733199 eol:LF lines:1-31/31\\n1:7379| \\\"\\\"\\\"Job handlers and the slug they render.\\\"\\\"\\\"\\n2:af13| \\n3:c3b5| import pytest\\n4:7cfb| from taskflow.core.models import Task\\n5:dd83| from taskflow.jobs import job_01, job_02, job_24\\n6:af13| \\n7:af13| \\n8:b57e| def test_label_uses_slug():\\n9:4074|     assert job_01.label_01(Task(id=\\\"1\\\", title=\\\"Hello World\\\", priority=2)) == \\\"hello-world-2\\\"\\n10:af13| \\n11:af13| \\n12:5bac| def test_summary_uses_slug():\\n13:8755|     assert job_24.summary_24(Task(id=\\\"24\\\", titl"
+    },
+    {
+      "seq": 5,
+      "turn": 5,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 519,
+      "argsPreview": "{\"code\":\"const helper = `\\\"\\\"\\\"Shared slug helper used by job handlers.\\\"\\\"\\\"\\n\\nimport re\\n\\n_NON_SLUG_CHARS = re.compile(r\\\"[^a-z0-9]+\\\")\\n\\n\\ndef make_slug(title: str) -> str:\\n    \\\"\\\"\\\"Return a URL-safe slug: lowercase a-z/0-9 runs joined by single '-'.\\\"\\\"\\\"\\n    return _NON_SLUG_CHARS.sub(\\\"-\\\", title.lower()).strip(\\\"-\\\")\\n`;\\nconst ops = [{kind:'write_file', path:'taskflow/core/slugs.py', content: helper}];\\nfor (let i=1;i<=24;i++){\\n  const n = String(i).padStart(2,'0');\\n  ops.push({kind:'edit', path:`taskflow/jobs/job_${n}.py`, edits:[{\\n    oldText: 'from taskflow.core.models impo",
+      "outputPreview": "ok · 2 calls · 166ms\n{\n \"r\": \"{\\\"dryRun\\\":false,\\\"operationId\\\":\\\"477560fe-8088-4f22-b4a3-640e6ef6e1a2\\\",\\\"operationsApplied\\\":25,\\\"results\\\":[{\\\"afterRevision\\\":\\\"63b10f2ebf5d6d3490fae2dc7b68f96a99684965ce78cf0364e978a7f7d75d57\\\",\\\"beforeRevision\\\":\\\"\\\",\\\"kind\\\":\\\"write_file\\\",\\\"path\\\":\\\"taskflow/core/slugs.py\\\",\\\"transactionId\\\":\\\"tx-1794856679839-000001\\\"},{\\\"afterRevision\\\":\\\"980e46163fda1980eef38c269803f7909032b718923adc547488111e596cf82b\\\",\\\"beforeRevisio\",\n \"remaining\": [\n  \"taskflow/core/slugs.py:8\"\n ]\n}"
+    },
+    {
+      "seq": 6,
+      "turn": 6,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 1609,
+      "argsPreview": "{\"code\":\"const t = await ms.exec('python3 -m pytest -q 2>&1 | tail -15', {timeoutMs: 120000});\\nconst c = await ms.exec(['python3','-c','from taskflow.core.slugs import make_slug as m; print(repr([m(\\\"\\\"),m(\\\"   \\\"),m(\\\"Hello World\\\"),m(\\\"  --Ship, It!! \\\"),m(\\\"a  b\\\\\\\\tc\\\"),m(\\\"Café 2024\\\")]))'], {timeoutMs: 30000});\\nconst j = await ms.exec(['python3','-c','from taskflow.jobs import job_01,job_24; from taskflow.core.models import Task; print(job_01.label_01(Task(id=\\\"1\\\",title=\\\"Hello World\\\",priority=2)), job_24.summary_24(Task(id=\\\"24\\\",title=\\\"Ship It\\\")))'], {timeoutMs: 30000});\\nreturn ",
+      "outputPreview": "ok · 3 calls · 487ms\n{\n \"t\": \"[FAILED | exit:0 | 432ms | log:log-1794856682772-31-1 | raw:16L/882B]\\n________________________ test_backoff_caps_at_max_delay ________________________\\n    def test_backoff_caps_at_max_delay():\\n        cfg = RetryConfig(max_attempts=5, base_delay_ms=100, max_delay_ms=500)\\n>       assert compute_backoff_ms(1, cfg) == 100\\nE       assert 500 == 100\\nE        +  where 500 = compute_backoff_ms(1, RetryConfig(max_attempts=5, base_delay_ms=100, max_delay_ms=500, jitter=False))\\ntests/test_scheduler.py:8: AssertionError\\n=========================== short test summary "
+    },
+    {
+      "seq": 7,
+      "turn": 7,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 335,
+      "argsPreview": "{\"code\":\"const g = await ms.exec('git status --short 2>&1 | head -40; echo ---; git stash list 2>&1 | head -3', {timeoutMs: 30000});\\nreturn g.output;\"}",
+      "outputPreview": "ok · 1 call · 6ms\n[OK | exit:0 | 5ms | raw:6L/282B]\nfatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n---\nfatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set)."
+    },
+    {
+      "seq": 8,
+      "turn": 8,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 150,
+      "argsPreview": "{\"code\":\"const r = await ms.exec(['python3','-c','import sys; import importlib; [importlib.import_module(m) for m in [\\\"taskflow.api.router\\\",\\\"taskflow.plugins.csv_export\\\",\\\"taskflow.core.scheduler\\\",\\\"taskflow.storage.memory_store\\\"]]; print(\\\"jobs\\\" in \\\" \\\".join(sys.modules), [m for m in sys.modules if \\\"slug\\\" in m or m.startswith(\\\"taskflow.jobs\\\")])'], {timeoutMs: 30000});\\nconst f = await ms.exec('grep -rn \\\"jobs\\\\\\\\|slugs\\\" taskflow/api taskflow/plugins taskflow/core/scheduler.py taskflow/storage tests/test_api_pagination.py tests/test_export.py tests/test_scheduler.py', {timeoutMs: ",
+      "outputPreview": "ok · 2 calls · 48ms\n{\n \"r\": \"[OK | exit:0 | 43ms | raw:2L/9B]\\nFalse []\",\n \"f\": \"[FAILED | exit:1 | 5ms | log:log-1794856687601-31-2 | raw:0L/0B]\"\n}"
+    }
+  ]
+}

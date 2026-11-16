@@ -1,0 +1,90 @@
+{
+  "pack": "refactorbench",
+  "arm": "A_eight",
+  "caseId": "tornado_refactor/options-utils",
+  "trial": 0,
+  "overallPassed": false,
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 2595,
+      "argsPreview": "{\"command\":\"git status | head; git log --oneline | head -3; grep -n \\\"^def \\\\|^class \\\\|^[a-zA-Z_].* = \\\\|^from \\\\|^import \\\\|^if \\\\|^    def \\\" tornado/options.py\"}",
+      "outputPreview": "37:    def connect():\n46:    def start_server():\n102:import datetime\n103:import numbers\n104:import re\n105:import sys\n106:import os\n107:import textwrap\n109:from tornado.escape import _unicode, native_str\n110:from tornado.log import define_logging_options\n111:from tornado.util import basestring_type, exec_in\n113:from typing import (\n127:class Error(Exception):\n133:class OptionParser:\n140:    def __init__(self) -> None:\n151:    def _normalize_name(self, name: str) -> str:\n154:    def __getattr__(self, name: str) -> Any:\n160:    def __setattr__(self, name: str, value: Any) -> None:\n166:    def __i"
+    },
+    {
+      "seq": 2,
+      "turn": 1,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 7283,
+      "argsPreview": "{\"command\":\"grep -rn \\\"options\\\" --include=\\\"*.py\\\" --include=\\\"*.rst\\\" --include=\\\"*.md\\\" --include=\\\"*.txt\\\" --include=\\\"*.cfg\\\" --include=\\\"*.toml\\\" --include=\\\"*.ini\\\" --include=\\\"*.pyi\\\" . | grep -v \\\"^./tornado/options.py\\\" | grep -n \\\"import\\\\|tornado\\\\.options\\\\|automodule\\\\|autofunction\\\" \"}",
+      "outputPreview": "4:./demos/file_upload/file_uploader.py:21:from tornado.options import define, options\n7:./demos/file_upload/file_receiver.py:16:from tornado import options\n9:./demos/helloworld/helloworld.py:20:from tornado.options import define, options\n10:./demos/helloworld/helloworld.py:31:    tornado.options.parse_command_line()\n12:./demos/chat/chatdemo.py:22:from tornado.options import define, options, parse_command_line\n15:./demos/s3server/s3server.py:45:from tornado.options import options, define\n18:./demos/blog/blog.py:27:from tornado.options import define, options\n19:./demos/blog/blog.py:290:    torna"
+    },
+    {
+      "seq": 3,
+      "turn": 2,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 7365,
+      "argsPreview": "{\"command\":\"sed -n 1,131p tornado/options.py; echo -----; sed -n 670,760p tornado/options.py; ls; ls tornado | head -80; ls docs\"}",
+      "outputPreview": "#\n# Copyright 2009 Facebook\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\"); you may\n# not use this file except in compliance with the License. You may obtain\n# a copy of the License at\n#\n#     http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT\n# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n# License for the specific language governing permissions and limitations\n# under the License.\n\n\"\"\"A command line parsing"
+    },
+    {
+      "seq": 4,
+      "turn": 2,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 8596,
+      "argsPreview": "{\"command\":\"grep -rnE \\\"\\\\boptions\\\\.(define|parse_command_line|parse_config_file|print_help|add_parse_callback)\\\\b|tornado\\\\.options|from tornado import .*options|from \\\\. import .*options|from \\\\.options|options\\\\.(define|parse_command_line|parse_config_file|print_help|add_parse_callback)\\\" . --exclude-dir=releases --exclude-dir=.git -I | grep -v \\\"^./tornado/options.py\\\"\"}",
+      "outputPreview": "./demos/file_upload/file_uploader.py:21:from tornado.options import define, options\n./demos/file_upload/file_uploader.py:108:    filenames = options.parse_command_line()\n./demos/file_upload/file_receiver.py:16:from tornado import options\n./demos/file_upload/file_receiver.py:52:    options.parse_command_line()\n./demos/helloworld/helloworld.py:20:from tornado.options import define, options\n./demos/helloworld/helloworld.py:31:    tornado.options.parse_command_line()\n./demos/chat/chatdemo.py:22:from tornado.options import define, options, parse_command_line\n./demos/s3server/s3server.py:45:from tor"
+    },
+    {
+      "seq": 5,
+      "turn": 3,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 6460,
+      "argsPreview": "{\"command\":\"cat tornado/__init__.py | sed -n 15,80p; cat tornado/__init__.pyi; cat docs/options.rst; sed -n 100,150p docs/conf.py; grep -n \\\"nitpick\\\\|-W\\\\|sphinx\\\" docs/conf.py docs/Makefile tox.ini setup.cfg pyproject.toml .readthedocs* 2>/dev/null | head -30; ls -a\"}",
+      "outputPreview": "\"\"\"The Tornado web server and tools.\"\"\"\n\n# version is a human-readable version number.\n\n# version_info is a four-tuple for programmatic comparison. The first\n# three numbers are the components of the version number.  The fourth\n# is zero for an official release, positive for a development branch,\n# or negative for a release candidate or beta (after the base version\n# number has been incremented)\nversion = \"6.5.dev1\"\nversion_info = (6, 5, 0, -100)\n\nimport importlib\nimport typing\n\n__all__ = [\n    \"auth\",\n    \"autoreload\",\n    \"concurrent\",\n    \"curl_httpclient\",\n    \"escape\",\n    \"gen\",\n    \"htt"
+    },
+    {
+      "seq": 6,
+      "turn": 3,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 11577,
+      "argsPreview": "{\"command\":\"grep -rnE \\\"\\\\b(parse_command_line|parse_config_file|print_help|add_parse_callback)\\\\b|\\\\bdefine\\\\(|import.*\\\\bdefine\\\\b|global_options\\\" . -I --exclude-dir=.git | grep -v \\\"^./tornado/options.py\\\" | grep -vE \\\"^\\\\./tornado/test/options_test.py:[0-9]+:\\\\s+(sub_|base_)?options\\\\.|^\\\\./tornado/log.py:[0-9]+:\\\\s+options\\\\.define\\\"\"}",
+      "outputPreview": "./demos/file_upload/file_uploader.py:21:from tornado.options import define, options\n./demos/file_upload/file_uploader.py:105:    define(\"put\", type=bool, help=\"Use PUT instead of POST\", group=\"file uploader\")\n./demos/file_upload/file_uploader.py:108:    filenames = options.parse_command_line()\n./demos/file_upload/file_receiver.py:52:    options.parse_command_line()\n./demos/helloworld/helloworld.py:20:from tornado.options import define, options\n./demos/helloworld/helloworld.py:22:define(\"port\", default=8888, help=\"run on the given port\", type=int)\n./demos/helloworld/helloworld.py:31:    tornado"
+    },
+    {
+      "seq": 7,
+      "turn": 4,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 7928,
+      "argsPreview": "{\"command\":\"sed -n 223,315p tornado/options.py; sed -n 425,470p tornado/options.py; echo ----; cat demos/file_upload/file_receiver.py | sed -n 10,60p; echo ----; grep -rn \\\"options\\\" setup.py MANIFEST.in tox.ini setup.cfg pyproject.toml .flake8 .coveragerc .github docs/*.rst docs/guide README.rst 2>/dev/null | grep -v \\\"^docs/options.rst\\\"; python3 --version; python3 -c \\\"import sphinx; print(sphinx.__version__)\\\"; python3 -m flake8 --version; python3 -m mypy --version; python3 -m black --version\"}",
+      "outputPreview": "def define(\n        self,\n        name: str,\n        default: Any = None,\n        type: Optional[type] = None,\n        help: Optional[str] = None,\n        metavar: Optional[str] = None,\n        multiple: bool = False,\n        group: Optional[str] = None,\n        callback: Optional[Callable[[Any], None]] = None,\n    ) -> None:\n        \"\"\"Defines a new command line option.\n\n        ``type`` can be any of `str`, `int`, `float`, `bool`,\n        `~datetime.datetime`, or `~datetime.timedelta`. If no ``type``\n        is given but a ``default`` is, ``type`` is the type of\n        ``default``. Otherwis"
+    },
+    {
+      "seq": 8,
+      "turn": 5,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 12089,
+      "argsPreview": "{\"command\":\"cat docs/conf.py | sed -n 1,90p; cat docs/utilities.rst; cat tornado/test/import_test.py | sed -n 1,80p; sed -n 1,60p tornado/test/runtests.py; sed -n 180,235p tornado/test/log_test.py; cat setup.cfg; grep -n \\\"packages\\\\|py_modules\\\" setup.py; sed -n 85,95p tornado/log.py; sed -n 212,230p tornado/log.py; sed -n 265,345p tornado/log.py\"}",
+      "outputPreview": "import os\nimport sphinx.errors\nimport sys\n\nimport sphinx_rtd_theme\n\n# Ensure we get the local copy of tornado instead of what's on the standard path\nsys.path.insert(0, os.path.abspath(\"..\"))\nimport tornado\n\nmaster_doc = \"index\"\n\nproject = \"Tornado\"\ncopyright = \"The Tornado Authors\"\n\nversion = release = tornado.version\n\nextensions = [\n    \"sphinx.ext.autodoc\",\n    \"sphinx.ext.coverage\",\n    \"sphinx.ext.doctest\",\n    \"sphinx.ext.intersphinx\",\n    \"sphinx.ext.viewcode\",\n]\n\nprimary_domain = \"py\"\ndefault_role = \"py:obj\"\n\nautodoc_member_order = \"bysource\"\nautoclass_content = \"both\"\nautodoc_inherit_d"
+    },
+    {
+      "seq": 9,
+      "turn": 5,
+      "name": "run_command",
+      "isError": false,
+      "outputBytes": 5000,
+      "argsPreview": "{\"command\":\"sed -n 1,30p tornado/test/options_test.py; sed -n 300,340p tornado/test/options_test.py; grep -rn \\\"tornado.options\\\\|tornado\\\\.options\\\" docs/releases | cat; grep -rn \\\"options\\\" .github tox.ini .coveragerc .flake8 pyproject.toml runtests.sh codecov.yml | head -20; find . -name \\\"*.pyc\\\" | head -3; find . -name \\\"*.orig\\\" -o -name \\\"*.rej\\\" | head\"}",
+      "outputPreview": "import datetime\nfrom io import StringIO\nimport os\nimport sys\nfrom unittest import mock\nimport unittest\n\nfrom tornado.options import OptionParser, Error\nfrom tornado.util import basestring_type\n\nimport typing\n\nif typing.TYPE_CHECKING:\n    from typing import List  # noqa: F401\n\n\nclass Email:\n    def __init__(self, value):\n        if isinstance(value, str) and \"@\" in value:\n            self._value = value\n        else:\n            raise ValueError()\n\n    @property\n    def value(self):\n        return self._value\n\n\nclass OptionsTest(unittest.TestCase):\n    def test_parse_command_line(self):\n       "
+    }
+  ]
+}

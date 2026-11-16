@@ -1,6 +1,6 @@
 use crate::error::ProtocolError;
 use crate::messages::{Request, RequestBody};
-use crate::operations::{BatchFileOp, EditSpec, Operation, TextEdit};
+use crate::operations::{BatchFileOp, EditParams, EditSpec, Operation, TextEdit};
 
 /// Lexically normalizes a workspace-relative UTF-8 path at the protocol boundary.
 ///
@@ -220,6 +220,9 @@ pub fn validate_operation(op: &Operation) -> Result<(), ProtocolError> {
                         validate_revision_hex(&pp.expected_revision)?;
                         validate_patch_edits(&pp.edits)?;
                     }
+                    BatchFileOp::Edit(ep) => {
+                        validate_edit_params(ep)?;
+                    }
                     BatchFileOp::WriteFile(wp) => {
                         validate_relative_path(&wp.path)?;
                         if let Some(rev) = &wp.expected_revision {
@@ -236,47 +239,7 @@ pub fn validate_operation(op: &Operation) -> Result<(), ProtocolError> {
             }
             Ok(())
         }
-        Operation::Edit(p) => {
-            validate_relative_path(&p.path)?;
-            if let Some(rev) = &p.expected_revision {
-                validate_revision_hex(rev)?;
-            }
-            if p.edits.is_empty() {
-                return Err(ProtocolError::InvalidEdit(
-                    "edits list cannot be empty".into(),
-                ));
-            }
-            let mut byte_edits = Vec::new();
-            for (idx, spec) in p.edits.iter().enumerate() {
-                match spec {
-                    EditSpec::Line {
-                        start_line,
-                        end_line,
-                        ..
-                    } => {
-                        if *start_line == 0 || *end_line < *start_line {
-                            return Err(ProtocolError::InvalidEdit(format!(
-                                "edit[{idx}] invalid line range [{start_line}, {end_line}] (1-based, startLine <= endLine)"
-                            )));
-                        }
-                    }
-                    EditSpec::Text { old_text, .. } => {
-                        if old_text.is_empty() {
-                            return Err(ProtocolError::InvalidEdit(format!(
-                                "edit[{idx}] oldText cannot be empty"
-                            )));
-                        }
-                    }
-                    EditSpec::Byte(te) => {
-                        byte_edits.push(te.clone());
-                    }
-                }
-            }
-            if !byte_edits.is_empty() {
-                validate_patch_edits(&byte_edits)?;
-            }
-            Ok(())
-        }
+        Operation::Edit(p) => validate_edit_params(p),
         Operation::WriteFile(p) => {
             validate_relative_path(&p.path)?;
             if let Some(rev) = &p.expected_revision {
@@ -323,4 +286,46 @@ pub fn validate_operation(op: &Operation) -> Result<(), ProtocolError> {
         }
         Operation::TxList(_) | Operation::TxUndo(_) | Operation::Schema(_) => Ok(()),
     }
+}
+
+fn validate_edit_params(p: &EditParams) -> Result<(), ProtocolError> {
+    validate_relative_path(&p.path)?;
+    if let Some(rev) = &p.expected_revision {
+        validate_revision_hex(rev)?;
+    }
+    if p.edits.is_empty() {
+        return Err(ProtocolError::InvalidEdit(
+            "edits list cannot be empty".into(),
+        ));
+    }
+    let mut byte_edits = Vec::new();
+    for (idx, spec) in p.edits.iter().enumerate() {
+        match spec {
+            EditSpec::Line {
+                start_line,
+                end_line,
+                ..
+            } => {
+                if *start_line == 0 || *end_line < *start_line {
+                    return Err(ProtocolError::InvalidEdit(format!(
+                        "edit[{idx}] invalid line range [{start_line}, {end_line}] (1-based, startLine <= endLine)"
+                    )));
+                }
+            }
+            EditSpec::Text { old_text, .. } => {
+                if old_text.is_empty() {
+                    return Err(ProtocolError::InvalidEdit(format!(
+                        "edit[{idx}] oldText cannot be empty"
+                    )));
+                }
+            }
+            EditSpec::Byte(te) => {
+                byte_edits.push(te.clone());
+            }
+        }
+    }
+    if !byte_edits.is_empty() {
+        validate_patch_edits(&byte_edits)?;
+    }
+    Ok(())
 }

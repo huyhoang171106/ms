@@ -1,0 +1,13 @@
+diff -ruN '--exclude=__pycache__' '--exclude=.pytest_cache' '--exclude=.git' a/taskflow/plugins/csv_export.py b/taskflow/plugins/csv_export.py
+--- a/taskflow/plugins/csv_export.py	2026-11-15 09:15:14.111553570 +0700
++++ b/taskflow/plugins/csv_export.py	2026-11-15 14:04:41.703412148 +0700
+@@ -9,7 +9,7 @@
+     writer = csv.writer(buf, lineterminator="\n")
+     writer.writerow(["id", "title", "priority", "source"])
+     for t in tasks:
+-        # BUG med-03: crashes with AttributeError when t.metadata is None
+-        source = t.metadata.get("source", "")
++        metadata = t.metadata or {}
++        source = metadata.get("source", "")
+         writer.writerow([t.id, t.title, str(t.priority), source])
+     return buf.getvalue()

@@ -11,8 +11,7 @@ use ms_rpc::{
 };
 use ms_runtime::{HostConfig, Runtime};
 
-#[tokio::main]
-async fn main() -> ExitCode {
+fn main() -> ExitCode {
     let cfg = match config::parse_args(std::env::args().skip(1)) {
         Ok(cfg) => cfg,
         Err(err) => {
@@ -32,7 +31,24 @@ async fn main() -> ExitCode {
 
     match cfg.mode {
         CliMode::Exec => {
-            match exec_and_distill(&cfg.root, &cfg.exec_command, cfg.exec_timeout_ms).await {
+            // ponytail: `ms exec` is one command and one exit, so a current-thread runtime is enough.
+            // The multi-thread pool is only worth its ~1ms start for the long-lived serve/mcp modes.
+            let rt = match tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            {
+                Ok(rt) => rt,
+                Err(err) => {
+                    eprintln!("ms exec: {err}");
+                    return ExitCode::from(1);
+                }
+            };
+            match rt.block_on(exec_and_distill(
+                &cfg.root,
+                &cfg.exec_command,
+                cfg.exec_timeout_ms,
+                cfg.exec_keep_env,
+            )) {
                 Ok(res) => {
                     println!("{}", res.distilled);
                     let code = u8::try_from(res.exit_code.clamp(0, 255)).unwrap_or(1);
@@ -60,6 +76,14 @@ async fn main() -> ExitCode {
         CliMode::Serve | CliMode::Mcp => {}
     }
 
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("failed to start tokio runtime")
+        .block_on(serve(cfg))
+}
+
+async fn serve(cfg: config::CliConfig) -> ExitCode {
     // Read-only runs do not write to state_dir, but HostConfig expects a PathBuf.
     let state_dir = cfg
         .state_dir

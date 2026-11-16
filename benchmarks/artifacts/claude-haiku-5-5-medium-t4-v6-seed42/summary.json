@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "2.0.0",
+  "experimentId": "medium-repo-eval",
+  "generatedAt": "2026-11-15T06:56:37.341Z",
+  "totalRuns": 24,
+  "mode": "controlled",
+  "seed": 42,
+  "trials": 4,
+  "byArm": {
+    "A_baseline": {
+      "attempted": 12,
+      "verifiedSuccess": 12,
+      "targetFixed": 12,
+      "noRegressions": 12,
+      "infraErrors": 0,
+      "timeouts": 0,
+      "totalWallClockMs": 171791.19,
+      "totalLlmTurns": 77,
+      "totalToolCalls": 123,
+      "totalToolFailures": 14,
+      "totalCommandNonZeroExits": 27,
+      "totalCommandTimeouts": 0,
+      "totalToolOutputBytes": 203620,
+      "totalUncachedInputTokens": 2046,
+      "totalCacheReadTokens": 450615,
+      "totalCacheWriteTokens": 108050,
+      "totalOutputTokens": 27823,
+      "totalTokens": 588534,
+      "totalCostDollars": 0.036635,
+      "costPerAttemptedTask": 0.003053,
+      "costPerVerifiedSuccess": 0.003053
+    },
+    "B_ms": {
+      "attempted": 12,
+      "verifiedSuccess": 9,
+      "targetFixed": 9,
+      "noRegressions": 9,
+      "infraErrors": 0,
+      "timeouts": 0,
+      "totalWallClockMs": 189279.06,
+      "totalLlmTurns": 84,
+      "totalToolCalls": 118,
+      "totalToolFailures": 12,
+      "totalCommandNonZeroExits": 23,
+      "totalCommandTimeouts": 0,
+      "totalToolOutputBytes": 147305,
+      "totalUncachedInputTokens": 2060,
+      "totalCacheReadTokens": 478484,
+      "totalCacheWriteTokens": 67995,
+      "totalOutputTokens": 29637,
+      "totalTokens": 578176,
+      "totalCostDollars": 0.033093,
+      "costPerAttemptedTask": 0.002758,
+      "costPerVerifiedSuccess": 0.003677
+    }
+  },
+  "pairedDeltasByCase": {
+    "med-01-pagination-offbyone": {
+      "pairs": 4,
+      "passDeltaBMinusA": 0,
+      "wallClockMsMedianDeltaBMinusA": 4795.35,
+      "costDollarsMedianDeltaBMinusA": -0.0001005,
+      "turnsMedianDeltaBMinusA": 2.5
+    },
+    "med-02-retry-backoff": {
+      "pairs": 4,
+      "passDeltaBMinusA": -2,
+      "wallClockMsMedianDeltaBMinusA": -814.0600000000004,
+      "costDollarsMedianDeltaBMinusA": -0.0005405,
+      "turnsMedianDeltaBMinusA": -0.5
+    },
+    "med-03-export-csv-escape": {
+      "pairs": 4,
+      "passDeltaBMinusA": -1,
+      "wallClockMsMedianDeltaBMinusA": 860.915,
+      "costDollarsMedianDeltaBMinusA": -0.00037000000000000005,
+      "turnsMedianDeltaBMinusA": 0
+    }
+  }
+}

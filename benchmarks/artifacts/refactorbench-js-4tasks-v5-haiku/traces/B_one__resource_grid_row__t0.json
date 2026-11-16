@@ -1,0 +1,93 @@
+{
+  "pack": "refactorbench-js",
+  "arm": "B_one",
+  "caseId": "resource_grid_row",
+  "trial": 0,
+  "overallPassed": true,
+  "probeOutput": "nonTrivial=true (+5 files) | Tests  20 passed (20)",
+  "assistantTurns": [
+    {
+      "turn": 1,
+      "toolCalls": 1,
+      "text": "",
+      "completionTokens": 152,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 0
+    },
+    {
+      "turn": 2,
+      "toolCalls": 1,
+      "text": "The file is a single 232-line component with inline hour math, the sidebar, and the timeline cells. I'll split it into a pure helper module, a sidebar, a day cell, and two chip components, then keep `ResourceRow` as the composer and re-export surface.",
+      "completionTokens": 5598,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 251
+    },
+    {
+      "turn": 3,
+      "toolCalls": 1,
+      "text": "Files are written. Before verifying, I'll switch the `@/` imports to relative paths, since no `tsconfig`/`jsconfig` alias is visible in the workspace, and drop the unused `React` default imports so they match the original file's style.",
+      "completionTokens": 1652,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 235
+    },
+    {
+      "turn": 4,
+      "toolCalls": 1,
+      "text": "The re-export lines still use `@/`, and my replacement only hit the first occurrence of each path. I'll rewrite all of them and re-verify.",
+      "completionTokens": 411,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 138
+    },
+    {
+      "turn": 5,
+      "toolCalls": 0,
+      "text": "I split `src/app/ResourceRow.jsx` into smaller modules under `src/app/resourceRow/`. The module import check passes, but I did not render the component, so visual and behavioral equivalence rests on a line-by-line comparison.\n\n**New layout**\n- `scheduleUtils.js`: pure helpers. `itemsOnDay` filters items covering a day, `sumHours` totals `hours_per_day`, `totalHoursAcrossDays` sums over the visible days, plus the efficiency label, load-color, and complexity-label helpers.\n- `ResourceSidebar.jsx`: the left panel (name, role, effort badge, target-load bar, available/blocked hours).\n- `DayCell.jsx`: one timeline cell, including the over-capacity warning.\n- `TimeBlockChip.jsx` and `AllocationChip.jsx`: the individual block and allocation chips.\n- `src/app/ResourceRow.jsx`: now only the `ResourceRow` composition, which keeps the same hooks, memoization, and props.\n\n**Compatibility**\n- `ResourceRow` keeps the same signature and remains the only export the original had.\n- I also re-export the new sub-components and helpers from `ResourceRow.jsx`. These are additive; nothing that imported before is affected.\n- Inside `src/`, the `@/` alias is not used. The workspace has no `tsconfig`/`jsconfig` alias config, so I used relative paths to avoid depending on one.\n\n**Verification**\n- All six files pass Bun's JS/JSX transpiler.\n- `import('./src/app/ResourceRow.jsx')` under Bun resolves and exposes the expected exports.\n- No `@/` references remain under `src/`.\n\nI did not check `@/app/ResourceRow` resolution, since the alias isn't configured in this workspace. I also did not create or modify tests and did not install packages.",
+      "completionTokens": 928,
+      "thinkingChars": 0,
+      "thinkingTail": "",
+      "textChars": 1638
+    }
+  ],
+  "toolTraces": [
+    {
+      "seq": 1,
+      "turn": 1,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 9311,
+      "argsPreview": "{\"code\":\"const list = await ms.list('.', {recursive: true, maxEntries: 200});\\nconst f = await ms.read('src/app/ResourceRow.jsx', {format: 'json'});\\nreturn {list: list.map(x=>x.path), file: f.text, total: f.totalLines};\"}",
+      "outputPreview": "ok · 2 calls · 5ms\n{\"list\":[\"src\",\"src/app\",\"src/app/ResourceRow.jsx\"],\"file\":\"import { useMemo } from \\\"react\\\";\\nimport {\\n  parseISO,\\n  isWithinInterval,\\n  startOfDay,\\n  endOfDay,\\n  isSameDay,\\n} from \\\"date-fns\\\";\\nimport { Zap, AlertTriangle, Shuffle } from \\\"lucide-react\\\";\\n\\nexport function ResourceRow({\\n  resource,\\n  days,\\n  allocations,\\n  timeBlocks,\\n  onReassignAllocation,\\n}) {\\n  // Calculate weekly load for the visible range with capacity buffer consideration\\n  const totalWeeklyHours = useMemo(() => {\\n    return days.reduce((acc, day) => {\\n      const dayAllocations ="
+    },
+    {
+      "seq": 2,
+      "turn": 2,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 46,
+      "argsPreview": "{\"code\":\"const files = {\\n\\\"src/app/resourceRow/scheduleUtils.js\\\": `import { parseISO, isWithinInterval, startOfDay, endOfDay } from \\\"date-fns\\\";\\n\\n// Returns the items (allocations or time blocks) whose date range covers \\\\`day\\\\`.\\nexport function itemsOnDay(day, items) {\\n  return items.filter((item) => {\\n    const start = startOfDay(parseISO(item.start_date));\\n    const end = endOfDay(parseISO(item.end_date));\\n    return isWithinInterval(day, { start, end });\\n  });\\n}\\n\\n// Sums hours_per_day across items, coercing each value with Number().\\nexport function sumHours(items) {\\n  retu",
+      "outputPreview": "ok · 1 call · 38ms\n{\n \"r\": \"done\",\n \"n\": 6\n}"
+    },
+    {
+      "seq": 3,
+      "turn": 3,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 608,
+      "argsPreview": "{\"code\":\"const base = 'src/app/ResourceRow.jsx';\\nconst edits = [\\n ['src/app/ResourceRow.jsx', [\\n  ['import React, { useMemo } from \\\"react\\\";', 'import { useMemo } from \\\"react\\\";'],\\n  ['\\\"@/app/resourceRow/scheduleUtils.js\\\"', '\\\"./resourceRow/scheduleUtils.js\\\"'],\\n  ['\\\"@/app/resourceRow/ResourceSidebar.jsx\\\"', '\\\"./resourceRow/ResourceSidebar.jsx\\\"'],\\n  ['\\\"@/app/resourceRow/DayCell.jsx\\\"', '\\\"./resourceRow/DayCell.jsx\\\"'],\\n  ['\\\"@/app/resourceRow/TimeBlockChip.jsx\\\"', '\\\"./resourceRow/TimeBlockChip.jsx\\\"'],\\n  ['\\\"@/app/resourceRow/AllocationChip.jsx\\\"', '\\\"./resourceRow/AllocationC",
+      "outputPreview": "ok · 11 calls · 895ms\n[FAILED | exit:1 | 856ms | log:log-1794856149023-32-2 | raw:11L/516B]\nok src/app/ResourceRow.jsx\nok src/app/resourceRow/scheduleUtils.js\nok src/app/resourceRow/TimeBlockChip.jsx\nok src/app/resourceRow/AllocationChip.jsx\nok src/app/resourceRow/DayCell.jsx\nok src/app/resourceRow/ResourceSidebar.jsx\nERR Cannot find package '@/app' imported from /tmp/ab1-B_one-resource_grid_row-fzqKcU/workspace/src/app/ResourceRow.jsx\nerror: Cannot find module '@/app/resourceRow/scheduleUtils.js' from '/tmp/ab1-B_one-resource_grid_row-fzqKcU/workspace/src/app/ResourceRow.jsx'\nBun v1.4.2 (Linu"
+    },
+    {
+      "seq": 4,
+      "turn": 4,
+      "name": "ms",
+      "isError": false,
+      "outputBytes": 199,
+      "argsPreview": "{\"code\":\"const p='src/app/ResourceRow.jsx';\\nlet t=(await ms.read(p,{format:'json',lineCount:1000})).text;\\nt=t.split('\\\"@/app/resourceRow/').join('\\\"./resourceRow/');\\nawait ms.write(p,t,{overwrite:true});\\nconst check = await ms.exec(['bun','-e', `\\nconst m = await import('./src/app/ResourceRow.jsx');\\nconsole.log(Object.keys(m).join(','));\\n`]);\\nconst s = await ms.search('@/', {path:'src'});\\nreturn {out: check.output, leftoverAlias: s.hits.length};\"}",
+      "outputPreview": "ok · 4 calls · 101ms\n{\n \"out\": \"[OK | exit:0 | 91ms | raw:2L/106B]\\nAllocationChip,DayCell,ResourceRow,ResourceSidebar,TimeBlockChip,itemsOnDay,sumHours,totalHoursAcrossDays\",\n \"leftoverAlias\": 0\n}"
+    }
+  ]
+}

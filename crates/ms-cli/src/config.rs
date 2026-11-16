@@ -66,6 +66,7 @@ pub struct CliConfig {
     pub limits: HardLimits,
     pub exec_command: Vec<String>,
     pub exec_timeout_ms: u64,
+    pub exec_keep_env: bool,
     pub log_id: Option<String>,
     pub log_tail: Option<usize>,
     pub log_grep: Option<String>,
@@ -87,7 +88,8 @@ impl Default for CliConfig {
             max_state_bytes: None,
             limits: HardLimits::default(),
             exec_command: Vec::new(),
-            exec_timeout_ms: 60_000,
+            exec_timeout_ms: 120_000,
+            exec_keep_env: false,
             log_id: None,
             log_tail: None,
             log_grep: None,
@@ -104,7 +106,7 @@ ms - Managed Workspace NDJSON RPC & MCP Server + Smart Command Distiller
 USAGE:
   ms [serve] [OPTIONS]
   ms mcp [OPTIONS]
-  ms exec [--root <DIR>] [--timeout <MS>] [--] <CMD...>
+  ms exec [--root <DIR>] [--timeout <MS>] [--keep-env] [--] <CMD...>
   ms log --id <ID> [--tail <N>] [--grep <PATTERN>]
 
 OPTIONS:
@@ -139,6 +141,10 @@ where
     // First pass: find --help, --version, or --config
     let mut i = 0;
     while i < raw.len() {
+        // `ms exec -- cargo --version` must hand `--version` to cargo, not consume it as an ms flag.
+        if raw.first().is_some_and(|a| a == "exec") && raw[i] == "--" {
+            break;
+        }
         match raw[i].as_str() {
             "-h" | "--help" => {
                 return Ok(CliConfig {
@@ -209,6 +215,10 @@ where
                 continue;
             } else if arg == "--timeout" {
                 cfg.exec_timeout_ms = parse_u64(&raw, &mut i, "--timeout")?;
+                i += 1;
+                continue;
+            } else if arg == "--keep-env" {
+                cfg.exec_keep_env = true;
                 i += 1;
                 continue;
             } else if !arg.starts_with('-') {

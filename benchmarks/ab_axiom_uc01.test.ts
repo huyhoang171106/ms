@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { planSandbox } from '../../nhom-30/src/tools/sandbox.js';
+import { BUNDLED_SKILLS_DIR } from '../../nhom-30/src/tools/bundled-skills.js';
 import { registerSecret } from '../../nhom-30/src/core/secrets.js';
 import { destructiveReason } from '../../nhom-30/src/tools/bash.js';
 import {
@@ -30,9 +31,15 @@ import {
   registerBaselineTools,
   registerMsTools,
   resolveAllowlistedBundledSkill,
+  RevisionAliasRegistry,
   validatePytestTarget,
 } from './ab_axiom_tools.js';
-import { distillCommandOutput, gcLogDir, MsAxiomAdapter } from '../examples/axiom_adapter.js';
+import {
+  attachFailureSnippetsViaRpc,
+  distillCommandOutput,
+  gcLogDir,
+  MsAxiomAdapter,
+} from '../examples/axiom_adapter.js';
 import { ToolRegistry } from '../../nhom-30/src/tools/registry.js';
 import {
   buildInfraErrorRecord,
@@ -798,7 +805,8 @@ describe('v3a: Shared Bundled Skill Resolver (Workspace-First + Allowlist)', () 
     try {
       const msOnRes = await msOn.reg.executeTool('read_file', { path: './skills/bug-fix/SKILL.md' }, { workspaceRoot: ws });
       expect(msOnRes.isError).toBe(false);
-      expect(msOnRes.output).toContain('rev:');
+      expect(msOnRes.output).toMatch(/^1\t# Skill: bug-fix/);
+      expect(msOnRes.output).not.toContain('rev:');
       expect(msOnRes.output).toContain('bug-fix');
     } finally {
       await msOn.adapter.closeSession(msOn.sessionId).catch(() => {});
@@ -873,6 +881,34 @@ describe('v3a: Shared Bundled Skill Resolver (Workspace-First + Allowlist)', () 
     } finally {
       await msArm.adapter.closeSession(msArm.sessionId).catch(() => {});
       msArm.adapter.shutdown();
+    }
+  });
+
+  test('absolute allowlisted bundled skill path works in MsReadTool when bundledSkillMode=on and stays blocked when off', async () => {
+    const ws = makeTempFixtureCopy();
+    const absBundled = path.join(BUNDLED_SKILLS_DIR, 'bug-fix', 'SKILL.md');
+    expect(resolveAllowlistedBundledSkill(absBundled, ws)).not.toBeNull();
+    expect(resolveAllowlistedBundledSkill(path.join(BUNDLED_SKILLS_DIR, 'nonexistent', 'SKILL.md'), ws)).toBeNull();
+
+    const msOn = await setupMsArm(ws, 'on');
+    try {
+      const res = await msOn.reg.executeTool('read_file', { path: absBundled }, { workspaceRoot: ws });
+      expect(res.isError).toBe(false);
+      expect(res.output).toContain('Skill: bug-fix');
+      expect(res.output).toMatch(/^1\t# Skill: bug-fix/);
+      expect(res.output).not.toContain('rev:');
+    } finally {
+      await msOn.adapter.closeSession(msOn.sessionId).catch(() => {});
+      msOn.adapter.shutdown();
+    }
+
+    const msOff = await setupMsArm(ws, 'off');
+    try {
+      const res = await msOff.reg.executeTool('read_file', { path: absBundled }, { workspaceRoot: ws });
+      expect(res.output).toContain('E_POLICY_DENIED');
+    } finally {
+      await msOff.adapter.closeSession(msOff.sessionId).catch(() => {});
+      msOff.adapter.shutdown();
     }
   });
 });
@@ -992,5 +1028,162 @@ describe('Stage 1: Read-only inspection false-positive fix & unified readLog + G
     expect(removed).toBeGreaterThanOrEqual(3);
     const remainingLogs = fs.readdirSync(logDir).filter((f) => f.endsWith('.log'));
     expect(remainingLogs.length).toBe(3);
+  });
+});
+
+describe('v4a & v4b: Snapshot-bound short rev alias, post-edit snippet, and 25-line pass-through', () => {
+  const MS_BIN = '/home/hoang/ms/target/release/ms';
+
+  test('RevisionAliasRegistry binds 8-char alias to exact snapshot and rejects stale edits after external change', async () => {
+    const ws = makeTempFixtureCopy();
+    const stateDir = makeTempDir('ab-v4a-state-');
+    const adapter = new MsAxiomAdapter(MS_BIN, ws, stateDir, true);
+    try {
+      await adapter.initialize();
+      const sessionId = await adapter.openSession({ allowWrite: true });
+      const registry = new ToolRegistry();
+      registerMsTools(registry, adapter, sessionId, MS_BIN, 'controlled', planSandbox());
+
+      const readTool = registry.getTool('read_file')!;
+      const editTool = registry.getTool('edit')!;
+      const writeTool = registry.getTool('write_file')!;
+
+      const readOut = await readTool.execute({ path: 'tinydb_demo/format.py' }, { workspaceRoot: ws });
+      const revMatch = readOut.match(/^rev:([0-9a-f]{8})\s+/);
+      expect(revMatch).not.toBeNull();
+      const alias1 = revMatch![1]!;
+
+      // Edit with snapshot alias succeeds and returns new 8-char rev + 7-line inline snippet
+      const editOk = await editTool.execute(
+        {
+          path: 'tinydb_demo/format.py',
+          expectedRevision: alias1,
+          oldText: "return ', '.join(sorted(note['tags']))",
+          newText: "return ', '.join(sorted(note.get('tags') or []))",
+        },
+        { workspaceRoot: ws },
+      );
+      expect(editOk).toContain('Edited tinydb_demo/format.py (rev:');
+      expect(editOk).not.toContain('rev:ok');
+      const postRevMatch = editOk.match(/\(rev:([0-9a-f]{8}),\s*tx:/);
+      expect(postRevMatch).not.toBeNull();
+      const alias2 = postRevMatch![1]!;
+      expect(alias2).not.toBe(alias1);
+      expect(editOk).toContain('lines:');
+
+      // External modification on disk invalidates alias2 -> must return E_CONFLICT
+      const targetFile = path.join(ws, 'tinydb_demo/format.py');
+      fs.appendFileSync(targetFile, '\n# external change\n', 'utf8');
+      const staleRes = await editTool.execute(
+        {
+          path: 'tinydb_demo/format.py',
+          expectedRevision: alias2,
+          oldText: '# external change',
+          newText: '# should fail',
+        },
+        { workspaceRoot: ws },
+      );
+      expect(staleRes).toContain('E_CONFLICT');
+
+      // write_file returns short alias + line/byte counts
+      const writeOut = await writeTool.execute(
+        { path: 'tinydb_demo/tmp_note.py', content: 'a = 1\nb = 2\n' },
+        { workspaceRoot: ws },
+      );
+      expect(writeOut).toMatch(/Wrote tinydb_demo\/tmp_note\.py \(rev:[0-9a-f]{8}, lines:3, bytes:12, tx:/);
+
+      await adapter.closeSession(sessionId);
+    } finally {
+      adapter.shutdown();
+    }
+  });
+
+  test('RevisionAliasRegistry disambiguates prefix collisions cleanly', () => {
+    const reg = new RevisionAliasRegistry();
+    const revA = 'a'.repeat(64);
+    const revB = 'a'.repeat(8) + 'b'.repeat(56);
+    const aliasA = reg.register('f.py', revA);
+    const aliasB = reg.register('f.py', revB);
+    expect(aliasA).toBe('aaaaaaaa');
+    expect(aliasB).toBe('aaaaaaaabb');
+    expect(reg.resolve('f.py', aliasA)).toBe(revA);
+    expect(reg.resolve('f.py', aliasB)).toBe(revB);
+  });
+
+  test('distillCommandOutput preserves 25-line passing output under 1500B verbatim', () => {
+    const lines = Array.from({ length: 24 }, (_, i) => `item-${i + 1}: ok`);
+    const res = distillCommandOutput(lines.join('\n'), {
+      exitCode: 0,
+      timedOut: false,
+      durationMs: 12,
+      kind: 'generic',
+      command: 'python3 -c "print(...)"',
+    });
+    expect(res.hasFailures).toBe(false);
+    expect(res.output).toContain('[OK | exit:0');
+    expect(res.output).toContain('item-1: ok');
+    expect(res.output).toContain('item-24: ok');
+  });
+
+  test('list_dir enforces depth during Rust traversal before maxEntries truncation', async () => {
+    const ws = makeTempFixtureCopy();
+    fs.mkdirSync(path.join(ws, 'aaa_deep', 'd1', 'd2'), { recursive: true });
+    fs.writeFileSync(path.join(ws, 'aaa_deep', 'd1', 'f1.py'), 'x = 1\n', 'utf8');
+    fs.writeFileSync(path.join(ws, 'aaa_deep', 'd1', 'd2', 'f2.py'), 'y = 2\n', 'utf8');
+    fs.writeFileSync(path.join(ws, 'zzz_shallow.py'), 'z = 3\n', 'utf8');
+
+    const stateDir = makeTempDir('ab-list-depth-state-');
+    const adapter = new MsAxiomAdapter(MS_BIN, ws, stateDir, false);
+    try {
+      await adapter.initialize();
+      const sessionId = await adapter.openSession({ allowWrite: false });
+      const reg = new ToolRegistry();
+      registerMsTools(reg, adapter, sessionId, MS_BIN, 'controlled', planSandbox());
+      const res = await reg.executeTool(
+        'list_dir',
+        { path: '.', depth: 1, maxEntries: 10 },
+        { workspaceRoot: ws },
+      );
+      expect(res.isError).toBe(false);
+      expect(res.output).toContain('aaa_deep/');
+      expect(res.output).toContain('zzz_shallow.py');
+      expect(res.output).not.toContain('aaa_deep/d1');
+      expect(res.output).not.toContain('f2.py');
+      await adapter.closeSession(sessionId).catch(() => {});
+    } finally {
+      adapter.shutdown();
+    }
+  });
+
+  test('attachFailureSnippetsViaRpc skips failures already having assertion context and attaches truncated ones', async () => {
+    const ws = makeTempFixtureCopy();
+    const stateDir = makeTempDir('ab-snippet-gate-state-');
+    const adapter = new MsAxiomAdapter(MS_BIN, ws, stateDir, false);
+    try {
+      await adapter.initialize();
+      const sessionId = await adapter.openSession({ allowWrite: false });
+      const cleanedLines = [
+        'tests/test_search.py:7: AssertionError',
+        'E   assert 1 == 2',
+        'tinydb_demo/format.py:4: TypeError',
+      ];
+      const renderedOutput = [
+        '[FAILED | exit:1 | 50ms | raw:40L/2100B]',
+        '>   assert len(store.search("hello")) == 1',
+        'E   AssertionError: assert 0 == 1',
+        'tests/test_search.py:7: AssertionError',
+        'FAILED tinydb_demo/format.py:4',
+      ].join('\n');
+
+      const snippets = await attachFailureSnippetsViaRpc(adapter, sessionId, ws, cleanedLines, {
+        renderedOutput,
+      });
+      const joined = snippets.join('\n');
+      expect(joined).not.toContain('@ tests/test_search.py:7');
+      expect(joined).toContain('@ tinydb_demo/format.py:4');
+      await adapter.closeSession(sessionId).catch(() => {});
+    } finally {
+      adapter.shutdown();
+    }
   });
 });
