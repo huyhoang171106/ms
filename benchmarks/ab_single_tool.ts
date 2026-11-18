@@ -39,8 +39,12 @@ import { createProviderFor, resolveModel } from '../../nhom-30/axiom-cli/src/llm
 import type { BaseTool } from '../../nhom-30/axiom-cli/src/tools/base-tool.js';
 import { ToolRegistry } from '../../nhom-30/axiom-cli/src/tools/registry.js';
 import { buildMsSystemPrompt, createMsTool } from '../integrations/axiom/ms-tool.js';
+import { normalizeTokenTotals } from './usage_single_tool.js';
+import { assessPytestCoverage, runPytest, type PytestReport } from './pytest_oracle.js';
 
-type Arm = 'A_eight' | 'B_one';
+import { PYTHON_REPL_WORKFLOW, buildPythonReplPrompt, createPythonRepl, pythonSandbox, repoMap, stageReplPytest } from './python_repl.js';
+
+type Arm = 'A_eight' | 'B_one' | 'B_repl';
 type PackName = 'uc01' | 'medium' | 'refactor' | 'exercism' | 'hard' | 'refactorbench' | 'refactorbench-js';
 
 /** Aider's polyglot benchmark, Python subset: each exercise is one stub file plus its test suite. */
@@ -75,7 +79,7 @@ function buildExercismPack(): Pack {
       };
     }
   }
-  return { name: 'exercism', fixtureDir: EXERCISM_DIR, guard: () => [], cases };
+  return { name: 'exercism', fixtureDir: EXERCISM_DIR, guard: (caseId) => [cases[caseId]!.testFile!], cases };
 }
 
 function buildRefactorBenchPack(): Pack {
@@ -279,6 +283,9 @@ interface CliOptions {
   cases: string[];
   arms?: Arm[];
   maxSteps: number;
+  promptVariant: 'legacy' | 'current';
+  /** Skip external context (skills index, project rules, memory) for both Axiom arms. */
+  lean: boolean;
   outDir: string;
   /** Aggregate an existing runs.jsonl instead of calling the model again. */
   recompute?: string;
@@ -291,6 +298,8 @@ function parseArgs(argv: readonly string[]): CliOptions {
     trials: 2,
     cases: Object.keys(PACKS.uc01.cases),
     maxSteps: 25,
+    promptVariant: 'current',
+    lean: false,
     outDir: `/home/hoang/ms/benchmarks/artifacts/single-tool-${new Date().toISOString().replace(/[:.]/g, '-')}`,
   };
   let casesGiven = false;
@@ -312,10 +321,16 @@ function parseArgs(argv: readonly string[]): CliOptions {
       opts.cases = next().split(',').map((s) => s.trim()).filter(Boolean);
       casesGiven = true;
     } else if (arg === '--arms') {
-      opts.arms = next().split(',').map((s) => s.trim()).filter((s): s is Arm => s === 'A_eight' || s === 'B_one');
+      opts.arms = next().split(',').map((s) => s.trim()).filter((s): s is Arm => s === 'A_eight' || s === 'B_one' || s === 'B_repl');
     } else if (arg === '--max-steps') opts.maxSteps = Number(next());
+    else if (arg === '--prompt-variant') {
+      const value = next();
+      if (value !== 'legacy' && value !== 'current') throw new Error(`unknown prompt variant: ${value}`);
+      opts.promptVariant = value;
+    }
     else if (arg === '--out') opts.outDir = path.resolve(next());
     else if (arg === '--recompute') opts.recompute = path.resolve(next());
+    else if (arg === '--lean') opts.lean = true;
     else throw new Error(`unknown argument: ${arg}`);
   }
   return opts;
@@ -361,6 +376,12 @@ PACKS.hard = {
   cases: {
     'chronos-multistep-gauntlet': {
       requiredTests: HARD_REQUIRED,
+      probe: {
+        code: `import subprocess, sys
+r = subprocess.run([sys.executable, "scripts/replay_incidents.py", "--strict"], stdout=subprocess.DEVNULL, timeout=20)
+print("ok" if r.returncode == 0 else f"strict replay exit {r.returncode}")`,
+        expect: 'ok',
+      },
       task: [
         'Fix all coupled defects and complete the connector normalization migration in this repository (`chronos`).',
         '',
@@ -379,33 +400,9 @@ PACKS.hard = {
   },
 };
 
-interface PytestReport {
-  exitCode: number | null;
-  failed: string[];
-  passed: string[];
-  collectionError: boolean;
-  summary: string;
-}
-
-function runPytest(workspace: string): PytestReport {
-  const result = spawnSync(PYTHON, ['-m', 'pytest', '-q', '--tb=no', '-rA', '-p', 'no:cacheprovider'], {
-    cwd: workspace,
-    encoding: 'utf8',
-    timeout: 180_000,
-  });
-  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
-  const lines = output.split('\n');
-  return {
-    exitCode: result.status,
-    failed: lines.filter((line) => line.startsWith('FAILED ')).map((line) => line.slice(7).split(' ')[0]!),
-    passed: lines.filter((line) => line.startsWith('PASSED ')).map((line) => line.slice(7).split(' ')[0]!),
-    collectionError: /errors? during collection|ERROR tests\//.test(output),
-    summary: output.trim().split('\n').slice(-1)[0] ?? '',
-  };
-}
-
-function runProbe(workspace: string, probe: { code: string; expect: string }): { ok: boolean; output: string } {
-  const result = spawnSync(PYTHON, ['-c', probe.code], { cwd: workspace, encoding: 'utf8', timeout: 30_000 });
+function runProbe(workspace: string, probe: { code: string; expect: string }, isolatedState?: string): { ok: boolean; output: string } {
+  const args = ['-c', probe.code];
+  const result = spawnSync(isolatedState ? '/usr/bin/bwrap' : PYTHON, isolatedState ? pythonSandbox(workspace, isolatedState, args, '/') : args, { cwd: workspace, encoding: 'utf8', timeout: 30_000 });
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim();
   return { ok: result.status === 0 && output === probe.expect, output: output.slice(0, 400) };
 }
@@ -415,17 +412,19 @@ function snapshotFiles(target: string): Map<string, string> {
   const files = new Map<string, string>();
   if (!fs.existsSync(target)) return files;
   const digest = (file: string) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
-  if (fs.statSync(target).isFile()) {
+  const stat = fs.lstatSync(target);
+  if (stat.isFile()) {
     files.set(path.basename(target), digest(target));
     return files;
   }
+  if (!stat.isDirectory()) return files;
   const walk = (current: string) => {
     for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
       const full = path.join(current, entry.name);
       // pytest rewrites __pycache__ in tests/; that is not the agent touching a test.
       if (entry.isDirectory()) {
         if (entry.name !== '__pycache__') walk(full);
-      } else if (!entry.name.endsWith('.pyc')) {
+      } else if (entry.isFile() && !entry.name.endsWith('.pyc')) {
         files.set(path.relative(target, full), digest(full));
       }
     }
@@ -434,12 +433,15 @@ function snapshotFiles(target: string): Map<string, string> {
   return files;
 }
 
-function runUnittestHidden(workspace: string, unittestFile: string): PytestReport {
+function runUnittestHidden(workspace: string, unittestFile: string, isolatedState?: string): PytestReport {
   const evalDir = path.join(workspace, '_rb_eval');
-  fs.mkdirSync(evalDir, { recursive: true });
-  const target = path.join(evalDir, path.basename(unittestFile));
-  fs.copyFileSync(unittestFile, target);
-  const result = spawnSync(PYTHON, ['-m', 'unittest', path.basename(unittestFile)], {
+  fs.mkdirSync(evalDir);
+  const testName = path.basename(unittestFile);
+  fs.copyFileSync(unittestFile, path.join(evalDir, testName), fs.constants.COPYFILE_EXCL);
+  const args = isolatedState
+    ? pythonSandbox(workspace, isolatedState, ['-c', 'import os, runpy, sys; os.chdir("_rb_eval"); sys.argv = sys.argv[1:]; runpy.run_path(sys.argv[0], run_name="__main__")', testName], '/')
+    : [testName];
+  const result = spawnSync(isolatedState ? '/usr/bin/bwrap' : PYTHON, args, {
     cwd: evalDir,
     encoding: 'utf8',
     timeout: 60_000,
@@ -533,11 +535,26 @@ function guardSnapshot(workspace: string, guard: string[]): Map<string, string> 
   return files;
 }
 
-function buildRegistry(arm: Arm, workspace: string, stateDir: string): { registry: ToolRegistry; close: () => Promise<void> } {
+const LEGACY_DESCRIPTION = [
+  "Workspace tool: provide a JavaScript program in `code`; await `ms` calls and return only the needed result. `inputs` supplies raw strings as `ms.inputs`.",
+  "Read: ms.read(path,{startLine,lineCount,format}), ms.list(path,opts), ms.search(query,opts), ms.outline(path,opts), ms.context(path,opts), ms.tx(opts).",
+  "Write: ms.write(path,text,opts), ms.edit(path,edits,{expectedRevision}), ms.batch(operations,opts), ms.rm(path,opts), ms.mv(from,to,opts), ms.undo(opts). Existing tests and test configuration are protected; new tests are create-only.",
+  "Shell: ms.exec(command,{timeoutMs}) or ms.start(command,{timeoutMs}) runs without network on a temporary snapshot. Changes there do not persist. Jobs: ms.wait, ms.poll, ms.jobs, ms.tail, ms.head, ms.grep, ms.output, ms.kill, ms.log.",
+  "Example: const [f, s] = await Promise.all([ms.read('src/main.js'), ms.search('TODO')]); return {file:f.text, hits:s.hits};",
+].join('\n');
+
+function buildRegistry(arm: Arm, workspace: string, stateDir: string, promptVariant: CliOptions['promptVariant']): { registry: ToolRegistry; close: () => Promise<void> } {
   if (arm === 'A_eight') {
     const registry = new ToolRegistry();
     registry.allowWithoutApprover = true;
     return { registry, close: async () => {} };
+  }
+  if (arm === 'B_repl') {
+    const registry = new ToolRegistry(['python_repl']);
+    registry.allowWithoutApprover = true;
+    const tool = createPythonRepl(workspace, stateDir, { testShortcuts: process.env.MS_REPL_TEST_SHORTCUTS !== '0' });
+    registry.registerTool(tool as unknown as BaseTool);
+    return { registry, close: () => tool.close() };
   }
   const registry = new ToolRegistry(['ms']);
   registry.allowWithoutApprover = true;
@@ -549,6 +566,10 @@ function buildRegistry(arm: Arm, workspace: string, stateDir: string): { registr
     allowUnapprovedWrites: true,
     limits: { timeoutMs: 900_000, maxCalls: 512 },
   });
+  if (promptVariant === 'legacy') {
+    const original = tool.toDefinition.bind(tool);
+    tool.toDefinition = () => ({ ...original(), description: LEGACY_DESCRIPTION });
+  }
   registry.registerTool(tool as unknown as BaseTool);
   return { registry, close: () => tool.close() };
 }
@@ -556,6 +577,8 @@ function buildRegistry(arm: Arm, workspace: string, stateDir: string): { registr
 interface RunRecord {
   pack: PackName;
   arm: Arm;
+  executionPolicy?: 'axiom-default' | 'ms-snapshot' | 'python-repl';
+  promptVariant?: 'legacy' | 'current';
   caseId: string;
   trial: number;
   pairOrder: 'AB' | 'BA';
@@ -565,6 +588,10 @@ interface RunRecord {
   requiredTestsPassed: number;
   requiredTestsTotal: number;
   noRegressions: boolean;
+  verificationComplete?: boolean;
+  missingBaselineTests?: string[];
+  newSkippedTests?: string[];
+  oracleEvidence?: { baseline: PytestReport | null; post: PytestReport };
   newFailures: string[];
   collectionError: boolean;
   testsIntact: boolean;
@@ -578,25 +605,16 @@ interface RunRecord {
   completionTokens: number;
   cachedTokens: number;
   cacheWriteTokens?: number;
-  cacheHitRate?: number;
+  cacheHitRate?: number | null;
+  usageApi?: string;
+  normalizedTotalTokens?: number | null;
   estimatedCostUsd?: number | null;
   wallClockMs: number;
+  agentMs?: number;
+  modelMs?: number;
+  oracleMs?: number;
   toolErrorSamples?: string[];
   error?: string;
-}
-
-const PRICING_PER_1M: Record<string, { input: number; output: number; cacheRead: number; cacheWrite: number }> = {
-  'claude-haiku-5.5': { input: 0.10, output: 0.50, cacheRead: 0.02, cacheWrite: 0.125 },
-  'claude-3-5-haiku': { input: 0.80, output: 4.00, cacheRead: 0.08, cacheWrite: 1.00 },
-  'claude-3-5-sonnet': { input: 3.00, output: 15.00, cacheRead: 0.30, cacheWrite: 3.75 },
-};
-
-function estimateUsd(model: string, input: number, cacheRead: number, cacheWrite: number, output: number): number | null {
-  const bare = model.toLowerCase().split('/').pop() ?? '';
-  const key = bare.replace('claude-haiku-5-5', 'claude-haiku-5.5');
-  const p = PRICING_PER_1M[key];
-  if (!p) return null;
-  return Number((((input * p.input) + (cacheRead * p.cacheRead) + (cacheWrite * p.cacheWrite) + (output * p.output)) / 1_000_000).toFixed(6));
 }
 
 interface ToolTrace {
@@ -627,18 +645,45 @@ async function runOnce(
     fs.mkdirSync(workspace, { recursive: true });
     fs.cpSync(path.join(workspaceFor(pack, caseId), 'src'), path.join(workspace, 'src'), { recursive: true });
   } else {
-    fs.cpSync(workspaceFor(pack, caseId), workspace, { recursive: true });
+    // Exercism ships its reference solution in .meta/; the agent must not see it.
+    fs.cpSync(workspaceFor(pack, caseId), workspace, { recursive: true, filter: (src) => pack.name !== 'exercism' || path.basename(src) !== '.meta' });
   }
   fs.mkdirSync(stateDir, { recursive: true });
   const srcBefore = spec.jsHoldout ? listFilesUnder(path.join(workspace, 'src')) : new Set<string>();
   const guard = typeof pack.guard === 'function' ? pack.guard(caseId) : pack.guard;
   const guardBefore = guardSnapshot(workspace, guard);
+  const isolatedState = (options.arms?.includes('B_repl') || ['hard', 'medium', 'refactor', 'refactorbench'].includes(options.packName)) ? stateDir : undefined;
+  if (isolatedState) stageReplPytest(workspace, isolatedState);
 
   const started = performance.now();
-  const { registry, close } = buildRegistry(arm, workspace, stateDir);
+  const { registry, close } = buildRegistry(arm, workspace, stateDir, options.promptVariant);
   let llmTurns = 0;
+  let agentMs = 0;
+  let modelMs = 0;
+  let usageApi: string | undefined;
+  const rawUsage: TokenUsage[] = [];
   const usage: TokenUsage = { promptTokens: 0, completionTokens: 0, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, totalTokens: 0, costEstimate: 0 };
   const bus = new EventBus();
+  const tracesDir = path.join(options.outDir, 'traces');
+  const traceStem = path.join(tracesDir, `${arm}__${safeCaseId}__t${trial}`);
+  const fullTrace = process.env.MS_FULL_TRACE === '1';
+  const saveEvent = (event: string, data: unknown) => {
+    if (!fullTrace) return;
+    const line = JSON.stringify({ ms: Math.round(performance.now() - started), turn: llmTurns, event, data }, (_, value) =>
+      value instanceof Error ? { name: value.name, message: redact(value.message), stack: redact(value.stack ?? '') }
+        : typeof value === 'string' ? redact(value) : value);
+    fs.appendFileSync(`${traceStem}.jsonl`, `${line}\n`, { mode: 0o600 });
+  };
+  if (fullTrace) {
+    fs.mkdirSync(tracesDir, { recursive: true });
+    fs.writeFileSync(`${traceStem}.jsonl`, '', { flag: 'wx', mode: 0o600 });
+    saveEvent('run_start', { pack: pack.name, arm, caseId, trial, task: spec.task, model: options.model, lean: options.lean, maxSteps: options.maxSteps, promptVariant: options.promptVariant, replBatchPrompt: process.env.MS_REPL_BATCH_PROMPT === '1' });
+    const emit = bus.emit.bind(bus);
+    bus.emit = (event, ...args) => {
+      saveEvent(event, args[0]);
+      return emit(event, ...args);
+    };
+  }
   let toolCalls = 0;
   let toolFailures = 0;
   let toolOutputBytes = 0;
@@ -646,7 +691,7 @@ async function runOnce(
   const toolTraces: ToolTrace[] = [];
   const pendingArgs = new Map<string, { name: string; args: unknown }>();
   bus.on('cost_update', (u: TokenUsage) => {
-    llmTurns++;
+    rawUsage.push({ ...u });
     usage.promptTokens += u.promptTokens ?? 0;
     usage.completionTokens += u.completionTokens ?? 0;
     usage.cacheReadInputTokens = (usage.cacheReadInputTokens ?? 0) + (u.cacheReadInputTokens ?? 0);
@@ -662,6 +707,7 @@ async function runOnce(
     const bytes = Buffer.byteLength(outputStr, 'utf8');
     toolOutputBytes += bytes;
     const isErr = result.isError === true;
+    if (pack.name === 'hard') console.log(`[${arm}] turn ${llmTurns} · tool ${toolCalls} ${result.name ?? '?'}${isErr ? ' · error' : ''} · ${bytes} bytes`);
     const startMeta = result.toolCallId ? pendingArgs.get(result.toolCallId) : undefined;
     if (result.toolCallId) pendingArgs.delete(result.toolCallId);
     const toolName = result.name ?? startMeta?.name ?? 'unknown';
@@ -699,10 +745,14 @@ async function runOnce(
         return { ...resolveModel(`${prov}/${firstForProv.id}`, catalog, config), id: customId, name: customId };
       }
     })();
+    usageApi = modelInfo.api;
     const rawProvider = await createProviderFor(modelInfo);
     const turnDiagnostics: Array<{
       turn: number;
       completionTokens: number;
+      promptTokens: number;
+      toolSchemaBytes: number;
+      historyBytesByRole: Record<string, number>;
       thinkingChars: number;
       thinkingTail: string;
       textChars: number;
@@ -711,17 +761,32 @@ async function runOnce(
     }> = [];
     const provider = Object.assign(Object.create(Object.getPrototypeOf(rawProvider)), rawProvider, {
       chat: async (chatParams: Parameters<typeof rawProvider.chat>[0]) => {
+        llmTurns++;
+        const modelStarted = performance.now();
+        const historyBytesByRole: Record<string, number> = {};
+        for (const message of chatParams.messages) {
+          historyBytesByRole[message.role] = (historyBytesByRole[message.role] ?? 0) + Buffer.byteLength(JSON.stringify(message));
+        }
+        const toolSchemaBytes = Buffer.byteLength(JSON.stringify(chatParams.tools ?? []));
         let thinking = '';
+        const { model, messages, tools, temperature, maxTokens } = chatParams;
+        saveEvent('model_request', { model, messages, tools, temperature, maxTokens, provider: rawProvider.name, api: usageApi });
         const res = await rawProvider.chat({
           ...chatParams,
           onThinking: (d: string) => {
             thinking += d;
             chatParams.onThinking?.(d);
           },
-        });
+        }).catch((err) => {
+          saveEvent('model_error', { error: err, thinking });
+          throw err;
+        }).finally(() => { modelMs += performance.now() - modelStarted; });
+        saveEvent('model_response', { ...res, thinking, elapsedMs: Math.round(performance.now() - modelStarted) });
         turnDiagnostics.push({
           turn: turnDiagnostics.length + 1,
+          promptTokens: res.usage?.promptTokens ?? 0,
           completionTokens: res.usage?.completionTokens ?? 0,
+          toolSchemaBytes, historyBytesByRole,
           thinkingChars: thinking.length,
           thinkingTail: redact(thinking.slice(-1200)),
           textChars: (res.content ?? '').length,
@@ -731,21 +796,26 @@ async function runOnce(
         return res;
       },
     });
-    const baseSys = buildSystemPrompt(DEFAULT_SYSTEM_PROMPT, workspace);
-    const armSys = arm === 'B_one' ? buildMsSystemPrompt(baseSys) : baseSys;
+    // `--lean`: no skills index, project rules or memory — the same "no external context" the pi arm gets from -ns -np -nc.
+    const baseSys = options.lean ? DEFAULT_SYSTEM_PROMPT : buildSystemPrompt(DEFAULT_SYSTEM_PROMPT, workspace);
+    const armSys = arm === 'B_one' ? buildMsSystemPrompt(baseSys) : arm === 'B_repl'
+      ? buildPythonReplPrompt(baseSys) + (process.env.MS_REPL_BATCH_PROMPT === '1' ? PYTHON_REPL_WORKFLOW : '')
+      : baseSys;
     const envBlock = spec.jsHoldout
       ? [
           'Environment:',
-          `- Workspace root: ${workspace}`,
+          `- Workspace root: ${arm === 'B_repl' ? '/workspace' : workspace}`,
           '- Use relative paths from the workspace root for project files.',
           '- JS/JSX verification: `node` and `bun` are installed, while `node_modules` is absent (do not install packages or run `bun build` without `--external`). To syntax-check `.js`/`.jsx` cleanly in one pass without creating repo scratch files, run `bun -e` using `new Bun.Transpiler({ loader: f.endsWith(".jsx") ? "jsx" : "js" }).transformSync(...)` or `node --check` on pure non-JSX modules.',
         ].join('\n')
       : [
           'Environment:',
-          `- Workspace root: ${workspace}`,
+          `- Workspace root: ${arm === 'B_repl' ? '/workspace' : workspace}`,
           '- Use relative paths from the workspace root for project files.',
           '- Python: use `python3` (`python` is not installed).',
+          ...(arm === 'B_repl' ? ['- `PYTHONPATH=/python-deps` provides pytest; extend it (`PYTHONPATH=src:$PYTHONPATH`), never replace it.'] : []),
           '- Verification: start with fast syntax/import checks (`python3 -m py_compile ...`, targeted `python3 -c "import ..."`) and runnable local tests; if an external suite fails due to missing optional packages, do not spend turns creating virtualenvs or installing packages via `pip`/`uv`.',
+          ...(arm === 'B_repl' && process.env.MS_REPL_REPO_MAP === '1' ? [repoMap(workspace)] : []),
         ].join('\n');
     const loop = new AgentLoop({
       config: { ...DEFAULT_CONFIG, workspaceRoot: workspace },
@@ -760,7 +830,8 @@ async function runOnce(
       maxSteps: options.maxSteps,
       budgetLimitDollars: 10,
     });
-    const task = await loop.runTask(spec.task);
+    const agentStarted = performance.now();
+    const task = await loop.runTask(spec.task).finally(() => { agentMs = performance.now() - agentStarted; });
     let aIdx = 0;
     assistantTurns = loop
       .transcript()
@@ -783,18 +854,29 @@ async function runOnce(
     await close();
   }
 
+  const oracleStarted = performance.now();
+  if (fullTrace && !spec.jsHoldout) {
+    const patch = spawnSync('diff', ['-ruN', '--no-dereference', '--exclude=.git', '--exclude=__pycache__', '--exclude=.pytest_cache', '--exclude=.meta', workspaceFor(pack, caseId), workspace], { encoding: 'utf8', timeout: 30_000, maxBuffer: 16 * 1024 * 1024 });
+    saveEvent('workspace_diff', { exitCode: patch.status, patch: patch.stdout, stderr: patch.stderr, error: patch.error });
+  }
   // Hidden tests land only now: they were never inside the workspace while the agent worked.
-  if (pack.hiddenTests) fs.copyFileSync(pack.hiddenTests, path.join(workspace, 'tests', path.basename(pack.hiddenTests)));
-  const probe = spec.probe ? runProbe(workspace, spec.probe) : undefined;
+  if (pack.hiddenTests) {
+    const testsDir = path.join(workspace, 'tests');
+    if (!fs.lstatSync(testsDir, { throwIfNoEntry: false })?.isDirectory()) throw new Error('Expected a real tests directory for hidden oracle');
+    fs.copyFileSync(pack.hiddenTests, path.join(testsDir, path.basename(pack.hiddenTests)), fs.constants.COPYFILE_EXCL);
+  }
+  const probe = spec.probe ? runProbe(workspace, spec.probe, isolatedState) : undefined;
   const post = spec.jsHoldout
     ? runVitestHidden(workspace, spec.repoDir!, spec.jsHoldout, srcBefore)
     : spec.unittestFile
-      ? runUnittestHidden(workspace, spec.unittestFile)
-      : runPytest(workspace);
+      ? runUnittestHidden(workspace, spec.unittestFile, isolatedState)
+      : runPytest(workspace, PYTHON, undefined, isolatedState ? (args, dir) => pythonSandbox(workspace, isolatedState, args, dir) : undefined);
   const guardAfter = guardSnapshot(workspace, guard);
   // A guarded file that existed before must be byte-identical afterwards: new files are fine, weakened ones are not.
   const tampered = [...guardBefore].filter(([file, digest]) => guardAfter.get(file) !== digest).map(([file]) => file);
-  const newFailures = spec.testFile || spec.unittestFile || spec.jsHoldout ? [] : post.failed.filter((test) => !baseline.failed.includes(test));
+  const perCase = Boolean(spec.testFile || spec.unittestFile || spec.jsHoldout);
+  const coverage = assessPytestCoverage(perCase ? null : baseline, post);
+  const newFailures = coverage.newFailures;
   const requiredTests = spec.requiredTests ?? [];
   const requiredPassed = requiredTests.filter(
     (test) => post.passed.some((passed) => passed === test || passed.startsWith(`${test}[`)),
@@ -805,6 +887,8 @@ async function runOnce(
   const record: RunRecord = {
     pack: pack.name,
     arm,
+    executionPolicy: arm === 'B_one' ? 'ms-snapshot' : arm === 'B_repl' ? 'python-repl' : 'axiom-default',
+    promptVariant: options.promptVariant,
     caseId,
     trial,
     pairOrder,
@@ -821,12 +905,16 @@ async function runOnce(
           : `${requiredPassed}/${requiredTests.length} required tests`,
     requiredTestsPassed: requiredPassed,
     requiredTestsTotal: requiredTests.length,
-    noRegressions: newFailures.length === 0 && !post.collectionError,
+    noRegressions: coverage.noRegressions,
+    verificationComplete: coverage.verificationComplete,
+    missingBaselineTests: coverage.missingBaselineTests,
+    newSkippedTests: coverage.newSkippedTests,
+    oracleEvidence: { baseline: perCase ? null : baseline, post },
     newFailures,
     collectionError: post.collectionError,
     testsIntact: tampered.length === 0,
     tamperedTestFiles: tampered,
-    overallPassed: targetFixed && newFailures.length === 0 && !post.collectionError && tampered.length === 0 && agentStatus === 'ok',
+    overallPassed: targetFixed && coverage.verificationComplete && coverage.noRegressions && tampered.length === 0 && agentStatus === 'ok',
     llmTurns,
     toolCalls,
     toolFailures,
@@ -835,28 +923,22 @@ async function runOnce(
     completionTokens: usage.completionTokens,
     cachedTokens: usage.cacheReadInputTokens ?? 0,
     cacheWriteTokens: usage.cacheCreationInputTokens ?? 0,
-    cacheHitRate: (() => {
-      const cacheRead = usage.cacheReadInputTokens ?? 0;
-      const cacheWrite = usage.cacheCreationInputTokens ?? 0;
-      const denom = usage.promptTokens + cacheRead + cacheWrite;
-      return denom > 0 ? Number((cacheRead / denom).toFixed(4)) : 0;
-    })(),
-    estimatedCostUsd: estimateUsd(
-      options.model,
-      usage.promptTokens,
-      usage.cacheReadInputTokens ?? 0,
-      usage.cacheCreationInputTokens ?? 0,
-      usage.completionTokens,
-    ),
+    usageApi,
+    cacheHitRate: normalizeTokenTotals(usageApi, usage, rawUsage.length === llmTurns && llmTurns > 0).cacheHitRate,
+    normalizedTotalTokens: normalizeTokenTotals(usageApi, usage, rawUsage.length === llmTurns && llmTurns > 0).totalTokens,
+    estimatedCostUsd: null,
     wallClockMs: Number((performance.now() - started).toFixed(1)),
+    agentMs: Number(agentMs.toFixed(1)),
+    modelMs: Number(modelMs.toFixed(1)),
+    oracleMs: Number((performance.now() - oracleStarted).toFixed(1)),
     ...(toolErrorSamples.length ? { toolErrorSamples } : {}),
     ...(error ? { error } : {}),
   };
-  const tracesDir = path.join(options.outDir, 'traces');
+  saveEvent('run_end', { record, probe });
   fs.mkdirSync(tracesDir, { recursive: true });
   fs.writeFileSync(
     path.join(tracesDir, `${arm}__${safeCaseId}__t${trial}.json`),
-    `${JSON.stringify({ pack: pack.name, arm, caseId, trial, overallPassed: record.overallPassed, probeOutput: record.probeOutput, assistantTurns, toolTraces }, null, 2)}\n`,
+    `${JSON.stringify({ pack: pack.name, arm, caseId, trial, overallPassed: record.overallPassed, probeOutput: record.probeOutput, rawUsage, assistantTurns, toolTraces }, null, 2)}\n`,
   );
   fs.rmSync(tmpRoot, { recursive: true, force: true });
   return record;
@@ -866,12 +948,17 @@ async function runOnce(
 function normalise(records: RunRecord[]): RunRecord[] {
   return records.map((record) => {
     const tampered = record.tamperedTestFiles.filter((file) => !file.endsWith('.pyc') && !file.includes('__pycache__'));
+    const coverage = record.oracleEvidence ? assessPytestCoverage(record.oracleEvidence.baseline, record.oracleEvidence.post) : undefined;
     return {
       ...record,
       tamperedTestFiles: tampered,
       testsIntact: tampered.length === 0,
+      verificationComplete: coverage?.verificationComplete ?? false,
+      noRegressions: coverage?.noRegressions ?? false,
+      missingBaselineTests: coverage?.missingBaselineTests,
+      newSkippedTests: coverage?.newSkippedTests,
       overallPassed:
-        record.targetFixed && record.newFailures.length === 0 && !record.collectionError && tampered.length === 0 && record.agentStatus === 'ok',
+        record.targetFixed && Boolean(coverage?.verificationComplete && coverage.noRegressions) && tampered.length === 0 && record.agentStatus === 'ok',
     };
   });
 }
@@ -892,6 +979,9 @@ async function main() {
   }
   if (process.env.TROLLLLM_API_KEY) registerSecret(process.env.TROLLLLM_API_KEY);
   if (!fs.existsSync(MS_BIN)) throw new Error(`ms binary missing: ${MS_BIN}`);
+  if (options.arms?.includes('B_repl') && (!['uc01', 'hard', 'medium', 'refactor', 'refactorbench', 'exercism'].includes(options.packName) || !options.lean || options.arms.includes('B_one'))) {
+    throw new Error('B_repl requires --lean with pack uc01, medium, refactor, hard, refactorbench or exercism and cannot be combined with B_one in one process');
+  }
   const pack = PACKS[options.packName];
   fs.mkdirSync(options.outDir, { recursive: true });
   const jsonlPath = path.join(options.outDir, 'runs.jsonl');
@@ -902,18 +992,24 @@ async function main() {
   if (!perCase) {
     const pristine = fs.mkdtempSync(path.join(os.tmpdir(), 'ab1-baseline-'));
     fs.cpSync(pack.fixtureDir, pristine, { recursive: true });
-    baseline = runPytest(pristine);
+    const deps = (options.arms?.includes('B_repl') || ['hard', 'medium', 'refactor', 'refactorbench'].includes(options.packName)) ? fs.mkdtempSync(path.join(os.tmpdir(), 'ab1-pytest-deps-')) : undefined;
+    try {
+      if (deps) stageReplPytest(pristine, deps);
+      baseline = runPytest(pristine, PYTHON, undefined, deps ? (args, dir) => pythonSandbox(pristine, deps, args, dir) : undefined);
+      if (deps && baseline.collectionError) throw new Error(`isolated pytest baseline failed: ${baseline.summary}`);
+    } finally { if (deps) fs.rmSync(deps, { recursive: true, force: true }); }
     fs.rmSync(pristine, { recursive: true, force: true });
   }
   console.log(
     `pack ${pack.name} · baseline: ${baseline.passed.length} passed, ${baseline.failed.length} failed [${baseline.failed.join(', ')}]`,
   );
-  console.log(`model: ${options.model} · trials: ${options.trials} · cases: ${options.cases.length} · max steps: ${options.maxSteps}\n`);
+  console.log(`model: ${options.model} · trials: ${options.trials} · cases: ${options.cases.length} · max steps: ${options.maxSteps} · ms prompt: ${options.promptVariant}\n`);
 
   const records: RunRecord[] = [];
   for (let trial = 0; trial < options.trials; trial++) {
     const pairOrder: 'AB' | 'BA' = trial % 2 === 0 ? 'AB' : 'BA';
-    const baseOrder: Arm[] = pairOrder === 'AB' ? ['A_eight', 'B_one'] : ['B_one', 'A_eight'];
+    const treatment: Arm = options.arms?.includes('B_repl') ? 'B_repl' : 'B_one';
+    const baseOrder: Arm[] = pairOrder === 'AB' ? ['A_eight', treatment] : [treatment, 'A_eight'];
     const order = options.arms?.length ? baseOrder.filter((a) => options.arms!.includes(a)) : baseOrder;
     for (const caseId of options.cases) {
       for (const arm of order) {
@@ -921,7 +1017,7 @@ async function main() {
         records.push(record);
         fs.appendFileSync(jsonlPath, `${JSON.stringify(record)}\n`);
         const fix = record.requiredTestsTotal ? ` (${record.requiredTestsPassed}/${record.requiredTestsTotal} required)` : '';
-        const cacheInfo = record.cacheHitRate !== undefined ? ` cache=${(record.cacheHitRate * 100).toFixed(1)}%` : '';
+        const cacheInfo = record.cacheHitRate != null ? ` cache=${(record.cacheHitRate * 100).toFixed(1)}%` : '';
         const costInfo = record.estimatedCostUsd != null ? ` $${record.estimatedCostUsd.toFixed(4)}` : '';
         console.log(
           `${record.overallPassed ? 'PASS' : 'fail'}${fix} ${arm.padEnd(7)} ${caseId} t${trial} · turns=${record.llmTurns} tools=${record.toolCalls} bytes=${record.toolOutputBytes} tok=${record.promptTokens}+${record.completionTokens} (cr=${record.cachedTokens},cw=${record.cacheWriteTokens ?? 0}${cacheInfo}${costInfo}) ${Math.round(record.wallClockMs / 1000)}s`,
@@ -947,32 +1043,43 @@ function report(records: RunRecord[], options: CliOptions, baseline: PytestRepor
       targetFixed: runs.filter((record) => record.targetFixed).length,
       requiredTests: runs.reduce((sum, record) => sum + record.requiredTestsPassed, 0),
       regressions: runs.filter((record) => !record.noRegressions).length,
+      unverified: runs.filter((record) => !record.verificationComplete).length,
       testTampering: runs.filter((record) => !record.testsIntact).length,
       errors: runs.filter((record) => record.agentStatus !== 'ok').length,
       toolFailures: runs.reduce((sum, record) => sum + record.toolFailures, 0),
       medianTurns: median(runs.map((record) => record.llmTurns)),
       medianToolCalls: median(runs.map((record) => record.toolCalls)),
       medianOutputBytes: median(runs.map((record) => record.toolOutputBytes)),
-      totalTokens: runs.reduce((sum, record) => sum + record.promptTokens + record.completionTokens, 0),
+      totalTokens: runs.length && runs.every((record) => record.normalizedTotalTokens != null)
+        ? runs.reduce((sum, record) => sum + record.normalizedTotalTokens!, 0)
+        : null,
       medianWallClockMs: median(runs.map((record) => record.wallClockMs)),
+      medianAgentMs: median(runs.flatMap((record) => record.agentMs === undefined ? [] : [record.agentMs])),
+      medianModelMs: median(runs.flatMap((record) => record.modelMs === undefined ? [] : [record.modelMs])),
+      medianOracleMs: median(runs.flatMap((record) => record.oracleMs === undefined ? [] : [record.oracleMs])),
     };
   };
 
-  const summary = { schemaVersion: '1.1.0', options, baseline, arms: { A_eight: summarize('A_eight'), B_one: summarize('B_one') }, records };
+  const treatment = options.arms?.includes('B_repl') ? 'B_repl' : 'B_one';
+  const summary = { schemaVersion: '2.0.0', options, baseline, arms: { A_eight: summarize('A_eight'), [treatment]: summarize(treatment) }, records };
   fs.writeFileSync(path.join(outDir, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
 
   console.log('\narm      runs pass fix req regress tamper err  medTurns medTools medBytes  tokens    medWall');
-  for (const arm of ['A_eight', 'B_one'] as const) {
+  if (records.some((r) => r.arm === 'A_eight') && records.some((r) => r.arm === treatment)) {
+    console.log('Execution policies differ: A uses Axiom defaults; B uses isolated execution. Do not attribute deltas to tool count alone.');
+  }
+  for (const arm of ['A_eight', treatment] as const) {
     const s = summary.arms[arm];
     console.log(
       `${arm.padEnd(8)} ${String(s.runs).padStart(4)} ${String(s.passed).padStart(4)} ${String(s.targetFixed).padStart(3)} ${String(s.requiredTests).padStart(3)} ${String(s.regressions).padStart(7)} ${String(s.testTampering).padStart(6)} ${String(s.errors).padStart(3)} ${String(s.medianTurns).padStart(8)} ${String(s.medianToolCalls).padStart(8)} ${String(s.medianOutputBytes).padStart(8)} ${String(s.totalTokens).padStart(8)} ${String(s.medianWallClockMs).padStart(8)}`,
     );
+    console.log(`  median ms: agent=${s.medianAgentMs} model=${s.medianModelMs} oracle=${s.medianOracleMs}`);
   }
 
   for (const caseId of options.cases) {
     const pair = (arm: Arm) => records.filter((record) => record.caseId === caseId && record.arm === arm);
     const a = pair('A_eight');
-    const b = pair('B_one');
+    const b = pair(treatment);
     if (!a.length || !b.length) continue;
     const mean = (runs: RunRecord[], pick: (record: RunRecord) => number) => runs.reduce((sum, record) => sum + pick(record), 0) / runs.length;
     const delta = (pick: (record: RunRecord) => number) => {
@@ -980,7 +1087,7 @@ function report(records: RunRecord[], options: CliOptions, baseline: PytestRepor
       return before === 0 ? 0 : ((mean(b, pick) - before) / before) * 100;
     };
     console.log(
-      `${caseId}: turns ${delta((r) => r.llmTurns).toFixed(1)}% · tools ${delta((r) => r.toolCalls).toFixed(1)}% · bytes ${delta((r) => r.toolOutputBytes).toFixed(1)}% · tokens ${delta((r) => r.promptTokens + r.completionTokens).toFixed(1)}% · wall ${delta((r) => r.wallClockMs).toFixed(1)}%`,
+      `${caseId}: turns ${delta((r) => r.llmTurns).toFixed(1)}% · tools ${delta((r) => r.toolCalls).toFixed(1)}% · bytes ${delta((r) => r.toolOutputBytes).toFixed(1)}% · wall ${delta((r) => r.wallClockMs).toFixed(1)}%`,
     );
   }
   const pairedPct = (pick: (r: RunRecord) => number) => {

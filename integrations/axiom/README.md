@@ -2,7 +2,7 @@
 
 Axiom ships eight tools: `run_command`, `read_file`, `write_file`, `edit`, `apply_patch`, `list_dir`, `search_code`, `run_tests`. Every one is a round trip and a JSON schema, and every result pours into the context and stays there.
 
-This package replaces all eight with one tool called `ms`. The model writes a JavaScript program whose only global is an async capability table; the program runs against the workspace on the `ms` runtime, and only the value it `return`s reaches the conversation.
+This package replaces all eight with one tool called `ms`. The model writes a JavaScript program in a separate sandboxed Node process. Workspace access goes through the `ms` capability table, and only the returned value and collected logs reach the conversation.
 
 | | Eight tools | **One `ms` tool** |
 |---|---|---|
@@ -18,11 +18,11 @@ The reduction is measured, not asserted: `new ToolRegistry().getDefinitions()` a
 The guarantees the eight tools carried do not move to the model, they move into the runtime:
 
 - **Root confinement** — `openat2(RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS)`; traversal, symlinks, FIFOs, hardlinks refused (see `docs/threat-model.md`).
-- **Revision-checked edits** — every mutation carries a BLAKE3 `expectedRevision` or hashline tag; a stale or missing one returns `E_CONFLICT` with fresh context instead of guessing.
+- **Revision-checked changes** — edits, overwrites, deletes and renames require the BLAKE3 revision returned by `ms.read`. New files use create-only writes. Rename cannot overwrite an existing destination.
 - **Atomicity** — preimage + `PREPARED` journal + temp file + `fsync` + atomic `rename`, and `ms.batch` rolls the whole batch back in reverse order on any failure.
 - **Durable undo** — `ms.undo({transactionId})` restores the preimage from the journal, crash-recoverable.
-- **Axiom's test-guard** — `ms.write` / `ms.edit` / `ms.rm` / `ms.mv` run through the adapter's guarded mutators, so weakening, skipping or deleting a test is refused before the journal. `ms.batch` refuses test paths outright for the same reason.
-- **Distilled command output** — `ms.exec` returns a header, the failures and hashline snippets, plus a `logId` for the raw log.
+- **Test protection** — existing test files and test configuration cannot be edited, deleted, renamed or overwritten. New test files use create-only writes and still pass the adapter guard.
+- **Bounded command output** — `ms.exec` returns an exit code, bounded output and a session-scoped job log ID.
 - **Axiom's approval gate** — see below.
 
 ## Wiring it into Axiom
@@ -75,12 +75,15 @@ Role-scoped registries (`tools.scoped([...])`) and `READ_ONLY_TOOLS` are name-ba
 ## The program surface
 
 ```js
-const file = await ms.read('src/lib.rs');                    // {path, revision, totalLines, text}  (hashline by default)
-const hits = await ms.search('pub fn', { maxMatches: 5 });    // {hits: [{path, line, text, tag}], truncated}
-await ms.edit('src/lib.rs', { oldText, newText }, { expectedRevision: file.revision });
-const run  = await ms.exec('cargo test --workspace');        // {exitCode, output, logId}
+const file = await ms.read('src/lib.rs');                    // {path, revision, totalLines, text}  exact text; format:'hashline' for tagged lines
+const tree = await ms.list('src', { recursive: true });       // ['src/lib.rs', 'src/bin/', ...]  dirs end in '/'
+const hits = await ms.search('pub fn', { maxMatches: 5 });    // {hits: [{path, line, text}]}  truncated only when true
+await ms.edit('src/lib.rs', { oldText, newText }, { expectedRevision: file.revision }); // {path, revision, transactionId, editsApplied}
+const run  = await ms.exec('cargo test --workspace');        // {exitCode, output, logId}  output capped at 4 KB head+tail (maxBytes)
 return { failing: run.exitCode !== 0 && run.output.split('\n').slice(0, 5) };
 ```
+
+Results come back as compact JSON. `ms.read` metadata (`truncated`, `startLine`, `endLine`, `nextStartLine`) appears only when the window is cut, `hasBom` only when true.
 
 `ms.read` · `ms.list` · `ms.search` · `ms.outline` · `ms.context` · `ms.tx` are read-only.
 `ms.write` · `ms.edit` · `ms.batch` · `ms.rm` · `ms.mv` · `ms.undo` and any non-inspection `ms.start`/`ms.exec`/`ms.kill` ask the approver once, when they run — not once for the whole program, so a program that starts by reading cannot quietly write.
@@ -110,11 +113,11 @@ return { id: (await ms.start('cargo test --workspace', { timeoutMs: 0 })).id }; 
 | Blocks the program | yes | no |
 | Parallel commands | one per call | up to 16 |
 | Outlives the call | no | yes — the session owns it |
-| What you read | distilled header + snippets | `tail`/`head`/`output`/`grep` on the real log |
+| What you read | bounded output | `tail`/`head`/`output`/`grep` on the real log |
 | Long command | timeout risk | `timeoutMs: 0` lifts the 600s default |
 
-`tail(n)` and `head(n)` come from bounded buffers (64 KiB head, 512 KiB tail); `grep` reads the full log from
-disk, line-numbered, with up to 5 context lines. `kill` signals the whole process group (`SIGTERM`, then
+`tail(n)` and `head(n)` come from bounded buffers (64 KiB head, 512 KiB tail); `grep` reads the retained first and last 512 KiB of a finished log from
+disk, line-numbered, with up to 5 context lines. While a job is running, its disk log contains the retained beginning. `kill` signals the whole process group (`SIGTERM`, then
 `SIGKILL` after 500 ms), and `close()` kills anything still live so a session cannot leak process groups.
 
 ## Budgets
@@ -123,15 +126,19 @@ disk, line-numbered, with up to 5 context lines. `kill` signals the whole proces
 |---|---|---|
 | `limits.maxCalls` | 256 | host calls per program; the 257th throws inside the program |
 | `limits.timeoutMs` | 180000 | wall clock; in-flight `ms` calls are cancelled (`AbortSignal` → protocol `cancel`) |
-| `limits.maxResultBytes` | 65536 | the rendered result is truncated with a byte count, never silently |
+| `limits.maxResultBytes` | 24576 | total UTF-8 response budget, including result, logs, errors and header |
 
 A program that returns nothing renders as `ok (no value returned)`; `console.log` output is collected and appended after the result, never interleaved.
 
-## Ceiling
+## Isolation and limits
 
-- `node:vm` is a **correctness** boundary, not a security one. A program cannot `require`, use `process`, or reach the filesystem except through the `ms` table, but a determined adversarial program is not the threat model here: the model is. Run untrusted code in a container.
-- The tool replaces file and shell *capability*, not Axiom's shell policy: `ms.exec` gates on `isReadOnlyInspectionCommand`, which is a coarser rule than `decide('run_command', …)`. If you need Axiom's per-argv allowlist, keep `run_command` and hand the model both tools.
-- Approvals are coarse by design: one prompt per mutating call, no argument editing. `editedArgs` is not supported; refuse and re-ask instead.
+- Linux, `bwrap`, working user/PID/network namespaces, and Node.js are required. If sandbox startup fails, no guest code runs.
+- Each program runs in a fresh sandbox without the workspace, state directory, home, inherited environment or network. Host calls use a bounded JSON channel. The guest can use its own Node runtime, so the OS sandbox is the security boundary.
+- Each `ms.exec` or `ms.start` runs in a separate writable snapshot of policy-readable, non-ignored files. The snapshot excludes `.git`, secrets, symlinks and hardlinks. Shell writes disappear when the job finishes. Use the file API to persist changes.
+- Snapshots are limited to 8 MiB per file and 64 MiB total. The writable workspace and temporary directory are capped at 128 MiB and 64 MiB. A truncated listing or an oversized snapshot fails closed. System tools under `/usr` and `/bin` are mounted, as are the `node` and `bun` executables found on PATH. Their home directories and project dependencies ignored by Git are not mounted.
+- For commands containing `pytest`, copies of the installed pytest modules and their basic dependencies are staged separately without mounting home. Other user-installed Python modules and plugins are not mirrored, so tests depending on them can fail inside the sandbox even if they pass on the host.
+- `bwrap` isolates the filesystem and network but this integration does not impose cgroup CPU, memory or process-count limits. Do not treat it as a complete multi-tenant resource boundary.
+- Reviewer sessions do not expose shell or mutation functions. Undo of a rename is unavailable because the transaction listing does not expose its destination. Approvals are per mutation; argument editing is not supported.
 
 ## Check
 
@@ -139,4 +146,4 @@ A program that returns nothing renders as `ok (no value returned)`; `console.log
 bun integrations/axiom/selftest.ts
 ```
 
-Eight properties, on a throwaway copy of `tests/fixtures/small-repo`: one call does read+search+list+shell; an approved edit is journaled and undone; a stale revision is refused; the test-guard blocks a weakened test; a denied command never runs; a runaway program is stopped; the call budget holds; a missing approver refuses writes.
+The self-test uses a throwaway workspace and checks isolation, test protection, bounded output, approvals, journal operations and job control.

@@ -75,4 +75,38 @@
 
 1. **Tool output distillation vs. turn count**: Across the controlled smoke run, `ms exec` reduced total tool output bytes by `60.5%` (`9,659 B` vs `24,424 B`), yet Arm B still took more turns on `uc01-01` and `uc01-02` (`13` vs `9` and `15` vs `6`), while beating Arm A on `uc01-03` (`6` vs `7` turns). Single-run (`N=1`) variance is high; at least `10` paired trials per case are needed before drawing causal conclusions.
 2. **Schema & hashline overhead on tiny files**: `evals/fixtures/uc01` (`tinydb_demo`) is an **8-file** repository where the target files are 2, 8, and 17 lines long. Arm B exposed 10 tool schemas (including `ms_outline`, `ms_context`, `ms_undo`) vs. Arm A's 8.
-3. **Next step**: Run a `>= 10` paired-trial pilot with `--mode controlled --seed 42 --trials 10` and single-factor ablations (e.g., distilled exec only, hashline read/edit only, minimal tool set) to isolate which component drives turn count and cost.
+3. **Next step**: Run a `>= 10` paired-trial pilot with `--mode controlled --seed 42 --trials 10` and single-factor ablations (e.g., distilled exec only, hashline read/edit only, minimal tool set) to isolate which component drives turn count and cost. **Done — see section 4 below: the pilot's byte and cost claims do not replicate.**
+
+## 4. Thirty-pair follow-up (2026-11-15, `--mode controlled --trials 10`)
+
+The pilot above asked for at least 10 paired trials per case before drawing conclusions. That run exists:
+`benchmarks/artifacts/claude-haiku-5-5-v4fix3-t10-seed42` — `claude-haiku-5-5`, 3 cases × 10 trials × 2 arms = 60 runs,
+**60/60 completed, 60/60 verified pass in both arms, 0 infra errors, 0 timeouts**, cost priced (`costDollars` present for
+both arms).
+
+Re-analysis with paired bootstrap (20,000 resamples, seed 42) via
+`python3 benchmarks/paired_bootstrap.py benchmarks/artifacts/claude-haiku-5-5-v4fix3-t10-seed42`:
+
+| metric | mean delta (B vs A) | 95% bootstrap CI | median | better in | sign test p |
+|---|---:|---|---:|---:|---:|
+| turns | +1.9% | [-4.8%, +9.4%] | +0.0% | 11/30 | 0.824 |
+| tool calls | +6.1% | [-2.8%, +15.5%] | +9.1% | 10/30 | 0.424 |
+| tool output bytes | +7.3% | [-9.2%, +24.3%] | +9.9% | 12/30 | 0.362 |
+| wall clock | **+19.5%** | **[+7.5%, +32.8%]** | +18.1% | 9/30 | 0.043 |
+| total tokens | +6.0% | [-6.1%, +19.4%] | +2.1% | 14/30 | 0.856 |
+| cost (USD) | +9.4% | [-1.3%, +20.5%] | +15.1% | 11/30 | 0.265 |
+
+Aggregate totals agree: `A_baseline` 211 turns / 289 tool calls / 148,686 B / `$0.05642`; `B_ms` 214 turns / 301 tool
+calls / 127,353 B / `$0.06285`; wall clock 369,233.73 ms vs 423,850.72 ms.
+
+**Conclusions that replace the pilot's:**
+
+1. The `N=1` claims in sections 1–2 (`-60.5%` bytes, `+53.7%` cost) do not replicate. At 30 pairs the multi-tool `ms`
+   integration is neutral on turns/tokens/cost and **significantly slower in wall clock**.
+2. Registering `ms` as 10 separate `ms_*` tools is the wrong shape. The measured win appears only after the collapse to
+   one `ms` tool — see [`AB_SINGLE_TOOL_REPORT.md`](AB_SINGLE_TOOL_REPORT.md) (tool calls `-50.9%`, CI
+   `[-56.4%, -45.0%]`, 9/9 pairs).
+3. Hypothesis 2 in section 3 (extra schemas on tiny files) is supported by this run's wall-clock regression, but the
+   experiment still cannot separate schema count from `ms exec` overhead. Only the single-tool ablation above isolates
+   the tool-list change.
+

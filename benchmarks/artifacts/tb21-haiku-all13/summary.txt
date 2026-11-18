@@ -1,0 +1,104 @@
+task                         arm      reward status     turns calls      norm wall_s exception
+git-multibranch              A_eight     0.0 completed     14    12    104972     82 
+git-multibranch              A_eight     1.0 completed     11     9    101395     82 
+git-multibranch              A_eight     1.0 completed     11     9     86023     59 
+git-multibranch              B_one       0.0 completed      9     8     71502     57 
+git-multibranch              B_one       1.0 completed     12    10    121094     72 
+git-multibranch              B_one       1.0 completed     13    11    138044     87 
+git-multibranch              B_repl      1.0 completed      8     7     50292     46 
+git-multibranch              B_repl      1.0 completed     10     9     74018     58 
+git-multibranch              B_repl      1.0 completed     13    12    141828     71 
+git-multibranch              C_py        1.0 completed     13    11     79057     54 
+git-multibranch              C_py        1.0 completed     13    11     87733     62 
+git-multibranch              C_py        0.0 completed      9     7     52212     70 
+headless-terminal            A_eight     1.0 completed      8     8     49255     54 
+headless-terminal            A_eight     1.0 completed     20    22    194518    111 
+headless-terminal            A_eight     1.0 completed      9     9     59596     61 
+headless-terminal            B_one       1.0 completed     11     9     82530     62 
+headless-terminal            B_one       1.0 completed      9     7     49786     46 
+headless-terminal            B_one       1.0 completed     11     9     82530     61 
+headless-terminal            B_repl      1.0 completed      5     4     25231     43 
+headless-terminal            B_repl      1.0 completed      6     5     27054     43 
+headless-terminal            B_repl      1.0 completed      6     5     27179     37 
+headless-terminal            C_py        1.0 completed     10     8     57712     63 
+headless-terminal            C_py        1.0 completed      9     7     46866     87 
+headless-terminal            C_py        1.0 completed     10     8     58015     58 
+kv-store-grpc                A_eight     0.0 completed     14    15     89625    149 
+kv-store-grpc                A_eight     1.0 completed     11    12     59359    125 
+kv-store-grpc                A_eight     1.0 completed     11    11     63999    126 
+kv-store-grpc                B_one       0.0 completed      7     6     33729     33 
+kv-store-grpc                B_one       0.0 completed      9     7     39957     31 
+kv-store-grpc                B_one       0.0 completed      9     7     50498     43 
+kv-store-grpc                B_repl      0.0 completed      7     5     25481     31 
+kv-store-grpc                B_repl      0.0 completed      7     6     28551     26 
+kv-store-grpc                B_repl      1.0 completed      4     3     12655     22 
+kv-store-grpc                C_py        0.0 completed      8     6     26237     36 
+kv-store-grpc                C_py        0.0 completed      8     6     26278     40 
+kv-store-grpc                C_py        0.0 completed      9     7     35445    638 
+nginx-request-logging        A_eight     1.0 completed      5     3     26137     25 
+nginx-request-logging        A_eight     0.0 completed      6     6     36048     27 
+nginx-request-logging        A_eight     0.0 completed      5     6     26813     26 
+nginx-request-logging        B_one       1.0 completed      7     5     36212     31 
+nginx-request-logging        B_one       1.0 completed     10     8     73458     45 
+nginx-request-logging        B_one       1.0 completed      4     2     15936     19 
+nginx-request-logging        B_repl      1.0 completed      3     2     12114     20 
+nginx-request-logging        B_repl      1.0 running        4     3     15655    915 AgentTimeoutError
+nginx-request-logging        B_repl      1.0 completed      4     3     16265     37 
+nginx-request-logging        C_py        1.0 completed      6     4     21311     21 
+nginx-request-logging        C_py        1.0 completed      9     7     55354     68 
+nginx-request-logging        C_py        1.0 completed      7     5     28616     21 
+sanitize-git-repo            A_eight     0.0 completed     11    14    366578     44 
+sanitize-git-repo            A_eight     1.0 completed     10    10    259700     51 
+sanitize-git-repo            A_eight     1.0 completed     14    18    469510     54 
+sanitize-git-repo            B_one       1.0 completed      8     6    168087     31 
+sanitize-git-repo            B_one       1.0 completed      9     7    254140     62 
+sanitize-git-repo            B_one       1.0 completed     10     8    307313     47 
+sanitize-git-repo            B_repl      1.0 completed      6     6     40018     24 
+sanitize-git-repo            B_repl      1.0 completed      5     4     25437     19 
+sanitize-git-repo            B_repl      1.0 completed      6     5    154848     36 
+sanitize-git-repo            C_py        1.0 completed     10     8    170883     38 
+sanitize-git-repo            C_py        1.0 completed      9     8    154779     44 
+sanitize-git-repo            C_py        1.0 completed      8     6    121409     51 
+vulnerable-secret            A_eight     1.0 completed     20    18    144899     77 
+vulnerable-secret            A_eight     1.0 completed     16    14    113380     39 
+vulnerable-secret            A_eight     0.0 completed      8     6     35002     33 
+vulnerable-secret            B_one       1.0 completed      7     5     31724     11 
+vulnerable-secret            B_one       1.0 completed      8     6     40417     18 
+vulnerable-secret            B_one       1.0 completed      8     6     45499     14 
+vulnerable-secret            B_repl      1.0 completed      8     7     42006     15 
+vulnerable-secret            B_repl      1.0 completed      7     6     32525     12 
+vulnerable-secret            B_repl      1.0 completed      9     8     43269     18 
+vulnerable-secret            C_py        1.0 completed     11     9     58447     18 
+vulnerable-secret            C_py        1.0 completed      7     5     52057     15 
+vulnerable-secret            C_py        1.0 completed      9     7     72735     19 
+
+task                         arm       pass  turns norm_passed
+git-multibranch              A_eight  2/3    12.00       93709
+git-multibranch              B_one    2/3    11.33      129569
+git-multibranch              B_repl   3/3    10.33       88712
+git-multibranch              C_py     2/3    11.67       83395
+headless-terminal            A_eight  3/3    12.33      101123
+headless-terminal            B_one    3/3    10.33       71615
+headless-terminal            B_repl   3/3     5.67       26488
+headless-terminal            C_py     3/3     9.67       54197
+kv-store-grpc                A_eight  2/3    12.00       61679
+kv-store-grpc                B_one    0/3     8.33           -
+kv-store-grpc                B_repl   1/3     6.00       12655
+kv-store-grpc                C_py     0/3     8.33           -
+nginx-request-logging        A_eight  1/3     5.33       26137
+nginx-request-logging        B_one    3/3     7.00       41868
+nginx-request-logging        B_repl   3/3     3.67       14678
+nginx-request-logging        C_py     3/3     7.33       35093
+sanitize-git-repo            A_eight  2/3    11.67      364605
+sanitize-git-repo            B_one    3/3     9.00      243180
+sanitize-git-repo            B_repl   3/3     5.67       73434
+sanitize-git-repo            C_py     3/3     9.00      149023
+vulnerable-secret            A_eight  2/3    14.67      129139
+vulnerable-secret            B_one    3/3     7.67       39213
+vulnerable-secret            B_repl   3/3     8.00       39266
+vulnerable-secret            C_py     3/3     9.00       61079
+
+A_eight: pass 12/18, turns 11.33, norm(passed) 135,647 [cacheRead 113,168 cacheWrite 13,592 prompt 408 completion 8,478]
+B_one: pass 14/18, turns 8.94, norm(passed) 103,340 [cacheRead 81,972 cacheWrite 13,509 prompt 429 completion 7,429]
+B_repl: pass 16/18, turns 6.56, norm(passed) 46,274 [cacheRead 32,410 cacheWrite 8,380 prompt 426 completion 5,057]
+C_py: pass 14/18, turns 9.17, norm(passed) 76,069 [cacheRead 58,558 cacheWrite 11,291 prompt 429 completion 5,790]

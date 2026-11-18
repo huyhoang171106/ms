@@ -26,6 +26,73 @@ pub struct AnalyzedText {
     pub lines: Vec<ReadLine>,
 }
 
+/// Analyze the whole file but materialize only the requested line window.
+pub fn analyze_read_window(
+    bytes: &[u8],
+    start: usize,
+    count: usize,
+    max_output: usize,
+    hashline: bool,
+) -> Result<(AnalyzedText, u64, bool), RuntimeError> {
+    let text = std::str::from_utf8(bytes)
+        .map_err(|e| RuntimeError::InvalidRequest(format!("file is not valid UTF-8: {e}")))?;
+    let has_bom = bytes.starts_with(b"\xEF\xBB\xBF");
+    let bom = if has_bom { 3 } else { 0 };
+    let mut lines = Vec::new();
+    let mut line_start = bom;
+    let mut total = 0usize;
+    let mut output_bytes = 0usize;
+    let mut truncated = false;
+    let mut has_crlf = false;
+    let mut has_lf = false;
+    let mut add_line = |line_end: usize, next: usize| {
+        if total >= start && total - start < count && !truncated {
+            let size = line_end - line_start + if hashline { 16 } else { 64 };
+            if output_bytes.saturating_add(size) > max_output && !lines.is_empty() {
+                truncated = true;
+            } else {
+                output_bytes = output_bytes.saturating_add(size);
+                lines.push(ReadLine {
+                    line_number: total as u64 + 1,
+                    line_tag: short_line_tag(&bytes[line_start..line_end]),
+                    start_byte: line_start as u64,
+                    end_byte: line_end as u64,
+                    text: text[line_start..line_end].to_string(),
+                });
+            }
+        }
+        total += 1;
+        line_start = next;
+    };
+    for rel in memchr::memchr_iter(b'\n', &bytes[bom..]) {
+        let pos = rel + bom;
+        let crlf = pos > bom && bytes[pos - 1] == b'\r';
+        has_crlf |= crlf;
+        has_lf |= !crlf;
+        add_line(if crlf { pos - 1 } else { pos }, pos + 1);
+    }
+    if bytes.len() > bom && !bytes.ends_with(b"\n") {
+        add_line(bytes.len(), bytes.len());
+    }
+    let eol = if has_crlf && !has_lf {
+        EolKind::Crlf
+    } else if has_lf {
+        EolKind::Lf
+    } else {
+        EolKind::None
+    };
+    Ok((
+        AnalyzedText {
+            has_bom,
+            eol,
+            has_trailing_newline: bytes.len() > bom && bytes.ends_with(b"\n"),
+            lines,
+        },
+        total as u64,
+        truncated,
+    ))
+}
+
 /// Validates UTF-8, detects BOM/EOL, and builds 1-based line metadata with exact byte offsets.
 pub fn analyze_text(bytes: &[u8], strict_eol: bool) -> Result<AnalyzedText, RuntimeError> {
     let text = std::str::from_utf8(bytes)
@@ -579,5 +646,40 @@ fn convert_lf_to_eol(lf_text: &str, eol: EolKind) -> String {
     match eol {
         EolKind::Crlf => lf_text.replace('\n', "\r\n"),
         EolKind::Lf | EolKind::None => lf_text.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod read_window_tests {
+    use super::{analyze_read_window, analyze_text};
+
+    #[test]
+    fn window_matches_full_analysis_for_eol_bom_and_unicode() {
+        let fixtures: &[&[u8]] = &[
+            b"",
+            b"\xef\xbb\xbf",
+            b"one",
+            b"\n\n",
+            b"a\r\nb\r\nc\r\n",
+            b"\xef\xbb\xbfhello\r\nworld\nend\r",
+            "α\n🙂\r\nz".as_bytes(),
+        ];
+        for bytes in fixtures {
+            let full = analyze_text(bytes, false).unwrap();
+            for start in 0..=full.lines.len() + 1 {
+                for count in 0..=full.lines.len() + 1 {
+                    let (window, total, truncated) =
+                        analyze_read_window(bytes, start, count, usize::MAX, false).unwrap();
+                    assert_eq!(total as usize, full.lines.len());
+                    assert!(!truncated);
+                    assert_eq!(window.eol, full.eol);
+                    assert_eq!(window.has_bom, full.has_bom);
+                    assert_eq!(window.has_trailing_newline, full.has_trailing_newline);
+                    let expected: Vec<_> = full.lines.iter().skip(start).take(count).collect();
+                    assert_eq!(window.lines.iter().collect::<Vec<_>>(), expected);
+                }
+            }
+        }
+        assert!(analyze_read_window(b"\xff", 0, 1, 100, false).is_err());
     }
 }

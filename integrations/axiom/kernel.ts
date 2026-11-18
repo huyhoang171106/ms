@@ -1,115 +1,133 @@
-/**
- * Program runner for the single `ms` Axiom tool.
- *
- * Axiom gives the model one tool. One call is one program: reads, searches, edits, shell commands and
- * undo compose in the program, and only the value the program `return`s enters the conversation.
- */
-
-import vm from "node:vm";
+/** Isolated JavaScript runner for Axiom's single ms tool. */
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, realpathSync } from "node:fs";
+import readline from "node:readline";
 
 export type HostFn = (...args: any[]) => Promise<unknown>;
-
-export interface KernelLimits {
-  /** Host calls allowed per program. */
-  maxCalls?: number;
-  /** Wall-clock budget for the whole program; in-flight `ms` calls are cancelled when it expires. */
-  timeoutMs?: number;
-  /** Bytes of rendered result that may reach the conversation. */
-  maxResultBytes?: number;
-}
-
-export interface KernelResult {
-  ok: boolean;
-  output: string;
-  calls: number;
-  durationMs: number;
-  logs: string[];
-}
-
+export interface KernelLimits { maxCalls?: number; timeoutMs?: number; maxResultBytes?: number }
+export interface KernelResult { ok: boolean; output: string; calls: number; durationMs: number; logs: string[] }
 export const DEFAULT_LIMITS = { maxCalls: 256, timeoutMs: 180_000, maxResultBytes: 24 * 1024 } as const;
 
-const byteLength = (text: string): number => Buffer.byteLength(text, "utf8");
-
-function cap(text: string, max: number): string {
-  if (byteLength(text) <= max) return text;
-  let out = text;
-  while (byteLength(out) > max) out = out.slice(0, Math.max(0, out.length - 4096));
-  return `${out}\n… truncated: ${byteLength(text)} bytes / ${text.length} chars total`;
+/** Limit UTF-8 output without splitting a code point. */
+export function cap(text: string, max: number): string {
+  const bytes = Buffer.from(text);
+  if (bytes.length <= max) return text;
+  const marker = "\n… truncated";
+  if (max <= Buffer.byteLength(marker)) return "";
+  let end = max - Buffer.byteLength(marker);
+  while (end > 0 && (bytes[end] & 0xc0) === 0x80) end--;
+  return bytes.subarray(0, end).toString("utf8") + marker;
 }
-
-/** The conversation sees only this string; a program that returns nothing says so cheaply. */
 export function render(value: unknown, max: number = DEFAULT_LIMITS.maxResultBytes): string {
   if (value === undefined) return "ok (no value returned)";
   if (typeof value === "string") return cap(value, max);
-  try {
-    const compact = JSON.stringify(value) ?? String(value);
-    const formatted = byteLength(compact) <= 2048 ? (JSON.stringify(value, null, 1) ?? compact) : compact;
-    return cap(formatted, max);
-  } catch {
-    return cap(String(value), max);
-  }
+  try { return cap(JSON.stringify(value) ?? String(value), max); }
+  catch { return cap(String(value), max); }
 }
 
-/**
- * Runs `code` as the body of an async function whose only globals are `ms` (the capability table) and
- * `console` (collected, not printed). `makeApi` receives the program's abort signal so queued `ms`
- * calls die when the program times out.
- */
-export async function runProgram(
-  code: string,
-  makeApi: (signal: AbortSignal) => Record<string, HostFn>,
-  limits: KernelLimits = {},
-  inputs: Record<string, string> = {},
-): Promise<KernelResult> {
+// The guest can access its own Node runtime, but has no host filesystem, environment or network.
+const GUEST = String.raw`
+const readline = require('node:readline');
+const pending = new Map(); let next = 0;
+const send = value => process.stdout.write(JSON.stringify(value) + '\n');
+const rl = readline.createInterface({input: process.stdin, crlfDelay: Infinity});
+let started = false;
+rl.on('line', async line => {
+  let msg; try { msg = JSON.parse(line); } catch { return; }
+  if (!started) {
+    started = true;
+    const api = {inputs: Object.freeze(msg.inputs)};
+    for (const name of msg.names) api[name] = (...args) => new Promise((resolve, reject) => {
+      const id = ++next; pending.set(id, {resolve, reject}); send({type:'call', id, name, args});
+    });
+    const log = (...args) => send({type:'log', text: args.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(' ')});
+    const console = Object.freeze({log, info:log, warn:log, error:log, debug:log});
+    try {
+      const fn = new (Object.getPrototypeOf(async function(){}).constructor)('ms', 'inputs', 'console', msg.code);
+      const value = await fn(Object.freeze(api), api.inputs, console);
+      send({type:'result', ok:true, value: value === undefined ? 'ok (no value returned)' : value});
+    } catch (e) { send({type:'result', ok:false, value: e instanceof Error ? e.name + ': ' + e.message + (e.hint ? '\n' + e.hint : '') : String(e)}); }
+    return;
+  }
+  const p = pending.get(msg.id); if (!p) return; pending.delete(msg.id);
+  if (msg.ok) p.resolve(msg.value); else {
+    const err = new Error(msg.error.message);
+    if (msg.error.name) err.name = msg.error.name;
+    if (msg.error.code) err.code = msg.error.code;
+    if (msg.error.hint) err.hint = msg.error.hint;
+    p.reject(err);
+  }
+});
+`;
+
+export async function runProgram(code: string, makeApi: (signal: AbortSignal) => Record<string, HostFn>, limits: KernelLimits = {}, inputs: Record<string, string> = {}, sandbox = true): Promise<KernelResult> {
   const lim = { ...DEFAULT_LIMITS, ...limits };
   const started = Date.now();
-  const logs: string[] = [];
   const abort = new AbortController();
+  const api = makeApi(abort.signal);
   let calls = 0;
-
-  const log = (...args: unknown[]) => {
-    logs.push(args.map((arg) => (typeof arg === "string" ? arg : render(arg, 4096))).join(" "));
+  const logs: string[] = [];
+  let logBytes = 0;
+  const active = new Set<Promise<void>>();
+  const result = (ok: boolean, output: string): KernelResult => ({ ok, output: cap(output, lim.maxResultBytes), calls, durationMs: Date.now() - started, logs });
+  const launch = (): { file: string; args: string[] } | string => {
+    // Unsandboxed only when the caller's host is itself disposable (ms-tool `directExec`): the guest then runs on this runtime.
+    if (!sandbox) return { file: process.execPath, args: ["-e", GUEST] };
+    const which = spawnSync("which", ["node"], { encoding: "utf8" });
+    if (which.status !== 0) return "sandbox unavailable: Node.js not found";
+    let node: string;
+    try { node = realpathSync(which.stdout.trim()); } catch { return "sandbox unavailable: Node.js not found"; }
+    const args = ["--unshare-all", "--die-with-parent", "--new-session", "--clearenv", "--setenv", "HOME", "/tmp", "--setenv", "PATH", "/usr/bin:/bin", "--ro-bind", node, "/node", "--proc", "/proc", "--dev", "/dev", "--size", "67108864", "--tmpfs", "/tmp"];
+    for (const dir of ["/lib", "/lib64", "/usr/lib"]) if (existsSync(dir)) args.push("--ro-bind", dir, dir);
+    args.push("--chdir", "/tmp", "--", "/node", "-e", GUEST);
+    return { file: "bwrap", args };
   };
-
-  const frozenInputs = Object.freeze({ ...inputs });
-  const guarded: Record<string, unknown> = { inputs: frozenInputs };
-  for (const [name, fn] of Object.entries(makeApi(abort.signal))) {
-    guarded[name] = (...args: unknown[]) => {
-      if (++calls > lim.maxCalls) {
-        return Promise.reject(new Error(`host call budget exhausted (${lim.maxCalls} per program)`));
-      }
-      const p = Promise.resolve(fn(...args));
-      // Prevent un-awaited calls (forgotten `await` or early throw) from crashing the host via UnhandledRejection on abort.
-      p.catch(() => {});
-      return p;
-    };
-  }
-
-  const sandbox = {
-    ms: Object.freeze(guarded),
-    inputs: frozenInputs,
-    console: Object.freeze({ log, info: log, warn: log, error: log, debug: log }),
-  };
-  // ponytail: node:vm is a correctness boundary, not a security boundary. The real limits are the
-  // capability table (no require/process/fs) plus ms's own openat2-rooted, journaled workspace. Upgrade
-  // path: run programs in a worker or child process under an OS sandbox.
-  const context = vm.createContext(sandbox, { codeGeneration: { strings: false, wasm: false }, name: "ms" });
-  const source = `(async () => {\n${code}\n})()`;
-
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const pending = vm.runInContext(source, context, { timeout: lim.timeoutMs, filename: "ms-program.js" }) as Promise<unknown>;
-    const deadline = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`program exceeded ${lim.timeoutMs}ms`)), lim.timeoutMs);
-      timer.unref?.();
-    });
-    const value = await Promise.race([pending, deadline]);
-    return { ok: true, output: render(value, lim.maxResultBytes), calls, durationMs: Date.now() - started, logs };
-  } catch (error) {
-    const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-    return { ok: false, output: message, calls, durationMs: Date.now() - started, logs };
-  } finally {
-    clearTimeout(timer);
-    abort.abort();
-  }
+  const guest = launch();
+  if (typeof guest === "string") return result(false, guest);
+  const child = spawn(guest.file, guest.args, { stdio: ["pipe", "pipe", "pipe"], cwd: "/tmp", env: { PATH: process.env.PATH } });
+  child.stdin.on("error", () => {});
+  let stderr = "";
+  child.stderr.on("data", (chunk: Buffer) => { stderr = cap(stderr + chunk.toString(), 2048); });
+  const rl = readline.createInterface({ input: child.stdout, crlfDelay: Infinity });
+  let frameBytes = 0;
+  child.stdout.on("data", (chunk: Buffer) => {
+    const last = chunk.lastIndexOf(10);
+    frameBytes = last < 0 ? frameBytes + chunk.length : chunk.length - last - 1;
+    if (frameBytes > 4 * 1024 * 1024) child.kill("SIGKILL");
+  });
+  let settled = false;
+  let finish!: (value: KernelResult) => void;
+  const done = new Promise<KernelResult>((resolve) => { finish = value => { if (!settled) { settled = true; resolve(value); } }; });
+  const timer = setTimeout(() => { finish(result(false, `program exceeded ${lim.timeoutMs}ms`)); child.kill("SIGKILL"); }, lim.timeoutMs);
+  const send = (msg: unknown) => { if (!child.stdin.destroyed) child.stdin.write(JSON.stringify(msg) + "\n"); };
+  child.on("error", error => finish(result(false, `sandbox unavailable: ${error.message}`)));
+  child.on("close", code => finish(result(false, `sandbox unavailable or guest exited (${code}): ${stderr}`)));
+  rl.on("line", line => {
+    if (settled) return;
+    if (Buffer.byteLength(line) > 4 * 1024 * 1024) { finish(result(false, "guest message exceeds limit")); child.kill("SIGKILL"); return; }
+    let msg: any; try { msg = JSON.parse(line); } catch { finish(result(false, "invalid guest message")); child.kill("SIGKILL"); return; }
+    if (msg.type === "log") {
+      const text = cap(String(msg.text), Math.max(0, lim.maxResultBytes - logBytes));
+      logBytes += Buffer.byteLength(text) + 1;
+      if (text) logs.push(text);
+    } else if (msg.type === "result") {
+      finish(result(Boolean(msg.ok), typeof msg.value === "string" ? msg.value : render(msg.value, lim.maxResultBytes)));
+    } else if (msg.type === "call" && Number.isSafeInteger(msg.id) && typeof msg.name === "string" && Array.isArray(msg.args)) {
+      const fn = Object.hasOwn(api, msg.name) ? api[msg.name] : undefined;
+      if (!fn) { send({ id: msg.id, ok: false, error: { message: "unknown capability" } }); return; }
+      if (++calls > lim.maxCalls) { send({ id: msg.id, ok: false, error: { message: `host call budget exhausted (${lim.maxCalls} per program)` } }); return; }
+      const work = Promise.resolve().then(() => fn(...msg.args)).then(
+        value => send({ id: msg.id, ok: true, value }),
+        error => send({ id: msg.id, ok: false, error: { message: String(error?.message ?? error), name: error?.name, code: error?.code, hint: error?.hint } }),
+      ).catch(() => {});
+      active.add(work); void work.finally(() => active.delete(work));
+    }
+  });
+  send({ code, inputs, names: Object.keys(api) });
+  const outcome = await done;
+  clearTimeout(timer);
+  abort.abort();
+  child.kill("SIGKILL");
+  await Promise.allSettled([...active]);
+  return outcome;
 }

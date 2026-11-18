@@ -1,0 +1,56 @@
+task                         arm      reward status     turns calls      norm wall_s exception
+git-multibranch              A_eight     0.0 completed      7     7     41459     33 
+git-multibranch              A_eight     0.0 completed      8     9     55079     49 
+git-multibranch              A_eight     0.0 completed     14    12     93661     67 
+git-multibranch              B_one       1.0 completed     13    11    151970     74 
+git-multibranch              B_one       1.0 completed     12    10    115289     63 
+git-multibranch              B_one       1.0 completed     11    10     95644     73 
+git-multibranch              B_repl      1.0 completed     16    14    138075     80 
+git-multibranch              B_repl      0.0 completed     13    11    165313     78 
+git-multibranch              B_repl      1.0 completed     12    10    138782     71 
+git-multibranch              C_py        0.0 completed     11     9     67938     45 
+git-multibranch              C_py        0.0 completed      8     6     46785     42 
+git-multibranch              C_py        1.0 completed      7     5     27352     32 
+headless-terminal            A_eight     1.0 completed      9     9     59011     40 
+headless-terminal            A_eight     1.0 completed     12    12     88466     59 
+headless-terminal            A_eight     0.0 completed     13    13    103458     68 
+headless-terminal            B_one       1.0 completed     11     9     73013     52 
+headless-terminal            B_one       1.0 completed      8     6     48003     43 
+headless-terminal            B_one       0.0 completed     12    10     88545     60 
+headless-terminal            B_repl      1.0 completed      8     6     49972     75 
+headless-terminal            B_repl      1.0 completed      8     6     42477     57 
+headless-terminal            B_repl      1.0 completed      7     5     39024     41 
+headless-terminal            C_py        1.0 completed     11     9     69213     66 
+headless-terminal            C_py        0.0 completed      9     7     75373     58 
+headless-terminal            C_py        0.0 completed      7     5     34163     43 
+kv-store-grpc                A_eight     1.0 completed     11    11     63485    118 
+kv-store-grpc                A_eight     1.0 completed     11    11     61555    124 
+kv-store-grpc                A_eight     0.0 completed     12    12     63606    220 
+kv-store-grpc                B_one       1.0 completed      6     5     29582     31 
+kv-store-grpc                B_one       1.0 completed     11     9     53595     57 
+kv-store-grpc                B_one       1.0 completed      6     4     25175     35 
+kv-store-grpc                B_repl      1.0 completed      6     4     21545     27 
+kv-store-grpc                B_repl      1.0 completed      7     6     28839     29 
+kv-store-grpc                B_repl      0.0 completed      9     7     39776     79 
+kv-store-grpc                C_py        0.0 completed      6     4     18065     27 
+kv-store-grpc                C_py        0.0 completed      8     6     27449     31 
+kv-store-grpc                C_py        0.0 completed      8     6     26029     63 
+
+task                         arm       pass  turns norm_passed
+git-multibranch              A_eight  0/3     9.67           -
+git-multibranch              B_one    3/3    12.00      120967
+git-multibranch              B_repl   2/3    13.67      138428
+git-multibranch              C_py     1/3     8.67       27352
+headless-terminal            A_eight  2/3    11.33       73738
+headless-terminal            B_one    2/3    10.33       60508
+headless-terminal            B_repl   3/3     7.67       43824
+headless-terminal            C_py     1/3     9.00       69213
+kv-store-grpc                A_eight  2/3    11.33       62520
+kv-store-grpc                B_one    3/3     7.67       36117
+kv-store-grpc                B_repl   2/3     7.33       25192
+kv-store-grpc                C_py     0/3     7.33           -
+
+A_eight: pass 4/9, turns 10.78, norm(passed) 68,129 [cacheRead 55,170 cacheWrite 6,278 prompt 411 completion 6,269]
+B_one: pass 8/9, turns 10.00, norm(passed) 74,033 [cacheRead 57,238 cacheWrite 8,380 prompt 434 completion 7,981]
+B_repl: pass 7/9, turns 9.56, norm(passed) 65,530 [cacheRead 49,697 cacheWrite 7,697 prompt 413 completion 7,722]
+C_py: pass 2/9, turns 8.33, norm(passed) 48,282 [cacheRead 34,371 cacheWrite 6,478 prompt 402 completion 7,031]

@@ -15,6 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildMsSystemPrompt, createMsTool, type MutationRequest } from "./ms-tool.js";
+import { runProgram } from "./kernel.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "../..");
@@ -55,7 +56,7 @@ const check = async (name: string, fn: () => Promise<void>) => {
 await check("one call reads, searches, lists and opens a shell", async () => {
   const output = await tool.execute({
     code: `
-      const file = await ms.read("src/lib.rs");
+      const file = await ms.read("src/lib.rs", { format: "hashline" });
       const hits = await ms.search("pub fn", { maxMatches: 5 });
       const tree = await ms.list("src", { recursive: true });
       const shell = await ms.exec("echo distiller-alive");
@@ -63,17 +64,17 @@ await check("one call reads, searches, lists and opens a shell", async () => {
         revision: file.revision.length,
         hasTaggedLines: /^\\d+:[0-9a-f]{4}\\| /m.test(file.text),
         hitCount: hits.hits.length,
-        files: tree.filter((entry) => entry.kind === "file").length,
+        files: tree.filter((entry) => !entry.endsWith("/")).length,
         exitCode: shell.exitCode,
         sawEcho: shell.output.includes("distiller-alive"),
       };
     `,
   });
   assert.match(output, /^ok · 4 calls/);
-  assert.match(output, /"revision": 64/);
-  assert.match(output, /"hasTaggedLines": true/);
-  assert.match(output, /"exitCode": 0/);
-  assert.match(output, /"sawEcho": true/);
+  assert.match(output, /"revision":\s*64/);
+  assert.match(output, /"hasTaggedLines":\s*true/);
+  assert.match(output, /"exitCode":\s*0/);
+  assert.match(output, /"sawEcho":\s*true/);
   assert.equal(approved.length, 0, "a read-only program must not ask for approval");
 });
 
@@ -91,7 +92,7 @@ await check("an approved edit is journaled and undo restores the file", async ()
     `,
   });
   assert.match(output, /^ok · 3 calls/);
-  assert.match(output, /"undone": "tx-/);
+  assert.match(output, /"undone":\s*"tx-/);
   assert.equal(fs.readFileSync(path.join(workspace, "src/lib.rs"), "utf8"), before);
   assert.deepEqual(
     approved.map((request) => request.kind),
@@ -108,12 +109,69 @@ await check("a stale revision is refused instead of guessed", async () => {
         await ms.edit("src/lib.rs", { oldText: "fn main", newText: "fn main" }, { expectedRevision: "0".repeat(64) });
         return "edited with a wrong revision";
       } catch (error) {
-        return { code: error.code, stale: String(error.message).includes("E_CONFLICT") };
+        return { code: error.code, stale: String(error.message).includes("E_CONFLICT"), inSpec: await ms.edit("src/lib.rs", { oldText: "fn main", newText: "fn main", expectedRevision: "0".repeat(64) }).then(() => "edited", (e) => e.code) };
       }
     `,
   });
   assert.match(output, /^ok /);
-  assert.match(output, /"stale": true/);
+  assert.match(output, /"stale":\s*true/);
+  assert.match(output, /"code":\s*"E_CONFLICT"/);
+  // A revision given inside a single edit spec is honoured, so a stale one is refused the same way.
+  assert.match(output, /"inSpec":\s*"E_CONFLICT"/);
+});
+
+await check("a revision misplaced into the edit spec (single or array) is hoisted and applied", async () => {
+  const output = await tool.execute({
+    code: `
+      await ms.write("src/hoist.txt", "a\\nb\\n");
+      const f = await ms.read("src/hoist.txt");
+      const single = await ms.edit("src/hoist.txt", { expectedRevision: f.revision, oldText: "a\\n", newText: "A\\n" });
+      const arr = await ms.edit("src/hoist.txt", [{ expectedRevision: single.revision, oldText: "b\\n", newText: "B\\n" }]);
+      const missing = await ms.edit("src/hoist.txt", { oldText: "A", newText: "a" }).then(() => "edited", (e) => e.message);
+      return { text: (await ms.read("src/hoist.txt")).text, arrOk: arr.revision.length === 64, missing };
+    `,
+  });
+  assert.match(output, /"text":\s*"A\\nB\\n"/);
+  assert.match(output, /"arrOk":\s*true/);
+  assert.match(output, /\{expectedRevision:\(await ms\.read\(path\)\)\.revision\}/);
+});
+
+await check("existing files require a revision for every mutation", async () => {
+  for (const name of ["write", "edit", "delete", "rename", "batch"]) {
+    fs.writeFileSync(path.join(workspace, `src/revision-${name}.txt`), "original\n");
+  }
+  const output = await tool.execute({ code: `
+    const ops = [
+      () => ms.write('src/revision-write.txt', 'changed', {overwrite:true}),
+      () => ms.edit('src/revision-edit.txt', {oldText:'original',newText:'changed'}),
+      () => ms.rm('src/revision-delete.txt'),
+      () => ms.mv('src/revision-rename.txt', 'src/revision-renamed.txt'),
+      () => ms.batch([{kind:'write_file',path:'src/revision-batch.txt',content:'changed',overwrite:true}]),
+    ];
+    const refused=[];
+    for (const op of ops) { try { await op(); refused.push(false); } catch { refused.push(true); } }
+    return refused;
+  ` });
+  assert.equal((output.match(/true/g) ?? []).length, 5);
+  for (const name of ["write", "edit", "delete", "rename", "batch"]) {
+    assert.equal(fs.readFileSync(path.join(workspace, `src/revision-${name}.txt`), "utf8"), "original\n");
+  }
+});
+
+await check("matching revisions permit changes and stale revisions are rejected", async () => {
+  fs.writeFileSync(path.join(workspace, "src/revision-roundtrip.txt"), "one\n");
+  const output = await tool.execute({ code: `
+    const before = await ms.read('src/revision-roundtrip.txt');
+    const wrote = await ms.write('src/revision-roundtrip.txt', 'two\\n', {expectedRevision:before.revision});
+    let stale = false;
+    try { await ms.rm('src/revision-roundtrip.txt', {expectedRevision:before.revision}); } catch (e) { stale = e.code === 'E_CONFLICT'; }
+    const edited = await ms.edit('src/revision-roundtrip.txt', {oldText:'two',newText:'three'}, {expectedRevision:wrote.revision});
+    const removed = await ms.rm('src/revision-roundtrip.txt', {expectedRevision:edited.revision});
+    return {stale, removed:!!removed.transactionId};
+  ` });
+  assert.match(output, /"stale":\s*true/);
+  assert.match(output, /"removed":\s*true/);
+  assert.equal(fs.existsSync(path.join(workspace, "src/revision-roundtrip.txt")), false);
 });
 
 await check("the test-guard refuses a weakened test file", async () => {
@@ -128,7 +186,7 @@ await check("the test-guard refuses a weakened test file", async () => {
       }
     `,
   });
-  assert.match(output, /"blocked": true/);
+  assert.match(output, /"blocked":\s*true/);
   assert.match(fs.readFileSync(path.join(workspace, "tests/test_math.py"), "utf8"), /assert 1 \+ 1 == 2/);
 });
 
@@ -193,8 +251,8 @@ await check("three jobs run in parallel inside one call", async () => {
     `,
   });
   const elapsed = Date.now() - started;
-  assert.match(output, /"exits": \[\s*0,\s*0,\s*0\s*\]/);
-  assert.match(output, /"tails": \[\s*"a",\s*"b",\s*"c"\s*\]/);
+  assert.match(output, /"exits":\s*\[\s*0,\s*0,\s*0\s*\]/);
+  assert.match(output, /"tails":\s*\[\s*"a",\s*"b",\s*"c"\s*\]/);
   assert.ok(elapsed < 1_400, `three 400ms jobs finished in ${elapsed}ms, which is not parallelism`);
 });
 
@@ -205,7 +263,7 @@ await check("a job started in one call is still readable in the next", async () 
       return { id: job.id, running: job.running };
     `,
   });
-  const id = /"id": "(job-\d+)"/.exec(first)?.[1];
+  const id = /"id":\s*"(job-\d+)"/.exec(first)?.[1];
   assert.ok(id, `first call did not return a job id: ${first}`);
   const second = await tool.execute({
     code: `
@@ -214,7 +272,7 @@ await check("a job started in one call is still readable in the next", async () 
       return { exitCode: done.exitCode, tail: tail.lines.trim() };
     `,
   });
-  assert.match(second, /"tail": "SURVIVED-THE-CELL"/);
+  assert.match(second, /"tail":\s*"SURVIVED-THE-CELL"/);
 });
 
 await check("tail, head and grep return exactly the bytes asked for", async () => {
@@ -229,11 +287,11 @@ await check("tail, head and grep return exactly the bytes asked for", async () =
     `,
   });
   // JSON escapes the newlines, so the rendered text carries a literal backslash-n.
-  assert.match(output, /"tail": "line-199\\nline-200"/);
-  assert.match(output, /"head": "line-1\\nline-2"/);
-  assert.match(output, /"hit": \[\s*"137: line-137"\s*\]/);
-  assert.match(output, /"missing": 0/);
-  assert.match(output, /"lines": 200/);
+  assert.match(output, /"tail":\s*"line-199\\nline-200"/);
+  assert.match(output, /"head":\s*"line-1\\nline-2"/);
+  assert.match(output, /"hit":\s*\[\s*"137: line-137"\s*\]/);
+  assert.match(output, /"missing":\s*0/);
+  assert.match(output, /"lines":\s*200/);
 });
 
 await check("kill stops the whole process group", async () => {
@@ -245,8 +303,8 @@ await check("kill stops the whole process group", async () => {
       return { killedRunning: killed.running, running: done.running, exitCode: done.exitCode };
     `,
   });
-  assert.match(output, /"running": false/);
-  assert.doesNotMatch(output, /"exitCode": 0/);
+  assert.match(output, /"running":\s*false/);
+  assert.doesNotMatch(output, /"exitCode":\s*0/);
 });
 
 await check("read reports pagination metadata and batch supports edit + write", async () => {
@@ -257,8 +315,9 @@ await check("read reports pagination metadata and batch supports edit + write", 
       const part1 = await ms.read("src/paginated.txt", { startLine: 1, lineCount: 5 });
       const part2 = await ms.read("src/paginated.txt", { startLine: part1.endLine + 1, lineCount: 20 });
       const pastEof = await ms.read("src/paginated.txt", { startLine: 999, lineCount: 10 });
+      const emptyWindow = await ms.read("src/paginated.txt", { startLine: 7, lineCount: 0 });
       const batch = await ms.batch([
-        { kind: "edit", path: "src/paginated.txt", oldText: "line-1\\n", newText: "LINE-1\\n" },
+        { kind: "edit", path: "src/paginated.txt", oldText: "line-1\\n", newText: "LINE-1\\n", expectedRevision: part1.revision },
         { kind: "write", path: "src/extra.txt", text: "extra\\n" },
       ]);
       const chained = await ms.edit("src/paginated.txt", { oldText: "line-2\\n", newText: "LINE-2\\n" }, { expectedRevision: "rev:" + batch.results[0].afterRevision });
@@ -268,8 +327,9 @@ await check("read reports pagination metadata and batch supports edit + write", 
       const ctx = await ms.context("src/lib.rs", { line: 1, radius: 5 });
       return {
         p1: { startLine: part1.startLine, endLine: part1.endLine, truncated: part1.truncated },
-        p2: { startLine: part2.startLine, endLine: part2.endLine, truncated: part2.truncated },
-        eofTruncated: pastEof.truncated,
+        p2: { truncated: Boolean(part2.truncated) },
+        eofTruncated: Boolean(pastEof.truncated),
+        emptyWindow: { truncated: emptyWindow.truncated, next: emptyWindow.nextStartLine },
         applied: batch.operationsApplied,
         chainedOk: typeof chained2.revision === "string" && chained2.revision.length === 64,
         outlineCount: outline.length,
@@ -278,13 +338,14 @@ await check("read reports pagination metadata and batch supports edit + write", 
       };
     `,
   });
-  assert.match(output, /"truncated": true/);
-  assert.match(output, /"truncated": false/);
-  assert.match(output, /"eofTruncated": false/);
-  assert.match(output, /"applied": 2/);
-  assert.match(output, /"chainedOk": true/);
-  assert.match(output, /"fileOutlineCount": 1/);
-  assert.match(output, /"hasCtxSnippet": true/);
+  assert.match(output, /"truncated":\s*true/);
+  assert.match(output, /"truncated":\s*false/);
+  assert.match(output, /"eofTruncated":\s*false/);
+  assert.match(output, /"emptyWindow":\s*\{\s*"truncated":\s*true,\s*"next":\s*7/);
+  assert.match(output, /"applied":\s*2/);
+  assert.match(output, /"chainedOk":\s*true/);
+  assert.match(output, /"fileOutlineCount":\s*1/);
+  assert.match(output, /"hasCtxSnippet":\s*true/);
 });
 
 await check("un-awaited host calls do not leak unhandled rejections on abort", async () => {
@@ -319,22 +380,23 @@ await check("replaceAll edit, cache-hiding list, search trimming, and buildMsSys
       await ms.write("src/multi.txt", "alpha beta\\nalpha gamma\\n" + "z".repeat(300) + " alpha\\n");
       const list = await ms.list("src", { recursive: true });
       const search = await ms.search("alpha", { path: "src/multi.txt" });
-      const ed = await ms.edit("src/multi.txt", { oldText: "alpha", newText: "OMEGA", replaceAll: true });
+      const original = await ms.read("src/multi.txt", { lineCount: 1 });
+      const ed = await ms.edit("src/multi.txt", { oldText: "alpha", newText: "OMEGA", replaceAll: true }, { expectedRevision: original.revision });
       const rd = await ms.read("src/multi.txt", { startLine: 1, lineCount: 1 });
       return {
-        hasPyc: list.some((e) => e.path.includes("__pycache__") || e.path.endsWith(".pyc")),
-        count: search.count,
+        hasPyc: list.some((e) => e.includes("__pycache__") || e.endsWith(".pyc")),
+        count: search.hits.length,
         maxTextLen: Math.max(...search.hits.map((h) => h.text.length)),
         editsApplied: ed.editsApplied,
         nextStartLine: rd.nextStartLine,
       };
     `,
   });
-  assert.match(output, /"hasPyc": false/);
-  assert.match(output, /"count": 3/);
-  assert.match(output, /"editsApplied": 3/);
-  assert.match(output, /"nextStartLine": 2/);
-  const lenMatch = /"maxTextLen": (\d+)/.exec(output);
+  assert.match(output, /"hasPyc":\s*false/);
+  assert.match(output, /"count":\s*3/);
+  assert.match(output, /"editsApplied":\s*3/);
+  assert.match(output, /"nextStartLine":\s*2/);
+  const lenMatch = /"maxTextLen":\s*(\d+)/.exec(output);
   assert.ok(lenMatch && Number(lenMatch[1]) <= 201, `expected trimmed search hit <= 201, got ${output}`);
 });
 
@@ -348,7 +410,7 @@ await check("ms.inputs delivers unescaped payloads cleanly and rejects undefined
       return { len: rd.text.length, exact: rd.text === ms.inputs["src/templated.js"] };
     `,
   });
-  assert.match(output, /"exact": true/);
+  assert.match(output, /"exact":\s*true/);
 
   const badBatch = await tool.execute({
     inputs: { a: "ok" },
@@ -357,7 +419,7 @@ await check("ms.inputs delivers unescaped payloads cleanly and rejects undefined
   assert.match(badBatch, /requires string content \(got undefined/);
 });
 
-await check("ms.batch enforces test-guard per op and allows non-weakening atomic test edits", async () => {
+await check("ms.batch protects existing tests and permits new test files", async () => {
   await tool.execute({
     code: `
       await ms.write("src/helper.py", "def val(): return 1\\n");
@@ -377,20 +439,280 @@ await check("ms.batch enforces test-guard per op and allows non-weakening atomic
       }
     `,
   });
-  assert.match(blocked, /"blocked": true/);
+  assert.match(blocked, /"blocked":\s*true/);
   assert.equal(fs.existsSync(path.join(workspace, "src/new_helper.py")), false, "failed test-guard must stop before mutating any file in batch");
 
   const allowed = await tool.execute({
     code: `
       const b = await ms.batch([
         { kind: "write_file", path: "src/new_helper.py", content: "def val(): return 1\\n" },
-        { kind: "edit", path: "tests/test_helper.py", oldText: "from src.helper import val", newText: "from src.new_helper import val" },
+        { kind: "write_file", path: "tests/test_new_helper.py", content: "def test_new(): assert True\\n" },
       ]);
       return { applied: b.operationsApplied };
     `,
   });
-  assert.match(allowed, /"applied": 2/);
-  assert.match(fs.readFileSync(path.join(workspace, "tests/test_helper.py"), "utf8"), /from src\.new_helper import val/);
+  assert.match(allowed, /"applied":\s*2/);
+  assert.match(fs.readFileSync(path.join(workspace, "tests/test_new_helper.py"), "utf8"), /test_new/);
+});
+
+await check("sandbox isolates the workspace, secrets, and shell writes", async () => {
+  fs.writeFileSync(path.join(workspace, ".env"), "SECRET=do-not-leak\n");
+  fs.writeFileSync(path.join(scratch, "outside.txt"), "outside-secret\n");
+  fs.linkSync(path.join(scratch, "outside.txt"), path.join(workspace, "hardlinked.txt"));
+  fs.symlinkSync(path.join(scratch, "outside.txt"), path.join(workspace, "linked.txt"));
+  const before = fs.readFileSync(path.join(workspace, "src/lib.rs"), "utf8");
+  const output = await tool.execute({ code: `
+    const guest = require('node:fs').existsSync(${JSON.stringify(workspace)});
+    const res = await ms.exec("test ! -e .env && test ! -e ../outside.txt && test ! -e hardlinked.txt && test ! -e linked.txt && echo changed > src/lib.rs && cat src/lib.rs");
+    return {guest, exit: res.exitCode, output: res.output};
+  ` });
+  assert.match(output, /"guest":\s*false/);
+  assert.match(output, /"exit":\s*0/);
+  assert.match(output, /changed/);
+  assert.equal(fs.readFileSync(path.join(workspace, "src/lib.rs"), "utf8"), before);
+});
+
+await check("test guard prevents partial and normalized test mutations", async () => {
+  const output = await tool.execute({ code: `
+    const failures = [];
+    for (const fn of [
+      () => ms.edit('tests/test_helper.py/.', {oldText:'== 1', newText:'== 2'}),
+      () => ms.mv('src/helper.py', 'tests/test_helper.py', {overwrite:true}),
+      () => ms.write('tests/test_helper.py', 'def test_val(): pass'),
+      async () => { const f = await ms.read('tests/test_helper.py'); return ms.write('tests/test_helper.py', 'def test_val(): pass', {expectedRevision:f.revision}); },
+    ]) { try { await fn(); failures.push(false); } catch { failures.push(true); } }
+    return failures;
+  ` });
+  assert.equal((output.match(/true/g) ?? []).length, 4);
+});
+
+await check("undo cannot remove a newly created test", async () => {
+  const output = await tool.execute({ code: `
+    const created = await ms.write('tests/test_undo_guard.py', 'def test_ok(): assert True');
+    try { await ms.undo({transactionId: created.transactionId}); return 'not blocked'; }
+    catch (error) { return String(error.message); }
+  ` });
+  assert.match(output, /test-guard/);
+  assert.ok(fs.existsSync(path.join(workspace, "tests/test_undo_guard.py")));
+});
+
+await check("output cap includes console logs", async () => {
+  const output = await tool.execute({ code: `for (let i=0;i<100;i++) console.log('x'.repeat(24576)); return 'ok';` });
+  assert.ok(Buffer.byteLength(output) <= 24 * 1024);
+});
+
+await check("sandbox exposes installed JavaScript runtimes without exposing home", async () => {
+  const output = await tool.execute({ code: `
+    const node = await ms.exec(['node', '-e', 'console.log(6 * 7)']);
+    const bun = await ms.exec(['bun', '-e', 'console.log(6 * 7)']);
+    return { exit: node.exitCode, output: node.output, bunExit: bun.exitCode, bunOutput:bun.output };
+  ` });
+  assert.match(output, /"exit":\s*0/);
+  assert.match(output, /42/);
+  assert.match(output, /"bunExit":\s*0/);
+});
+
+await check("sandbox can run the installed Python test runner", async () => {
+  const output = await tool.execute({ code: `
+    const r = await ms.exec(['python3', '-m', 'pytest', '-q', 'tests/test_math.py']);
+    const direct = await ms.exec(['pytest', '-q', 'tests/test_math.py']);
+    return {exit:r.exitCode, output:r.output, direct:direct.exitCode};
+  ` });
+  assert.match(output, /"exit":\s*0/);
+  assert.match(output, /1 passed/);
+  assert.match(output, /"direct":\s*0/);
+});
+
+await check("sandbox can verify a real fixture before and after a revision-checked edit", async () => {
+  const fixture = path.join(scratch, "medium-workspace");
+  fs.cpSync(path.join(repoRoot, "benchmarks/fixtures/medium-repo-eval"), fixture, { recursive: true });
+  const scenario = createMsTool({
+    msBin, workspaceRoot: fixture, stateDir: path.join(scratch, "medium-state"),
+    allowWrite: true, allowUnapprovedWrites: true, limits: { timeoutMs: 20_000 },
+  });
+  try {
+    const output = await scenario.execute({ code: `
+      const command = ['python3', '-m', 'pytest', '-q', 'tests/test_export.py'];
+      const before = await ms.exec(command);
+      const file = await ms.read('taskflow/plugins/csv_export.py');
+      await ms.edit('taskflow/plugins/csv_export.py', {
+        oldText: 't.metadata.get("source", "")',
+        newText: '(t.metadata or {}).get("source", "")',
+      }, {expectedRevision:file.revision});
+      const after = await ms.exec(command);
+      return {before:before.exitCode, after:after.exitCode, output:after.output};
+    ` });
+    assert.match(output, /"before":\s*1/);
+    assert.match(output, /"after":\s*0/);
+    assert.match(output, /41 passed/);
+    const oracle = execFileSync("python3", ["-m", "pytest", "-q", "tests/test_export.py"], { cwd: fixture, encoding: "utf8" });
+    assert.match(oracle, /41 passed/);
+  } finally { await scenario.close(); }
+});
+
+await check("a truncated listing is not presented as a complete result", async () => {
+  const output = await tool.execute({ code: `
+    try { await ms.list('.', {recursive:true, maxEntries:1}); return 'complete'; }
+    catch (error) { return String(error.message); }
+  ` });
+  assert.match(output, /truncat/i);
+});
+
+await check("read returns exact file text (EOL, trailing newline) and flags a BOM", async () => {
+  fs.writeFileSync(path.join(workspace, "src/metadata.txt"), Buffer.from("\ufeffone\r\ntwo\r\n", "utf8"));
+  fs.writeFileSync(path.join(workspace, "src/open-end.txt"), "a\nb");
+  const output = await tool.execute({ code: `
+    const r = await ms.read('src/metadata.txt', {lineCount:2});
+    const first = await ms.read('src/metadata.txt', {lineCount:1});
+    const open = await ms.read('src/open-end.txt');
+    return {bom:r.hasBom, exact:r.text === 'one\\r\\ntwo\\r\\n', window:first.text === 'one\\r\\n' && first.nextStartLine === 2, openEnd:open.text === 'a\\nb'};
+  ` });
+  assert.match(output, /"bom":\s*true/);
+  assert.match(output, /"exact":\s*true/);
+  assert.match(output, /"window":\s*true/);
+  assert.match(output, /"openEnd":\s*true/);
+});
+
+await check("search snippets retain matches after long Unicode prefixes", async () => {
+  fs.writeFileSync(path.join(workspace, "src/long-search.txt"), "🙂".repeat(400) + "NEEDLE_123" + "x".repeat(400));
+  const output = await tool.execute({ code: `
+    const a = await ms.search('needle_123', {path:'src/long-search.txt', caseSensitive:false});
+    const b = await ms.search('NEEDLE_[0-9]+', {path:'src/long-search.txt', regex:true});
+    return {literal:a.hits[0].text.includes('NEEDLE_123'), regex:b.hits[0].text.includes('NEEDLE_123'), trimmed:a.hits[0].textTruncated};
+  ` });
+  assert.match(output, /"literal":\s*true/);
+  assert.match(output, /"regex":\s*true/);
+  assert.match(output, /"trimmed":\s*true/);
+});
+
+await check("long command output keeps the first error, tail and truncation status", async () => {
+  const output = await tool.execute({ code: `
+    const r = await ms.exec(['python3', '-c', "print('FIRST_ERROR'); print('x' * 25000); print('LAST_LINE')"]);
+    return {output:r.output, truncated:r.truncated};
+  ` });
+  assert.match(output, /FIRST_ERROR/);
+  assert.match(output, /LAST_LINE/);
+  assert.match(output, /"truncated":\s*true/);
+});
+
+await check("command output preserves UTF-8 split across pipe chunks", async () => {
+  const output = await tool.execute({ code: `
+    const script = "const b=Buffer.from('🙂'); process.stdout.write(b.subarray(0,2)); setTimeout(()=>process.stdout.write(b.subarray(2)),100)";
+    const r = await ms.exec(['node','-e',script]);
+    return {exit:r.exitCode, output:r.output};
+  ` });
+  assert.match(output, /"exit":\s*0/);
+  assert.match(output, /🙂/);
+  assert.doesNotMatch(output, /�/);
+});
+
+await check("large job output does not duplicate overlapping head and tail", async () => {
+  const output = await tool.execute({ code: `
+    const command = 'node -e ' + JSON.stringify("for(let i=0;i<5800;i++) console.log('N'+String(i).padStart(5,'0')+':'+'.'.repeat(90))");
+    const job = await ms.start(command);
+    await ms.wait(job.id, {timeoutMs:10000});
+    const result = await ms.output(job.id, {maxBytes:1048576});
+    const lines = result.text.split('\\n').filter(line => /^N[0-9]{5}:/.test(line));
+    return {duplicates: lines.length - new Set(lines).size, truncated:result.truncated};
+  ` });
+  assert.match(output, /"duplicates":\s*0/);
+});
+
+await check("expensive log patterns cannot block the tool", async () => {
+  const started = Date.now();
+  const output = await tool.execute({ code: `
+    const command = 'node -e ' + JSON.stringify("console.log('a'.repeat(30000)+'x')");
+    const job = await ms.start(command);
+    await ms.wait(job.id, {timeoutMs:5000});
+    let outcome = 'searched';
+    try { await ms.grep(job.id, '(a+)+$'); } catch (error) { outcome = String(error.message); }
+    const file = await ms.read('src/lib.rs', {lineCount:1});
+    return {outcome, alive:!!file.revision};
+  ` });
+  assert.match(output, /"alive":\s*true/);
+  assert.ok(Date.now() - started < 4000, "log search blocked the tool deadline");
+});
+
+await check("log search reports when the middle of the log was discarded", async () => {
+  const output = await tool.execute({ code: `
+    const command = 'node -e ' + JSON.stringify("process.stdout.write('a'.repeat(750000)+'NEEDLE'+'b'.repeat(750000))");
+    const job = await ms.start(command);
+    await ms.wait(job.id, {timeoutMs:10000});
+    const found = await ms.grep(job.id, 'NEEDLE');
+    const log = await ms.log(job.id, {grep:'NEEDLE'});
+    return {count:found.matches.length, truncated:found.truncated, log};
+  ` });
+  assert.match(output, /"count":\s*0/);
+  assert.match(output, /"truncated":\s*true/);
+  assert.match(output, /log search incomplete/);
+});
+
+await check("command timeout is reported explicitly", async () => {
+  const output = await tool.execute({ code: `
+    const r = await ms.exec(['sh', '-c', 'sleep 2'], {timeoutMs:100});
+    return {exit:r.exitCode, timedOut:r.timedOut};
+  ` });
+  assert.match(output, /"exit":\s*124/);
+  assert.match(output, /"timedOut":\s*true/);
+});
+
+await check("program timeout interrupts a pending approval", async () => {
+  const root = path.join(scratch, "pending-approval");
+  fs.mkdirSync(root);
+  const bounded = createMsTool({
+    msBin, workspaceRoot: root, stateDir: path.join(scratch, "pending-approval-state"),
+    allowWrite: true, approve: () => new Promise(() => {}), limits: {timeoutMs:150},
+  });
+  try {
+    const output = await Promise.race([
+      bounded.execute({code:"await ms.write('x.txt', 'x')"}),
+      new Promise<string>(resolve => setTimeout(() => resolve("hung"), 1000)),
+    ]);
+    assert.match(output, /exceeded 150ms/);
+    assert.equal(fs.existsSync(path.join(root, "x.txt")), false);
+  } finally { await bounded.close(); }
+});
+
+await check("program timeout interrupts a background-job wait", async () => {
+  const root = path.join(scratch, "pending-wait");
+  fs.mkdirSync(root);
+  const bounded = createMsTool({
+    msBin, workspaceRoot: root, stateDir: path.join(scratch, "pending-wait-state"),
+    allowWrite: true, allowUnapprovedWrites:true, limits: {timeoutMs:200},
+  });
+  try {
+    const output = await Promise.race([
+      bounded.execute({code:"const j = await ms.start('sleep 10'); await ms.wait(j.id)"}),
+      new Promise<string>(resolve => setTimeout(() => resolve("hung"), 1200)),
+    ]);
+    assert.match(output, /exceeded 200ms/);
+  } finally { await bounded.close(); }
+});
+
+await check("reviewer has no shell or write capabilities and cannot read another session's log", async () => {
+  const reviewer = createMsTool({ msBin, workspaceRoot: workspace, readOnly: true });
+  try {
+    const output = await reviewer.execute({ code: `
+      let logDenied = false;
+      try { await ms.log('job-1'); } catch { logDenied = true; }
+      return {exec: typeof ms.exec, write: typeof ms.write, logDenied};
+    ` });
+    assert.match(output, /"exec":\s*"undefined"/);
+    assert.match(output, /"write":\s*"undefined"/);
+    assert.match(output, /"logDenied":\s*true/);
+  } finally { await reviewer.close(); }
+});
+
+await check("missing sandbox runtime fails closed", async () => {
+  const previous = process.env.PATH;
+  try {
+    process.env.PATH = "/nonexistent";
+    let called = false;
+    const result = await runProgram("await ms.touch()", () => ({ touch: async () => { called = true; } }));
+    assert.equal(result.ok, false);
+    assert.match(result.output, /sandbox unavailable/);
+    assert.equal(called, false);
+  } finally { process.env.PATH = previous; }
 });
 
 await check("in-workspace absolute paths normalize cleanly while outside paths remain denied", async () => {
@@ -406,12 +728,12 @@ await check("in-workspace absolute paths normalize cleanly while outside paths r
       } catch (e) {
         outsideDenied = /E_POLICY_DENIED/.test(String(e.message));
       }
-      return { hasSrc: entries.some((e) => e.path === "src"), samePath: rd.path === "src/lib.rs", outsideDenied };
+      return { hasSrc: entries.includes("src/"), samePath: rd.path === "src/lib.rs", outsideDenied };
     `,
   });
-  assert.match(output, /"hasSrc": true/);
-  assert.match(output, /"samePath": true/);
-  assert.match(output, /"outsideDenied": true/);
+  assert.match(output, /"hasSrc":\s*true/);
+  assert.match(output, /"samePath":\s*true/);
+  assert.match(output, /"outsideDenied":\s*true/);
 });
 
 await tool.close();

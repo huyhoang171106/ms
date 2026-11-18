@@ -1,0 +1,17 @@
+task                         arm      reward status     turns calls      norm wall_s exception
+build-cython-ext             B_repl      1.0 completed     22    20    345719    357 
+build-cython-ext             B_repl      1.0 completed     21    19    335005    270 
+build-cython-ext             B_repl      1.0 completed     18    16    287459    188 
+fix-code-vulnerability       B_repl      1.0 completed      5     4     44066     14 
+fix-code-vulnerability       B_repl      1.0 completed      5     3     27309     16 
+fix-code-vulnerability       B_repl      1.0 completed      7     5     52519     21 
+sqlite-db-truncate           B_repl      1.0 completed      7     5     25469     17 
+sqlite-db-truncate           B_repl      1.0 completed      6     4     23139     21 
+sqlite-db-truncate           B_repl      1.0 completed      7     5     28623     25 
+
+task                         arm       pass  turns norm_passed
+build-cython-ext             B_repl   3/3    20.33      322727
+fix-code-vulnerability       B_repl   3/3     5.67       41298
+sqlite-db-truncate           B_repl   3/3     6.67       25743
+
+B_repl: pass 9/9, turns 10.89, norm(passed) 129,923 [cacheRead 111,529 cacheWrite 11,719 prompt 808 completion 5,866]

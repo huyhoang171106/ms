@@ -1,0 +1,88 @@
+task                         arm      reward status     turns calls      norm wall_s exception
+db-wal-recovery              A_eight     0.0 completed     10     8     65290     28 
+db-wal-recovery              B_one       1.0 completed      6     4     22877     16 
+db-wal-recovery              B_repl      1.0 completed      5     3     19875     11 
+db-wal-recovery              C_py        1.0 completed      6     4     25432     15 
+gcode-to-text                A_eight     0.0 completed     14    13    198655     80 
+gcode-to-text                B_one       0.0 completed     18    16    238133    111 
+gcode-to-text                B_repl      0.0 completed     28    26    616364    237 
+gcode-to-text                C_py        0.0 completed     30    28    384406    197 
+git-multibranch              A_eight     1.0 completed      9     8     58602     43 
+git-multibranch              B_one       1.0 completed     10     8     71045     55 
+git-multibranch              B_repl      1.0 completed     13    11    160408     73 
+git-multibranch              C_py        1.0 completed      7     5     27493     40 
+headless-terminal            A_eight     1.0 completed      8     7     49804     46 
+headless-terminal            B_one       1.0 completed      9     7     55307     45 
+headless-terminal            B_repl      0.0 completed      8     6     42800     55 
+headless-terminal            C_py        1.0 completed      9     7     48795     59 
+kv-store-grpc                A_eight     1.0 completed     13    11     68782    124 
+kv-store-grpc                B_one       1.0 completed      6     5     27618     81 
+kv-store-grpc                B_repl      0.0 completed      7     5     25712     24 
+kv-store-grpc                C_py        0.0 completed     13    11     52936    655 
+largest-eigenval             A_eight     0.0 completed     11    12     76155     41 
+largest-eigenval             B_one       0.0 completed      9     7     52538     36 
+largest-eigenval             B_repl      0.0 completed      9     7     46044     32 
+largest-eigenval             C_py        0.0 completed      8     6     35778     21 
+nginx-request-logging        A_eight     1.0 completed      5     3     26623     29 
+nginx-request-logging        B_one       1.0 completed      4     2     16869     42 
+nginx-request-logging        B_repl      1.0 completed      8     6     39085     34 
+nginx-request-logging        C_py        1.0 completed      6     4     22614     35 
+pypi-server                  A_eight     1.0 completed     14    13     84524    171 
+pypi-server                  B_one       1.0 completed      5     3     17271     40 
+pypi-server                  B_repl      1.0 completed      6     4     19091     43 
+pypi-server                  C_py        1.0 completed      8     6     24844     52 
+sanitize-git-repo            A_eight     1.0 completed     13    15    327482     48 
+sanitize-git-repo            B_one       1.0 completed      7     5    149814     38 
+sanitize-git-repo            B_repl      1.0 completed      9     7    381447     59 
+sanitize-git-repo            C_py        0.0 completed     10     8    103196     45 
+vulnerable-secret            A_eight     1.0 completed     17    16    119795    159 
+vulnerable-secret            B_one       1.0 completed      7     5     37070     12 
+vulnerable-secret            B_repl      1.0 completed      8     6     44020     16 
+vulnerable-secret            C_py        1.0 completed      7     5     51310     15 
+
+task                         arm       pass  turns norm_passed
+db-wal-recovery              A_eight  0/1    10.00           -
+db-wal-recovery              B_one    1/1     6.00       22877
+db-wal-recovery              B_repl   1/1     5.00       19875
+db-wal-recovery              C_py     1/1     6.00       25432
+gcode-to-text                A_eight  0/1    14.00           -
+gcode-to-text                B_one    0/1    18.00           -
+gcode-to-text                B_repl   0/1    28.00           -
+gcode-to-text                C_py     0/1    30.00           -
+git-multibranch              A_eight  1/1     9.00       58602
+git-multibranch              B_one    1/1    10.00       71045
+git-multibranch              B_repl   1/1    13.00      160408
+git-multibranch              C_py     1/1     7.00       27493
+headless-terminal            A_eight  1/1     8.00       49804
+headless-terminal            B_one    1/1     9.00       55307
+headless-terminal            B_repl   0/1     8.00           -
+headless-terminal            C_py     1/1     9.00       48795
+kv-store-grpc                A_eight  1/1    13.00       68782
+kv-store-grpc                B_one    1/1     6.00       27618
+kv-store-grpc                B_repl   0/1     7.00           -
+kv-store-grpc                C_py     0/1    13.00           -
+largest-eigenval             A_eight  0/1    11.00           -
+largest-eigenval             B_one    0/1     9.00           -
+largest-eigenval             B_repl   0/1     9.00           -
+largest-eigenval             C_py     0/1     8.00           -
+nginx-request-logging        A_eight  1/1     5.00       26623
+nginx-request-logging        B_one    1/1     4.00       16869
+nginx-request-logging        B_repl   1/1     8.00       39085
+nginx-request-logging        C_py     1/1     6.00       22614
+pypi-server                  A_eight  1/1    14.00       84524
+pypi-server                  B_one    1/1     5.00       17271
+pypi-server                  B_repl   1/1     6.00       19091
+pypi-server                  C_py     1/1     8.00       24844
+sanitize-git-repo            A_eight  1/1    13.00      327482
+sanitize-git-repo            B_one    1/1     7.00      149814
+sanitize-git-repo            B_repl   1/1     9.00      381447
+sanitize-git-repo            C_py     0/1    10.00           -
+vulnerable-secret            A_eight  1/1    17.00      119795
+vulnerable-secret            B_one    1/1     7.00       37070
+vulnerable-secret            B_repl   1/1     8.00       44020
+vulnerable-secret            C_py     1/1     7.00       51310
+
+A_eight: pass 7/10, turns 11.40, norm(passed) 105,087 [cacheRead 88,109 cacheWrite 9,603 prompt 428 completion 6,946]
+B_one: pass 8/10, turns 8.10, norm(passed) 49,733 [cacheRead 36,967 cacheWrite 7,845 prompt 409 completion 4,512]
+B_repl: pass 6/10, turns 10.10, norm(passed) 110,654 [cacheRead 89,607 cacheWrite 15,767 prompt 414 completion 4,865]
+C_py: pass 6/10, turns 10.40, norm(passed) 33,414 [cacheRead 23,599 cacheWrite 5,548 prompt 409 completion 3,857]
