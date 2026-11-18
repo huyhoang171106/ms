@@ -1,0 +1,17 @@
+task                         arm      reward status     turns calls      norm wall_s exception
+git-leak-recovery            B_repl      1.0 completed      6     4     17787     14 
+git-leak-recovery            B_repl      1.0 completed      8     6     31819     19 
+git-leak-recovery            B_repl      1.0 completed      6     4     18196     13 
+multi-source-data-merger     B_repl      1.0 completed      6     4     25881     19 
+multi-source-data-merger     B_repl      1.0 completed      5     3     19536     14 
+multi-source-data-merger     B_repl      1.0 completed      5     3     21413     18 
+openssl-selfsigned-cert      B_repl      1.0 completed      5     5     25464     15 
+openssl-selfsigned-cert      B_repl      1.0 completed      7     5     25647     15 
+openssl-selfsigned-cert      B_repl      1.0 completed      4     2     15543     11 
+
+task                         arm       pass  turns norm_passed
+git-leak-recovery            B_repl   3/3     6.67       22600
+multi-source-data-merger     B_repl   3/3     5.33       22276
+openssl-selfsigned-cert      B_repl   3/3     5.33       22218
+
+B_repl: pass 9/9, turns 5.78, norm(passed) 22,365 [cacheRead 14,728 cacheWrite 4,230 prompt 530 completion 2,875]

@@ -1,0 +1,23 @@
+task                         arm      reward status     turns calls      norm wall_s exception
+git-multibranch              B_repl      0.0 completed     13    11     94828     77 
+git-multibranch              B_repl      1.0 completed     11     9    117306     60 
+git-multibranch              B_repl      0.0 completed     12    10     84639     61 
+git-multibranch              B_repl      0.0 completed     11     9     72084     58 
+git-multibranch              B_repl      1.0 completed     11     9    110599     72 
+headless-terminal            B_repl      1.0 completed      8     6     50432     60 
+headless-terminal            B_repl      1.0 completed      7     5     33106     43 
+headless-terminal            B_repl      1.0 completed     10     8     71356     74 
+headless-terminal            B_repl      1.0 completed      8     6     44695     45 
+headless-terminal            B_repl      1.0 completed      7     5     34450     43 
+kv-store-grpc                B_repl      1.0 completed      7     5     25364     28 
+kv-store-grpc                B_repl      0.0 completed      6     4     21470     26 
+kv-store-grpc                B_repl      1.0 completed      6     4     20816     24 
+kv-store-grpc                B_repl      1.0 completed      7     5     25559     28 
+kv-store-grpc                B_repl      0.0 completed     13    11     69974     52 
+
+task                         arm       pass  turns norm_passed
+git-multibranch              B_repl   2/5    11.60      113952
+headless-terminal            B_repl   5/5     8.00       46807
+kv-store-grpc                B_repl   3/5     7.80       23913
+
+B_repl: pass 10/15, turns 9.13, norm(passed) 53,368 [cacheRead 39,053 cacheWrite 6,925 prompt 403 completion 6,985]

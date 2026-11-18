@@ -1,0 +1,56 @@
+task                         arm      reward status     turns calls      norm wall_s exception
+fix-git                      A_eight     1.0 completed     10     8     65990     23 
+fix-git                      A_eight     1.0 completed      8     6     43008     19 
+fix-git                      A_eight     1.0 completed      8     6     43436     16 
+fix-git                      B_one       1.0 completed      7     5     38751     21 
+fix-git                      B_one       1.0 completed      8     6     42791     17 
+fix-git                      B_one       1.0 completed      8     6     41674     19 
+fix-git                      B_repl      1.0 completed     12    10     78371    153 
+fix-git                      B_repl      1.0 completed      7     5     36173     67 
+fix-git                      B_repl      1.0 completed      8     6     41310     18 
+fix-git                      C_py        1.0 completed      8     6     37530     16 
+fix-git                      C_py        1.0 completed      8     6     30509     53 
+fix-git                      C_py        1.0 completed      9     7     44756     20 
+polyglot-c-py                A_eight     1.0 completed      9    10     56175     62 
+polyglot-c-py                A_eight     1.0 completed      9    11     59778    178 
+polyglot-c-py                A_eight     1.0 completed      8     9     59328     84 
+polyglot-c-py                B_one       1.0 completed      8     6     60698    147 
+polyglot-c-py                B_one       1.0 completed      8     7     43869     69 
+polyglot-c-py                B_one       1.0 completed      6     4     35755     84 
+polyglot-c-py                B_repl      1.0 completed      8     6     41393    151 
+polyglot-c-py                B_repl      1.0 completed      7     5     38309    154 
+polyglot-c-py                B_repl      1.0 completed      9     7     69161    128 
+polyglot-c-py                C_py        1.0 completed      6     4     31303     88 
+polyglot-c-py                C_py        1.0 completed      7     5     44157    137 
+polyglot-c-py                C_py        1.0 completed      9     7     47405     92 
+prove-plus-comm              A_eight     1.0 completed      6     7     24597     24 
+prove-plus-comm              A_eight     1.0 completed      5     4     17854     10 
+prove-plus-comm              A_eight     1.0 completed      5     4     18626     55 
+prove-plus-comm              B_one       1.0 completed      5     3     14394     22 
+prove-plus-comm              B_one       1.0 completed      5     3     14420     27 
+prove-plus-comm              B_one       1.0 completed      4     2     10617      8 
+prove-plus-comm              B_repl      1.0 completed      5     3     13451     54 
+prove-plus-comm              B_repl      1.0 completed      4     2     10386     10 
+prove-plus-comm              B_repl      1.0 completed      5     3     12842     12 
+prove-plus-comm              C_py        1.0 completed      5     3     11750     59 
+prove-plus-comm              C_py        1.0 completed      4     2      9302     11 
+prove-plus-comm              C_py        1.0 completed      4     2      8636     18 
+
+task                         arm       pass  turns norm_passed
+fix-git                      A_eight  3/3     8.67       50811
+fix-git                      B_one    3/3     7.67       41072
+fix-git                      B_repl   3/3     9.00       51951
+fix-git                      C_py     3/3     8.33       37598
+polyglot-c-py                A_eight  3/3     8.67       58427
+polyglot-c-py                B_one    3/3     7.33       46774
+polyglot-c-py                B_repl   3/3     8.00       49621
+polyglot-c-py                C_py     3/3     7.33       40955
+prove-plus-comm              A_eight  3/3     5.33       20359
+prove-plus-comm              B_one    3/3     4.67       13143
+prove-plus-comm              B_repl   3/3     4.67       12226
+prove-plus-comm              C_py     3/3     4.33        9896
+
+A_eight: pass 9/9, turns 7.56, norm(passed) 43,199 [cacheRead 32,532 cacheWrite 4,222 prompt 226 completion 6,218]
+B_one: pass 9/9, turns 6.56, norm(passed) 33,663 [cacheRead 22,869 cacheWrite 4,547 prompt 224 completion 6,022]
+B_repl: pass 9/9, turns 7.22, norm(passed) 37,932 [cacheRead 25,384 cacheWrite 4,806 prompt 225 completion 7,516]
+C_py: pass 9/9, turns 6.67, norm(passed) 29,483 [cacheRead 18,216 cacheWrite 4,241 prompt 224 completion 6,800]

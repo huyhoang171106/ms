@@ -1,6 +1,17 @@
 use ms_protocol::*;
 
 #[test]
+fn search_match_line_offset_is_backward_compatible() {
+    let old = r#"{"path":"x","lineNumber":1,"lineTag":"1234","startByte":2,"endByte":3,"lineText":"abc"}"#;
+    let parsed: SearchMatch = serde_json::from_str(old).unwrap();
+    assert_eq!(parsed.line_start_byte, None);
+    let new = r#"{"path":"x","lineNumber":1,"lineTag":"1234","startByte":2,"endByte":3,"lineStartByte":0,"lineText":"abc"}"#;
+    let parsed: SearchMatch = serde_json::from_str(new).unwrap();
+    assert_eq!(parsed.line_start_byte, Some(0));
+    assert!(serde_json::to_string(&parsed).unwrap().contains("\"lineStartByte\":0"));
+}
+
+#[test]
 fn request_initialize_omitted_params_and_roundtrip() {
     let raw = r#"{"id":"r1","method":"initialize"}"#;
     let req: Request = serde_json::from_str(raw).expect("parse initialize without params");

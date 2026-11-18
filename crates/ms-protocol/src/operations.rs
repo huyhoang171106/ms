@@ -344,6 +344,9 @@ pub struct SearchMatch {
     pub start_byte: u64,
     /// Byte offset of match end within the file.
     pub end_byte: u64,
+    /// Byte offset of the start of the line, for locating the match in line_text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line_start_byte: Option<u64>,
     /// Line text (LF-normalized).
     pub line_text: String,
 }

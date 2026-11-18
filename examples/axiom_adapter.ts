@@ -152,7 +152,7 @@ export function isTestPath(p: string): boolean {
   );
 }
 
-function isTestConfigPath(p: string): boolean {
+export function isTestConfigPath(p: string): boolean {
   const base = normalizeRel(p).split("/").pop() ?? "";
   return /^(?:pytest\.ini|tox\.ini|setup\.cfg|pyproject\.toml)$/.test(base);
 }
@@ -308,14 +308,20 @@ export class MsAxiomAdapter {
   ): Promise<{ records: unknown[]; completed: CompletedEvent }> {
     const id = `ax-${this.nextId++}`;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { records: [], resolve, reject });
-
       const onAbort = () => {
+        if (!this.pending.has(id)) return;
         const cancelId = `ax-${this.nextId++}`;
         this.proc.stdin.write(
           JSON.stringify({ id: cancelId, method: "cancel", params: { requestId: id } }) + "\n",
         );
       };
+
+      const cleanup = () => signal?.removeEventListener("abort", onAbort);
+      this.pending.set(id, {
+        records: [],
+        resolve: (value) => { cleanup(); resolve(value); },
+        reject: (error) => { cleanup(); reject(error); },
+      });
 
       if (signal?.aborted) {
         this.pending.delete(id);

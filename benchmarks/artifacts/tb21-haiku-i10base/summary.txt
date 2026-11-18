@@ -1,0 +1,17 @@
+task                         arm      reward status     turns calls      norm wall_s exception
+fix-git                      B_repl      1.0 completed      7     5     34474     15 
+fix-git                      B_repl      1.0 completed      8     6     42424     23 
+fix-git                      B_repl      1.0 completed      8     6     41982     18 
+polyglot-c-py                B_repl      1.0 completed      7     5     46899     84 
+polyglot-c-py                B_repl      1.0 completed      8     6     37708     74 
+polyglot-c-py                B_repl      1.0 completed      8     6     44213    101 
+prove-plus-comm              B_repl      1.0 completed      4     2      9701      6 
+prove-plus-comm              B_repl      1.0 completed      4     2     10095      8 
+prove-plus-comm              B_repl      1.0 completed      4     2      9912      9 
+
+task                         arm       pass  turns norm_passed
+fix-git                      B_repl   3/3     7.67       39626
+polyglot-c-py                B_repl   3/3     7.67       42940
+prove-plus-comm              B_repl   3/3     4.00        9902
+
+B_repl: pass 9/9, turns 6.44, norm(passed) 30,823 [cacheRead 20,446 cacheWrite 4,049 prompt 224 completion 6,102]

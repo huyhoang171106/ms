@@ -17,8 +17,8 @@ use crate::error::RuntimeError;
 use crate::journal::{JournalEntry, WorkspaceJournal, now_ms};
 use crate::policy::EffectivePolicy;
 use crate::text::{
-    analyze_text, blake3_hex, compute_patch, format_hashline, resolve_and_compute_edit,
-    short_line_tag,
+    analyze_read_window, analyze_text, blake3_hex, compute_patch, format_hashline,
+    resolve_and_compute_edit, short_line_tag,
 };
 use crate::workspace_fs::WorkspaceFs;
 
@@ -416,6 +416,7 @@ pub fn exec_search(
                             line_tag: short_line_tag(&bytes[cls..cle]),
                             start_byte: cls as u64,
                             end_byte: cls as u64,
+                            line_start_byte: Some(cls as u64),
                             line_text: ctx_text.to_string(),
                         });
                     }
@@ -437,6 +438,7 @@ pub fn exec_search(
                     line_tag: short_line_tag(&bytes[ls..le]),
                     start_byte,
                     end_byte,
+                    line_start_byte: Some(ls as u64),
                     line_text: line_text.to_string(),
                 });
                 last_emitted_line = Some(line_idx);
@@ -471,6 +473,7 @@ pub fn exec_search(
                         line_tag: short_line_tag(&bytes[cls..cle]),
                         start_byte: cls as u64,
                         end_byte: cls as u64,
+                        line_start_byte: Some(cls as u64),
                         line_text: ctx_text.to_string(),
                     });
                     last_emitted_line = Some(c_idx);
@@ -502,42 +505,21 @@ pub fn exec_read(
     let (bytes, _st) = fs.read_file_bytes(&params.path, policy.limits.max_edit_file_bytes)?;
     let file_revision = blake3_hex(&bytes);
     let total_bytes = bytes.len() as u64;
-    let analyzed = analyze_text(&bytes, false)?;
-    let total_lines = analyzed.lines.len() as u64;
-
     let start_idx =
         usize::try_from(params.start_line.unwrap_or(1).saturating_sub(1)).unwrap_or(usize::MAX);
     let max_lines = params
         .line_count
         .map_or(usize::MAX, |c| usize::try_from(c).unwrap_or(usize::MAX));
 
-    let mut out_lines = Vec::new();
-    let mut output_bytes = 0usize;
     let max_output_bytes = policy.limits.max_output_bytes_per_request;
-    let mut truncated = false;
     let is_hashline = params.format == Some(ReadFormat::Hashline);
-
-    if start_idx < analyzed.lines.len() {
-        for line in analyzed.lines[start_idx..].iter().take(max_lines) {
-            let approx = if is_hashline {
-                line.text.len() + 16
-            } else {
-                line.text.len() + 64
-            };
-            if output_bytes + approx > max_output_bytes && !out_lines.is_empty() {
-                truncated = true;
-                break;
-            }
-            output_bytes += approx;
-            out_lines.push(line.clone());
-        }
-    }
-
+    let (analyzed, total_lines, truncated) =
+        analyze_read_window(&bytes, start_idx, max_lines, max_output_bytes, is_hashline)?;
     let (hashline, lines) = if is_hashline {
-        let formatted = format_hashline(&file_revision, analyzed.eol, total_lines, &out_lines);
+        let formatted = format_hashline(&file_revision, analyzed.eol, total_lines, &analyzed.lines);
         (Some(formatted), Vec::new())
     } else {
-        (None, out_lines)
+        (None, analyzed.lines)
     };
 
     Ok(ReadOutput {

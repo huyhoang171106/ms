@@ -1,0 +1,56 @@
+task                         arm      reward status     turns calls      norm wall_s exception
+nginx-request-logging        A_eight     0.0 completed      6     6     33651     27 
+nginx-request-logging        A_eight     0.0 completed      5     7     26516     20 
+nginx-request-logging        A_eight     0.0 completed      5     5     26248     23 
+nginx-request-logging        B_one       1.0 completed      8     6     51250     32 
+nginx-request-logging        B_one       1.0 completed      8     6     50488     38 
+nginx-request-logging        B_one       1.0 running        2     1      6886      9 AgentTimeoutError
+nginx-request-logging        B_repl      1.0 completed      5     3     24876     22 
+nginx-request-logging        B_repl      1.0 completed      5     3     20042     26 
+nginx-request-logging        B_repl      1.0 completed      5     3     22473     28 
+nginx-request-logging        C_py        1.0 completed      7     5     30520     24 
+nginx-request-logging        C_py        1.0 completed      6     4     24676     22 
+nginx-request-logging        C_py        1.0 completed      6     4     26057     29 
+sanitize-git-repo            A_eight     1.0 completed     11    15    287463     41 
+sanitize-git-repo            A_eight     1.0 completed     14    18    416587     64 
+sanitize-git-repo            A_eight     1.0 completed     11    15    282211     46 
+sanitize-git-repo            B_one       0.0 completed      8     6    188800     42 
+sanitize-git-repo            B_one       1.0 completed      7     5    126522     27 
+sanitize-git-repo            B_one       1.0 completed      8     6    166511     29 
+sanitize-git-repo            B_repl      1.0 completed      8     6    165668     39 
+sanitize-git-repo            B_repl      0.0 completed      8     6    195512     33 
+sanitize-git-repo            B_repl      1.0 completed      7     6    301842     51 
+sanitize-git-repo            C_py        1.0 completed      8     6    102128     38 
+sanitize-git-repo            C_py        1.0 completed     10     8    129737     40 
+sanitize-git-repo            C_py        1.0 completed      7     5     93923     28 
+vulnerable-secret            A_eight     1.0 completed     14    12     81522     85 
+vulnerable-secret            A_eight     1.0 completed     11    10     64071     34 
+vulnerable-secret            A_eight     0.0 completed      7     5     28996     26 
+vulnerable-secret            B_one       1.0 completed     11     9     81227     23 
+vulnerable-secret            B_one       1.0 completed      7     5     32836     12 
+vulnerable-secret            B_one       1.0 completed      8     6     41931     14 
+vulnerable-secret            B_repl      1.0 completed      9     7     42416     14 
+vulnerable-secret            B_repl      1.0 completed      9     7     52078     17 
+vulnerable-secret            B_repl      1.0 completed     10     8     57896     19 
+vulnerable-secret            C_py        1.0 completed      8     6     41984     11 
+vulnerable-secret            C_py        1.0 completed     10     8     47669     16 
+vulnerable-secret            C_py        1.0 completed      9     7     38284     16 
+
+task                         arm       pass  turns norm_passed
+nginx-request-logging        A_eight  0/3     5.33           -
+nginx-request-logging        B_one    3/3     6.00       36208
+nginx-request-logging        B_repl   3/3     5.00       22463
+nginx-request-logging        C_py     3/3     6.33       27084
+sanitize-git-repo            A_eight  3/3    12.00      328753
+sanitize-git-repo            B_one    2/3     7.67      146516
+sanitize-git-repo            B_repl   2/3     7.67      233755
+sanitize-git-repo            C_py     3/3     8.33      108596
+vulnerable-secret            A_eight  2/3    10.67       72796
+vulnerable-secret            B_one    3/3     8.67       51998
+vulnerable-secret            B_repl   3/3     9.33       50796
+vulnerable-secret            C_py     3/3     9.00       42645
+
+A_eight: pass 5/9, turns 9.33, norm(passed) 226,370 [cacheRead 192,862 cacheWrite 24,118 prompt 312 completion 9,077]
+B_one: pass 8/9, turns 7.44, norm(passed) 69,706 [cacheRead 54,301 cacheWrite 10,652 prompt 457 completion 4,294]
+B_repl: pass 8/9, turns 7.33, norm(passed) 85,911 [cacheRead 66,716 cacheWrite 14,843 prompt 457 completion 3,894]
+C_py: pass 9/9, turns 7.89, norm(passed) 59,442 [cacheRead 43,792 cacheWrite 11,259 prompt 447 completion 3,942]
