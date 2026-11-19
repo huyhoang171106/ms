@@ -6,10 +6,18 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import traceback
 
 LIMIT = 16_000
-_out = sys.stdout
+# Protocol gets its own fd; fds 1/2 are captured per cell so os.system/subprocess output cannot corrupt it.
+_out = os.fdopen(os.dup(1), "w")
+_null = os.open(os.devnull, os.O_WRONLY)
+# Requests also get a private fd; fd 0 becomes /dev/null so a child that reads stdin (`sed -n 1,5p` with no file) gets EOF
+# instead of blocking on the protocol pipe until the 900s cell timeout (luna-lean26 fix-vuln lost its run that way).
+_in = os.fdopen(os.dup(0), "r")
+os.dup2(os.open(os.devnull, os.O_RDONLY), 0)
+sys.stdin = open(os.devnull)
 
 
 class Shell(str):
@@ -39,8 +47,9 @@ def clip(text):
 
 
 def run(code, ns):
-    buf = io.StringIO()
-    with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+    with tempfile.TemporaryFile() as tmp:
+        os.dup2(tmp.fileno(), 1)
+        os.dup2(tmp.fileno(), 2)
         try:
             tree = ast.parse(code, "<cell>", "exec")
             last = tree.body.pop() if tree.body and isinstance(tree.body[-1], ast.Expr) else None
@@ -51,12 +60,19 @@ def run(code, ns):
                     print(repr(value))
         except BaseException:  # SystemExit/KeyboardInterrupt from model code must not kill the kernel.
             traceback.print_exc()
-    return clip(buf.getvalue()) or "(no output)"
+        finally:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os.dup2(_null, 1)
+            os.dup2(_null, 2)
+        tmp.seek(0)
+        text = tmp.read().decode(errors="replace")
+    return clip(text) or "(no output)"
 
 
 def main():
     ns = {"__name__": "__main__", "bash": bash}
-    for line in sys.stdin:
+    for line in _in:
         reply = run(json.loads(line)["code"], ns)
         _out.write(json.dumps({"output": reply}) + "\n")
         _out.flush()
@@ -70,6 +86,8 @@ if __name__ == "__main__":
         assert run("bash('echo hi; exit 3').code", ns) == "3\n"
         assert "ZeroDivisionError" in run("1/0", ns)
         assert "SystemExit" in run("raise SystemExit(1)", ns)
-        print("ok")
+        assert run("import os; os.system('echo raw'); 0", ns) == "raw\n0\n", "fd-level output is captured"
+        assert run("print(1)", ns) == "1\n"
+        _out.write("ok\n")
     else:
         main()

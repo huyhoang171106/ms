@@ -1,7 +1,7 @@
 /**
  * Runs one Axiom agent arm inside a Terminal-Bench container (bundled by build.sh, launched by harbor_agent.py).
  *   A_eight  Axiom's default tools          B_one  single `ms` code-mode tool (directExec)
- *   C_py     single persistent CPython REPL (Unharnessed / prime-agent shape)
+ *   C_py     single persistent CPython REPL (integrations/axiom/cpy.ts; Unharnessed / prime-agent shape)
  *   B_repl   integrations/axiom python_repl (sh/patch/lint helpers + batching workflow), unsandboxed: the container is the sandbox
  * Usage and per-call traces are rewritten to --out after every tool call, so a harbor timeout still leaves numbers.
  */
@@ -21,7 +21,7 @@ import type { BaseTool } from '../../../nhom-30/axiom-cli/src/tools/base-tool.js
 import { ToolRegistry } from '../../../nhom-30/axiom-cli/src/tools/registry.js';
 import { buildMsSystemPrompt, createMsTool } from '../../integrations/axiom/ms-tool.js';
 import { PYTHON_REPL_WORKFLOW, buildPythonReplPrompt, createPythonRepl, hostPython } from '../../integrations/axiom/python-repl.js';
-import { createPythonTool } from './python-tool.js';
+import { PYTHON_SYSTEM, admitsGap, createCpyGate, createPythonTool, looksFailed } from '../../integrations/axiom/cpy.js';
 
 const arg = (name: string, fallback?: string): string => {
   const i = process.argv.indexOf(`--${name}`);
@@ -60,12 +60,9 @@ function buildArm(): { registry: ToolRegistry; system: string; close: () => Prom
   if (arm === 'C_py') {
     const registry = new ToolRegistry(['python']);
     registry.allowWithoutApprover = true;
-    const tool = createPythonTool({ python: path.join(abx, 'python/bin/python3'), kernel: path.join(abx, 'repl_kernel.py'), cwd: workspace, timeoutMs: 900_000 });
+    const tool = createPythonTool({ python: path.join(abx, 'python/bin/python3'), kernel: path.join(abx, 'cpy_kernel.py'), cwd: workspace, timeoutMs: 900_000 });
     registry.registerTool(tool as unknown as BaseTool);
-    const system = DEFAULT_SYSTEM_PROMPT
-      .replace('with bash and file tools.', 'with one `python` tool: a persistent CPython REPL.')
-      .replace('with the "edit" or "write_file" tool', 'by writing them from Python');
-    return { registry, system, close: () => tool.close() };
+    return { registry, system: PYTHON_SYSTEM.replace('{cwd}', workspace), close: () => tool.close() };
   }
   if (arm === 'B_repl') {
     const registry = new ToolRegistry(['python_repl']);
@@ -107,11 +104,12 @@ bus.on('tool_call_start', (tc: { id: string; arguments: unknown }) => pending.se
 let lastCheckPassed = false;
 // AgentLoop also calls isComplete() right after tools run (and ends the run if true), so only answer true right after a model reply.
 let sinceChat = false;
-const looksFailed = (output: string, isError = false) => isError || /^Error:|\[exit [1-9]\d*\]|Traceback \(most recent call last\)/m.test(output);
+const gate = createCpyGate({ trim: process.env.MS_CPY_TRIM !== '0', onExtraTurn: () => { record.llmTurns++; } });
 bus.on('tool_call_end', (r: { toolCallId?: string; name?: string; output: string; isError?: boolean }) => {
   const output = String(r.output ?? '');
   lastCheckPassed = !looksFailed(output, r.isError === true);
   sinceChat = false;
+  gate.toolEnded(output, r.isError === true);
   const bytes = Buffer.byteLength(output);
   record.toolCalls++;
   record.toolOutputBytes += bytes;
@@ -140,7 +138,14 @@ try {
   })();
   const raw = await createProviderFor(modelInfo);
   const provider = Object.assign(Object.create(Object.getPrototypeOf(raw)), raw, {
-    chat: async (params: Parameters<typeof raw.chat>[0]) => { record.llmTurns++; const res = await raw.chat(params); sinceChat = true; return res; },
+    chat: async (params: Parameters<typeof raw.chat>[0]) => {
+      record.llmTurns++;
+      if (arm === 'C_py') return gate.chat(params, (p) => raw.chat(p));
+      // tb21-luna-lean10 cobol: one run died on a spurious "flagged as potentially violating" stream error; pi/codex retry those.
+      const res = await raw.chat(params).catch((err: unknown) => { if (/flagged as potentially violating/i.test(String(err))) return raw.chat(params); throw err; });
+      sinceChat = true; if (!res.toolCalls?.length && admitsGap(res.content ?? '')) lastCheckPassed = false;
+      return res;
+    },
   });
   const env = [
     'Environment:',
@@ -156,15 +161,20 @@ try {
     sessionManager: new SessionManager({ workspaceRoot: workspace, sessionsDir: path.join(abx, 'sessions'), autoSave: false }),
     costTracker: new CostTracker(),
     eventBus: bus,
-    systemPrompt: `${system}\n\n${env}`,
+    systemPrompt: arm === 'C_py' ? system : `${system}\n\n${env}`,  // C_py's spec carries its own env lines
     maxTokens: modelInfo.maxTokens ?? 32768,
     maxSteps,
     budgetLimitDollars: 20,
     // One nudge the first time the model stops: Luna otherwise ends on "I couldn't verify it" status reports.
     // B_repl: a stop right after a passing tool result is accepted; otherwise one reminder. Other arms: always one reminder.
     // Traces: B_repl resumed after the reminder in 1/18 runs (tb21-haiku-all10); useful resumes followed a failing output.
-    isComplete: () => arm === 'B_repl' && sinceChat && lastCheckPassed,
-    completionReminder: 'You stopped. If anything you were asked to produce is missing or unverified, or a build/test you ran still fails, continue with tool calls now. Otherwise reply with a one-line final summary.',
+    // C_py always gets the one reminder: tb21-luna-lean10 cobol 0/3 stopped after a passing check that only ran the given input (one branch).
+    // C_py skips the reminder only when it stops on a passing test suite: lean19-22, 12/12 such stops (fix-vuln "All 367 tests pass")
+    // made no edit after the reminder, which only cost 1-3 full-context turns. Stops on weaker evidence (syntax compile, one input) still get it.
+    isComplete: () => (arm === 'C_py' ? gate.isComplete() : arm === 'B_repl' && sinceChat && lastCheckPassed),
+    completionReminder: arm === 'C_py'
+      ? gate.reminder
+      : 'You stopped. If anything you were asked to produce is missing or unverified, or a build/test you ran still fails, continue with tool calls now. Otherwise reply with a one-line final summary.',
   });
   const task = await loop.runTask(instruction).finally(() => {
     record.assistant = loop.transcript().filter((m) => m.role === 'assistant')

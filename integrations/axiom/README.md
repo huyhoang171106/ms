@@ -147,3 +147,18 @@ bun integrations/axiom/selftest.ts
 ```
 
 The self-test uses a throwaway workspace and checks isolation, test protection, bounded output, approvals, journal operations and job control.
+
+## C_py: Python REPL as the only tool (EXPERIMENTAL)
+
+> **Experimental.** The interface, prompt and defaults may change without notice. Model-written Python and shell run **unsandboxed, as you**, in `--cwd`. Use it only in a directory you can afford to lose, or in a container.
+
+`cpy.ts` is the Terminal-Bench C_py arm: one `python` tool over a persistent CPython process (`cpy_kernel.py`, with `bash(cmd)` that returns `[exit N]\n<output>`), the terse spec `PYTHON_SYSTEM`, and `createCpyGate`, the chat gate the arm runs with (old-output trimming, one completion reminder, one nudge for a stop that admits a gap, text-as-call recovery, retry on spurious "flagged" errors). `benchmarks/tb/runner.ts` and the command below share it.
+
+```bash
+bun integrations/axiom/cpy-cli.ts --cwd ./scratch "Fix the bug in calc.py so the tests pass."
+echo "task" | bun integrations/axiom/cpy-cli.ts --model openai-codex/gpt-6-luna --effort medium --max-steps 150
+```
+
+Axiom is loaded from `AXIOM_CLI_DIR` (default `../nhom-30/axiom-cli` next to this repo) and uses its logins. Progress goes to stderr and the final reply to stdout. The exit code is 0 when the run completed, 1 when it failed, and 2 for bad arguments. On the host the spec says the agent is the user (no sudo, no system-wide installs) instead of root in a container.
+
+Check: `bun test integrations/axiom/cpy.test.ts` and `python3 integrations/axiom/cpy_kernel.py --selftest`.

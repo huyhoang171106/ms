@@ -8,9 +8,9 @@ PY=$(ls -d ~/.local/share/uv/python/cpython-3.12.*-linux-x86_64-gnu | head -1)
 
 rm -rf "$OUT"; mkdir -p "$OUT/home"
 cargo build --release -q -p ms-cli --target x86_64-unknown-linux-musl  # static: TB images ship older glibc
-bun build benchmarks/tb/runner.ts --target=bun --define "process.env.MS_REPL_BATCH_PROMPT=\"${MS_REPL_BATCH_PROMPT:-1}\"" --outfile "$OUT/runner.js" >/dev/null
+bun build benchmarks/tb/runner.ts --target=bun --define "process.env.MS_REPL_BATCH_PROMPT=\"${MS_REPL_BATCH_PROMPT:-1}\"" --define "process.env.MS_CPY_WORKFLOW=\"${MS_CPY_WORKFLOW:-1}\"" --outfile "$OUT/runner.js" >/dev/null
 cp -r "$CATALOG/providers" "$CATALOG/auth" "$OUT/"   # loadCatalog reads these next to the bundle
-cp target/x86_64-unknown-linux-musl/release/ms "$(command -v bun)" benchmarks/tb/repl_kernel.py "$OUT/"
+cp target/x86_64-unknown-linux-musl/release/ms "$(command -v bun)" integrations/axiom/cpy_kernel.py "$OUT/"
 cp -r "$PY" "$OUT/python"
 rm -rf "$OUT"/python/lib/python3.*/{test,idlelib,tkinter,turtledemo,ensurepip}
 
