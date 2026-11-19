@@ -138,9 +138,10 @@ try {
       return { ...resolveModel(`${model.slice(0, slash)}/${first.id}`, catalog, config), id, name: id };
     }
   })();
-  // MS_CPY_REASONING is baked in by build.sh: replay reasoning + prompt_cache_key + low verbosity on Responses routes (as pi/codex do).
   globalThis.fetch = stallGuardFetch(globalThis.fetch, 120_000);
-  if (arm === 'C_py' && process.env.MS_CPY_REASONING !== '0') globalThis.fetch = responsesReplayFetch(globalThis.fetch, { cacheKey: randomUUID() });
+  // MS_CPY_REASONING=1 (baked in by build.sh) replays reasoning + prompt_cache_key + low verbosity on Responses routes (as pi/codex do).
+  // Off by default: concurrent A/B lean33 (on) 77.8%/48.2k vs lean34 (off) 85.2%/49.9k, no measurable gain on luna medium.
+  if (arm === 'C_py' && process.env.MS_CPY_REASONING === '1') globalThis.fetch = responsesReplayFetch(globalThis.fetch, { cacheKey: randomUUID() });
   const raw = await createProviderFor(modelInfo);
   const provider = Object.assign(Object.create(Object.getPrototypeOf(raw)), raw, {
     chat: async (params: Parameters<typeof raw.chat>[0]) => {

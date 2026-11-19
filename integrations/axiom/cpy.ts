@@ -13,6 +13,7 @@ export const PYTHON_DESCRIPTION = [
 /**
  * C_py system prompt as a terse spec (one word where a sentence was): same rules as the prose version
  * (tb21-luna-lean5..15 traces: batching, quiet tests, branch coverage, stop rule), ~half the characters.
+ * labels rule: lean31-34 fix-vuln, 6 of 6 failures listed the specific id + a broad catch-all and skipped its direct parent.
  * fix rule: lean20-30 fix-vuln, 19 of 26 failures across C_py/pi/codex validated in the callers while the hidden test calls `_hkey` itself.
  * {cwd} is filled by the runner.
  */
@@ -29,7 +30,7 @@ export const PYTHON_SYSTEM = [
   '  fix: in the lowest shared function every caller routes through; hidden tests may call it directly.',
   '  failing build/test/check -> fix, rerun. never stop on failure.',
   '  text: no prose between calls. ground claims in output. every call executes code; never comment-only/empty calls (each costs a full turn).',
-  '  labels (CWE, categories): list every id that applies: specific id + its parent class (e.g. a variant and its base weakness).',
+  '  labels (CWE, categories): list every id that applies: the specific id + every ancestor up its chain (variant -> base -> class), not only a broad catch-all.',
   '  stop: result exists && check passes -> 1-line summary. no tool call == run ends.',
 ].join('\n');
 

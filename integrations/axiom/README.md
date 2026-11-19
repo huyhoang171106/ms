@@ -159,7 +159,7 @@ bun integrations/axiom/cpy-cli.ts --cwd ./scratch "Fix the bug in calc.py so the
 echo "task" | bun integrations/axiom/cpy-cli.ts --model openai-codex/gpt-6-luna --effort medium --max-steps 150
 ```
 
-On Responses routes (openai-codex) the command also replays the model's encrypted reasoning across turns and sends one `prompt_cache_key` per run with `text.verbosity: low`, as pi and codex do (`responses-replay.ts`; `--no-replay` turns it off).
+`--replay` (Responses routes only) replays the model's encrypted reasoning across turns and sends one `prompt_cache_key` per run with `text.verbosity: low`, as pi and codex do (`responses-replay.ts`). It is off by default: a concurrent Terminal-Bench A/B showed no measurable gain. A stream that sends nothing for 120s is failed so Axiom retries it.
 
 Axiom is loaded from `AXIOM_CLI_DIR` (default `../nhom-30/axiom-cli` next to this repo) and uses its logins. Progress goes to stderr and the final reply to stdout. The exit code is 0 when the run completed, 1 when it failed, and 2 for bad arguments. On the host the spec says the agent is the user (no sudo, no system-wide installs) instead of root in a container.
 

@@ -26,13 +26,13 @@ const { values, positionals } = parseArgs({
     effort: { type: 'string' },
     cwd: { type: 'string', default: process.cwd() },
     'max-steps': { type: 'string', default: '150' },
-    'no-replay': { type: 'boolean' },
+    replay: { type: 'boolean' },
     python: { type: 'string', default: 'python3' },
     help: { type: 'boolean', short: 'h' },
   },
 });
 if (values.help) {
-  console.log('EXPERIMENTAL. Usage: cpy-cli.ts [--model ID] [--effort low|medium|high] [--cwd DIR] [--max-steps N] [--python BIN] [--no-replay] "task" (or task on stdin)');
+  console.log('EXPERIMENTAL. Usage: cpy-cli.ts [--model ID] [--effort low|medium|high] [--cwd DIR] [--max-steps N] [--python BIN] [--replay] "task" (or task on stdin)');
   process.exit(0);
 }
 const task = (positionals.join(' ') || (process.stdin.isTTY ? '' : fs.readFileSync(0, 'utf8'))).trim();
@@ -52,9 +52,9 @@ if (!fs.statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
 }
 // Read by Axiom's providers when the request is built.
 if (values.effort) process.env.AXIOM_REASONING_EFFORT = values.effort;
-// Responses routes: replay reasoning across turns, one prompt_cache_key per run, low verbosity (see responses-replay.ts).
+// Opt-in: replay reasoning across turns, one prompt_cache_key per run, low verbosity (responses-replay.ts). No measured gain on TB (lean33 vs lean34).
 globalThis.fetch = stallGuardFetch(globalThis.fetch, 120_000);
-if (!values['no-replay']) globalThis.fetch = responsesReplayFetch(globalThis.fetch, { cacheKey: randomUUID() });
+if (values.replay) globalThis.fetch = responsesReplayFetch(globalThis.fetch, { cacheKey: randomUUID() });
 
 const axiomDir = path.resolve(process.env.AXIOM_CLI_DIR ?? path.join(import.meta.dirname, '../../../nhom-30/axiom-cli'));
 const ax = (rel: string) => import(path.join(axiomDir, 'src', rel));
