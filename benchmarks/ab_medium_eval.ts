@@ -4,17 +4,17 @@ import os from 'node:os';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-import { AgentLoop, DEFAULT_SYSTEM_PROMPT } from '../../nhom-30/src/core/agent-loop.js';
-import { DEFAULT_CONFIG, loadConfig } from '../../nhom-30/src/core/config.js';
-import { EventBus } from '../../nhom-30/src/core/event-bus.js';
-import { buildSystemPrompt } from '../../nhom-30/src/core/prompt.js';
-import { redact } from '../../nhom-30/src/core/secrets.js';
-import { SessionManager } from '../../nhom-30/src/core/session.js';
-import type { TokenUsage } from '../../nhom-30/src/core/types.js';
-import { loadCatalog } from '../../nhom-30/src/llm/catalog/index.js';
-import { createProviderFor, resolveModel } from '../../nhom-30/src/llm/model-resolver.js';
-import { ToolRegistry } from '../../nhom-30/src/tools/registry.js';
-import { planSandbox } from '../../nhom-30/src/tools/sandbox.js';
+import { AgentLoop, DEFAULT_SYSTEM_PROMPT } from '../../nhom-30/axiom-cli/src/core/agent-loop.js';
+import { DEFAULT_CONFIG, loadConfig } from '../../nhom-30/axiom-cli/src/core/config.js';
+import { EventBus } from '../../nhom-30/axiom-cli/src/core/event-bus.js';
+import { buildSystemPrompt } from '../../nhom-30/axiom-cli/src/core/prompt.js';
+import { redact } from '../../nhom-30/axiom-cli/src/core/secrets.js';
+import { SessionManager } from '../../nhom-30/axiom-cli/src/core/session.js';
+import type { TokenUsage } from '../../nhom-30/axiom-cli/src/core/types.js';
+import { loadCatalog } from '../../nhom-30/axiom-cli/src/llm/catalog/index.js';
+import { createProviderFor, resolveModel } from '../../nhom-30/axiom-cli/src/llm/model-resolver.js';
+import { ToolRegistry } from '../../nhom-30/axiom-cli/src/tools/registry.js';
+import { planSandbox } from '../../nhom-30/axiom-cli/src/tools/sandbox.js';
 import { MsAxiomAdapter } from '../examples/axiom_adapter.js';
 import {
   aggregateNormalizedUsage,

@@ -3,9 +3,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { pythonBin } from '../../nhom-30/src/core/paths.js';
-import { scrubEnv } from '../../nhom-30/src/core/secrets.js';
-import { parsePytestReport } from '../../nhom-30/src/core/verifier.js';
+import { pythonBin } from '../../nhom-30/axiom-cli/src/core/paths.js';
+import { scrubEnv } from '../../nhom-30/axiom-cli/src/core/secrets.js';
+import { parsePytestReport } from '../../nhom-30/axiom-cli/src/core/verifier.js';
 import { findChangeTampering, isTestPath } from '../examples/axiom_adapter.js';
 
 export type AgentStatus = 'ok' | 'timeout' | 'error';

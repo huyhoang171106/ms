@@ -3,21 +3,21 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { pythonBin } from '../../nhom-30/src/core/paths.js';
-import { redact, scrubEnv, SECRET_NAME } from '../../nhom-30/src/core/secrets.js';
-import { PYTEST_ARGS, TEST_TIMEOUT_MS } from '../../nhom-30/src/core/verifier.js';
-import { BaseTool, type ToolExecutionContext } from '../../nhom-30/src/tools/base-tool.js';
-import { BUNDLED_SKILLS_DIR, isBundledSkillFile } from '../../nhom-30/src/tools/bundled-skills.js';
-import { destructiveReason } from '../../nhom-30/src/tools/bash.js';
-import { escapesWorkspace } from '../../nhom-30/src/tools/permissions.js';
-import { ReadTool } from '../../nhom-30/src/tools/read.js';
-import { ToolRegistry } from '../../nhom-30/src/tools/registry.js';
+import { pythonBin } from '../../nhom-30/axiom-cli/src/core/paths.js';
+import { redact, scrubEnv, SECRET_NAME } from '../../nhom-30/axiom-cli/src/core/secrets.js';
+import { PYTEST_ARGS, TEST_TIMEOUT_MS } from '../../nhom-30/axiom-cli/src/core/verifier.js';
+import { BaseTool, type ToolExecutionContext } from '../../nhom-30/axiom-cli/src/tools/base-tool.js';
+import { BUNDLED_SKILLS_DIR, isBundledSkillFile } from '../../nhom-30/axiom-cli/src/tools/bundled-skills.js';
+import { destructiveReason } from '../../nhom-30/axiom-cli/src/tools/bash.js';
+import { escapesWorkspace } from '../../nhom-30/axiom-cli/src/tools/permissions.js';
+import { ReadTool } from '../../nhom-30/axiom-cli/src/tools/read.js';
+import { ToolRegistry } from '../../nhom-30/axiom-cli/src/tools/registry.js';
 import {
   bwrapInvocation,
   extraWritableFromEnv,
   planSandbox,
   type SandboxPlan,
-} from '../../nhom-30/src/tools/sandbox.js';
+} from '../../nhom-30/axiom-cli/src/tools/sandbox.js';
 import {
   attachFailureSnippetsViaRpc,
   distillCommandOutput,

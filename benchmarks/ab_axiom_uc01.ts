@@ -5,20 +5,20 @@ import os from 'node:os';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 
-import { AgentLoop, DEFAULT_SYSTEM_PROMPT } from '../../nhom-30/src/core/agent-loop.js';
-import { DEFAULT_CONFIG, loadConfig } from '../../nhom-30/src/core/config.js';
-import { EventBus } from '../../nhom-30/src/core/event-bus.js';
-import { pythonBin } from '../../nhom-30/src/core/paths.js';
-import { buildSystemPrompt } from '../../nhom-30/src/core/prompt.js';
-import { redact, registerSecret } from '../../nhom-30/src/core/secrets.js';
-import { SessionManager } from '../../nhom-30/src/core/session.js';
-import type { TokenUsage } from '../../nhom-30/src/core/types.js';
-import { loadCatalog } from '../../nhom-30/src/llm/catalog/index.js';
-import { CostTracker, type SessionSummary } from '../../nhom-30/src/llm/cost-tracker.js';
-import { createProviderFor, resolveModel } from '../../nhom-30/src/llm/model-resolver.js';
-import { BUNDLED_SKILLS_DIR } from '../../nhom-30/src/tools/bundled-skills.js';
-import { ToolRegistry } from '../../nhom-30/src/tools/registry.js';
-import { planSandbox } from '../../nhom-30/src/tools/sandbox.js';
+import { AgentLoop, DEFAULT_SYSTEM_PROMPT } from '../../nhom-30/axiom-cli/src/core/agent-loop.js';
+import { DEFAULT_CONFIG, loadConfig } from '../../nhom-30/axiom-cli/src/core/config.js';
+import { EventBus } from '../../nhom-30/axiom-cli/src/core/event-bus.js';
+import { pythonBin } from '../../nhom-30/axiom-cli/src/core/paths.js';
+import { buildSystemPrompt } from '../../nhom-30/axiom-cli/src/core/prompt.js';
+import { redact, registerSecret } from '../../nhom-30/axiom-cli/src/core/secrets.js';
+import { SessionManager } from '../../nhom-30/axiom-cli/src/core/session.js';
+import type { TokenUsage } from '../../nhom-30/axiom-cli/src/core/types.js';
+import { loadCatalog } from '../../nhom-30/axiom-cli/src/llm/catalog/index.js';
+import { CostTracker, type SessionSummary } from '../../nhom-30/axiom-cli/src/llm/cost-tracker.js';
+import { createProviderFor, resolveModel } from '../../nhom-30/axiom-cli/src/llm/model-resolver.js';
+import { BUNDLED_SKILLS_DIR } from '../../nhom-30/axiom-cli/src/tools/bundled-skills.js';
+import { ToolRegistry } from '../../nhom-30/axiom-cli/src/tools/registry.js';
+import { planSandbox } from '../../nhom-30/axiom-cli/src/tools/sandbox.js';
 import { MsAxiomAdapter } from '../examples/axiom_adapter.js';
 import {
   aggregateNormalizedUsage,
@@ -64,8 +64,8 @@ import {
 } from './ab_axiom_tools.js';
 
 export const DEFAULT_MS_BIN = process.env.MS_BIN ?? '/home/hoang/ms/target/release/ms';
-export const DEFAULT_FIXTURE_DIR = process.env.UC01_FIXTURE_DIR ?? '/home/hoang/nhom-30/evals/fixtures/uc01';
-export const DEFAULT_CASES_DIR = process.env.UC01_CASES_DIR ?? '/home/hoang/nhom-30/evals/uc01';
+export const DEFAULT_FIXTURE_DIR = process.env.UC01_FIXTURE_DIR ?? '/home/hoang/nhom-30/axiom-cli/evals/fixtures/uc01';
+export const DEFAULT_CASES_DIR = process.env.UC01_CASES_DIR ?? '/home/hoang/nhom-30/axiom-cli/evals/uc01';
 export const DEFAULT_ARTIFACTS_ROOT = '/home/hoang/ms/benchmarks/artifacts';
 export const DEFAULT_MODEL_SELECTOR = 'anthropic/claude-haiku-5-5';
 export const TARGET_CASES = [
