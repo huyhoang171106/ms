@@ -73,6 +73,7 @@ test('old run logs clip at 1500, old source prints keep the 8000 cap', () => {
   const m = [call('a', "bash('make test')"), tool('a'), call('b', "print(open('x').read())"), tool('b'), ...['c', 'd', 'e'].flatMap((id) => [call(id, '1'), tool(id)])];
   const out = trimOldToolOutputs(m);
   expect([out[1].content.length < 1000, out[3].content.length]).toEqual([true, 3000]);
+  expect(trimOldToolOutputs(m, 3, 8000, 1000, 1500, 400, 3)[3].content.length < 1000).toBe(true);
 });
 
 test('addUsage keeps one side when the other is missing', () => {

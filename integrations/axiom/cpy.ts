@@ -81,8 +81,9 @@ export function createPythonTool(opts: { python: string; kernel: string; cwd: st
 type TrimMsg = { role: string; content: string; toolCallId?: string; toolCalls?: Array<{ id: string; arguments: Record<string, unknown> }> };
 // Calls that printed source (open/cat/sed/grep/...) keep the 8000 cap; pure run logs (build, test, valgrind, gdb) are stale
 // once older than `keep` calls: lean32-37 cobol/heap resent ~4k tokens/run of such 2-8k logs, never re-printed.
+// Source prints older than `readAge` calls get the log cap too (lean39-41 sim: ~8k heap, ~6k cobol tokens/run).
 const readsSource = (code: string) => /open\(|read_text|\b(cat|sed|head|tail|grep|rg|less|nl|awk)\b/.test(code);
-export function trimOldToolOutputs<M extends TrimMsg>(messages: M[], keep = 3, max = 8000, side = 1000, logMax = 1500, logSide = 400): M[] {
+export function trimOldToolOutputs<M extends TrimMsg>(messages: M[], keep = 3, max = 8000, side = 1000, logMax = 1500, logSide = 400, readAge = 6): M[] {
   const code = new Map<string, string>();
   for (const m of messages) for (const c of m.toolCalls ?? []) code.set(c.id, String(c.arguments?.code ?? ''));
   let seen = 0;
@@ -91,7 +92,7 @@ export function trimOldToolOutputs<M extends TrimMsg>(messages: M[], keep = 3, m
     const m = out[i];
     if (m.role !== 'tool' || ++seen <= keep) continue;
     const src = code.get(m.toolCallId ?? '');
-    const [cap, s] = src !== undefined && !readsSource(src) ? [logMax, logSide] : [max, side];
+    const [cap, s] = src !== undefined && (!readsSource(src) || seen > readAge) ? [logMax, logSide] : [max, side];
     if (m.content.length <= cap) continue;
     out[i] = { ...m, content: `${m.content.slice(0, s)}\n… [older output: ${m.content.length - 2 * s} chars elided; re-print from REPL variables if needed] …\n${m.content.slice(-s)}` };
   }
