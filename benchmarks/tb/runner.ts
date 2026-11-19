@@ -22,7 +22,7 @@ import type { BaseTool } from '../../../nhom-30/axiom-cli/src/tools/base-tool.js
 import { ToolRegistry } from '../../../nhom-30/axiom-cli/src/tools/registry.js';
 import { buildMsSystemPrompt, createMsTool } from '../../integrations/axiom/ms-tool.js';
 import { PYTHON_REPL_WORKFLOW, buildPythonReplPrompt, createPythonRepl, hostPython } from '../../integrations/axiom/python-repl.js';
-import { responsesReplayFetch } from '../../integrations/axiom/responses-replay.js';
+import { responsesReplayFetch, stallGuardFetch } from '../../integrations/axiom/responses-replay.js';
 import { PYTHON_SYSTEM, admitsGap, createCpyGate, createPythonTool, looksFailed } from '../../integrations/axiom/cpy.js';
 
 const arg = (name: string, fallback?: string): string => {
@@ -139,6 +139,7 @@ try {
     }
   })();
   // MS_CPY_REASONING is baked in by build.sh: replay reasoning + prompt_cache_key + low verbosity on Responses routes (as pi/codex do).
+  globalThis.fetch = stallGuardFetch(globalThis.fetch, 300_000);
   if (arm === 'C_py' && process.env.MS_CPY_REASONING !== '0') globalThis.fetch = responsesReplayFetch(globalThis.fetch, { cacheKey: randomUUID() });
   const raw = await createProviderFor(modelInfo);
   const provider = Object.assign(Object.create(Object.getPrototypeOf(raw)), raw, {

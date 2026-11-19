@@ -92,3 +92,37 @@ async function record(stream: ReadableStream<Uint8Array>, reasoning: Map<string,
   if (text) keys.push(`text:${text}`);
   for (const k of keys) reasoning.set(k, items);
 }
+
+/**
+ * Fails a request whose response (headers or body) sends nothing for `idleMs`, so the caller can retry instead of
+ * waiting out the whole episode: tb21-luna-lean30 fix-vuln sat 876s on one stalled stream until the 900s agent timeout.
+ * Idle, not total: a long reply keeps streaming events. The error message contains "stream stalled".
+ */
+export function stallGuardFetch(base: typeof fetch, idleMs: number): typeof fetch {
+  const wrapped = async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    const stalled = () => new Error(`stream stalled: no data for ${idleMs / 1000}s`);
+    const abort = new AbortController();
+    const headers = setTimeout(() => abort.abort(stalled()), idleMs);
+    const signal = init?.signal ? AbortSignal.any([init.signal, abort.signal]) : abort.signal;
+    const res = await base(input, { ...init, signal }).finally(() => clearTimeout(headers));
+    if (!res.body) return res;
+    const reader = res.body.getReader();
+    const body = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const idle = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(stalled()), idleMs); });
+        try {
+          const { done, value } = await Promise.race([reader.read(), idle]);
+          if (done) controller.close(); else controller.enqueue(value);
+        } catch (err) {
+          abort.abort(err);
+          void reader.cancel(err).catch(() => {});
+          controller.error(err);
+        } finally { clearTimeout(timer); }
+      },
+      cancel(reason) { return reader.cancel(reason); },
+    });
+    return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers });
+  };
+  return Object.assign(wrapped, base) as typeof fetch;
+}

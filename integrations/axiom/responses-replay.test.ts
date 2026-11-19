@@ -49,3 +49,15 @@ test('other requests and non-JSON bodies pass through untouched', async () => {
   await f('https://x/responses', { method: 'GET' });
   expect(seen.map((i) => i?.body)).toEqual(['{"input":[]}', 'not json', undefined]);
 });
+
+test('stallGuardFetch errors a body that goes silent, passes a live one through', async () => {
+  const { stallGuardFetch } = await import('./responses-replay.ts');
+  const enc = new TextEncoder();
+  const silent = new ReadableStream({ start(c) { c.enqueue(enc.encode('data: 1\n')); } }); // never closes
+  const f = stallGuardFetch((async () => new Response(silent)) as unknown as typeof fetch, 50);
+  await expect((await f('https://x/responses')).text()).rejects.toThrow('stream stalled');
+  const ok = stallGuardFetch((async () => new Response('all of it')) as unknown as typeof fetch, 50);
+  expect(await (await ok('https://x/responses')).text()).toBe('all of it');
+  const hang = stallGuardFetch(((_: string, init: RequestInit) => new Promise((_r, rej) => init.signal!.addEventListener('abort', () => rej(init.signal!.reason)))) as unknown as typeof fetch, 50);
+  await expect(hang('https://x/responses')).rejects.toThrow('stream stalled');
+});

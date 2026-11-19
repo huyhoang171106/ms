@@ -94,3 +94,9 @@ test('a reply whose only call has empty code is resampled once, billed together'
   const twice = await createCpyGate().chat(msgs(['user', 'task']), scripted(empty, empty).send);
   expect(twice.toolCalls?.[0].id).toBe('e'); // still empty: the tool's error reaches the model
 });
+
+test('a stalled stream is retried once', async () => {
+  let n = 0;
+  const send = async () => { if (n++ === 0) throw new Error('openai-codex: stream stalled: no data for 300s'); return { content: 'ok' }; };
+  expect((await createCpyGate().chat(msgs(['user', 'task']), send)).content).toBe('ok');
+});
