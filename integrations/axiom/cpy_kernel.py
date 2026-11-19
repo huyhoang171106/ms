@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -34,12 +35,18 @@ class Shell(str):
 
 def bash(cmd, timeout=600):
     shell = "/bin/bash" if os.path.exists("/bin/bash") else "/bin/sh"
+    # Own process group: on timeout kill the whole tree. subprocess.run kills only the shell, so a hung server or test
+    # run it started kept running (and holding ports, files and CPU) for the rest of the episode.
+    p = subprocess.Popen(cmd, shell=True, executable=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                         stdin=subprocess.DEVNULL, start_new_session=True)
     try:
-        r = subprocess.run(cmd, shell=True, executable=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                           stdin=subprocess.DEVNULL, timeout=timeout)
-        return Shell(r.returncode, r.stdout.decode(errors="replace"))
-    except subprocess.TimeoutExpired as e:
-        return Shell(124, (e.stdout or b"").decode(errors="replace") + f"\n[timed out after {timeout}s]")
+        out, _ = p.communicate(timeout=timeout)
+        return Shell(p.returncode, out.decode(errors="replace"))
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(p.pid, signal.SIGKILL)
+        out, _ = p.communicate()
+        return Shell(124, out.decode(errors="replace") + f"\n[timed out after {timeout}s]")
 
 
 def clip(text):
@@ -88,6 +95,12 @@ if __name__ == "__main__":
         assert "SystemExit" in run("raise SystemExit(1)", ns)
         assert run("import os; os.system('echo raw'); 0", ns) == "raw\n0\n", "fd-level output is captured"
         assert run("print(1)", ns) == "1\n"
+        import time
+        t = time.time()
+        out = run("bash('sleep 31.5 & sleep 31.5; echo never', timeout=1)", ns)
+        assert "[exit 124]" in out and "never" not in out and time.time() - t < 10
+        time.sleep(0.2)
+        assert "sleep 31.5" not in bash("ps -eo args").out, "timeout kills the whole process group"
         _out.write("ok\n")
     else:
         main()
