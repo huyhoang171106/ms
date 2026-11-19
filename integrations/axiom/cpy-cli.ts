@@ -53,7 +53,7 @@ if (!fs.statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
 // Read by Axiom's providers when the request is built.
 if (values.effort) process.env.AXIOM_REASONING_EFFORT = values.effort;
 // Responses routes: replay reasoning across turns, one prompt_cache_key per run, low verbosity (see responses-replay.ts).
-globalThis.fetch = stallGuardFetch(globalThis.fetch, 300_000);
+globalThis.fetch = stallGuardFetch(globalThis.fetch, 120_000);
 if (!values['no-replay']) globalThis.fetch = responsesReplayFetch(globalThis.fetch, { cacheKey: randomUUID() });
 
 const axiomDir = path.resolve(process.env.AXIOM_CLI_DIR ?? path.join(import.meta.dirname, '../../../nhom-30/axiom-cli'));

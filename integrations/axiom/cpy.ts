@@ -112,7 +112,7 @@ export function addUsage<U extends object>(a: U | undefined, b: U | undefined): 
 /**
  * The C_py chat gate. `chat` wraps one provider call; `toolEnded` sees every tool result; `isComplete` answers AgentLoop.
  * - Trim old tool outputs (keep 3; keep 1 after the reminder: lean14 tokens/pass 102k -> 62k). Never below 8000 chars: lean20 cobol re-read files 10x at 1500.
- * - Retry once on a spurious "flagged" stream error (lean10 cobol lost a run; pi/codex retry those) or a stalled stream (see stallGuardFetch).
+ * - Retry once on a spurious "flagged" stream error (lean10 cobol lost a run; pi/codex retry those).
  * - After the reminder, a final reply that still admits a gap gets one ephemeral nudge (lean19 cobol 2/3 fails); its usage is still billed.
  * - Text that is a JSON call runs as the call.
  * - A reply whose only calls carry empty code is resampled once instead of entering history (luna, lean20-30: 0.3/run,
@@ -129,7 +129,7 @@ export function createCpyGate(opts: { trim?: boolean; onExtraTurn?: () => void }
     async chat<P extends { messages: Msg[] }, R extends Reply>(params: P, send: (p: P) => Promise<R>): Promise<R> {
       const reminded = params.messages.some((m) => m.role === 'user' && String(m.content).startsWith('You stopped.'));
       const sent = opts.trim === false ? params : { ...params, messages: trimOldToolOutputs(params.messages, reminded ? 1 : 3) };
-      const call = (p: P) => send(p).catch((err: unknown) => { if (/flagged as potentially violating|stream stalled/i.test(String(err))) return send(p); throw err; });
+      const call = (p: P) => send(p).catch((err: unknown) => { if (/flagged as potentially violating/i.test(String(err))) return send(p); throw err; });
       let res = await call(sent);
       const blank = (r: R) => !!r.toolCalls?.length && r.toolCalls.every((c) => typeof c.arguments.code !== 'string' || !c.arguments.code.trim());
       if (blank(res)) {

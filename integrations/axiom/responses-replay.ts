@@ -96,7 +96,8 @@ async function record(stream: ReadableStream<Uint8Array>, reasoning: Map<string,
 /**
  * Fails a request whose response (headers or body) sends nothing for `idleMs`, so the caller can retry instead of
  * waiting out the whole episode: tb21-luna-lean30 fix-vuln sat 876s on one stalled stream until the 900s agent timeout.
- * Idle, not total: a long reply keeps streaming events. The error message contains "stream stalled".
+ * Idle, not total: a long reply keeps streaming events. Axiom wraps the error as "stream failed", which it retries up to
+ * 6x; so the idle limit times 6 must fit the agent timeout (lean34: 300s x stacked retries outlived the 900s budget).
  */
 export function stallGuardFetch(base: typeof fetch, idleMs: number): typeof fetch {
   const wrapped = async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {

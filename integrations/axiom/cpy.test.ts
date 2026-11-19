@@ -95,8 +95,9 @@ test('a reply whose only call has empty code is resampled once, billed together'
   expect(twice.toolCalls?.[0].id).toBe('e'); // still empty: the tool's error reaches the model
 });
 
-test('a stalled stream is retried once', async () => {
+test('a stalled stream is left to Axiom\'s retry (it already retries "stream failed" up to 6x)', async () => {
   let n = 0;
-  const send = async () => { if (n++ === 0) throw new Error('openai-codex: stream stalled: no data for 300s'); return { content: 'ok' }; };
-  expect((await createCpyGate().chat(msgs(['user', 'task']), send)).content).toBe('ok');
+  const send = async () => { n++; throw new Error('openai-codex stream failed for model m: stream stalled: no data for 120s'); };
+  await expect(createCpyGate().chat(msgs(['user', 'task']), send)).rejects.toThrow('stream stalled');
+  expect(n).toBe(1);
 });
