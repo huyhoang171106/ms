@@ -65,3 +65,30 @@ try {
   assert.deepEqual(report.passed, ['test_one.py::test_one'], report.summary);
   console.log('persistent Python, workspace edits, isolated pytest: OK');
 } finally { fs.rmSync(root, { recursive: true, force: true }); }
+
+// C_py system spec (Terminal-Bench runner): terse, carries env + stop rule, cwd filled by the runner.
+{
+  const { PYTHON_SYSTEM, PYTHON_DESCRIPTION } = await import('../integrations/axiom/cpy.ts');
+  assert.ok(PYTHON_SYSTEM.length + PYTHON_DESCRIPTION.length < 1400, 'spec stays terse');
+  assert.ok(PYTHON_SYSTEM.includes('{cwd}') && PYTHON_SYSTEM.includes('stop:') && PYTHON_SYSTEM.includes('every branch'));
+}
+
+{
+  const { trimOldToolOutputs } = await import('../integrations/axiom/cpy.ts');
+  const big = 'x'.repeat(10000);
+  const msgs = [{ role: 'user', content: big }, { role: 'tool', content: big }, { role: 'tool', content: 'short' }, { role: 'tool', content: big }, { role: 'tool', content: big }];
+  const t = trimOldToolOutputs(msgs);
+  assert.ok(t[0].content === big && t[2].content === 'short' && t[3].content === big && t[4].content === big, 'user, short and last three kept');
+  assert.ok(t[1].content.length < 2500 && t[1].content.includes('elided'), 'old long tool output clipped');
+  assert.equal(msgs[1].content, big, 'input not mutated');
+}
+
+// TB kernel: a child reading stdin gets EOF instead of blocking on the open request pipe (lean26: `sed -n 1p` with no file hung 900s).
+{
+  const { spawn } = await import('node:child_process');
+  const k = spawn('python3', ['-u', path.join(import.meta.dirname, '../integrations/axiom/cpy_kernel.py')], { stdio: ['pipe', 'pipe', 'inherit'] });
+  const reply = new Promise<string>((res) => k.stdout.once('data', (d) => res(String(d))));
+  k.stdin.write(JSON.stringify({ code: 'import subprocess\ntry: print(subprocess.run(["sed","-n","1p"],capture_output=True,text=True,timeout=3).returncode)\nexcept subprocess.TimeoutExpired: print("blocked")' }) + '\n');
+  const out = await reply; k.kill();
+  assert.equal(out, '{"output": "0\\n"}\n', 'kernel stdin isolation');
+}
