@@ -8,10 +8,15 @@ PY=$(ls -d ~/.local/share/uv/python/cpython-3.12.*-linux-x86_64-gnu | head -1)
 
 rm -rf "$OUT"; mkdir -p "$OUT/home"
 cargo build --release -q -p ms-cli --target x86_64-unknown-linux-musl  # static: TB images ship older glibc
-bun build benchmarks/tb/runner.ts --target=bun --define "process.env.MS_REPL_BATCH_PROMPT=\"${MS_REPL_BATCH_PROMPT:-1}\"" --define "process.env.MS_CPY_WORKFLOW=\"${MS_CPY_WORKFLOW:-1}\"" --outfile "$OUT/runner.js" >/dev/null
+bun build benchmarks/tb/runner.ts --target=bun --define "process.env.MS_REPL_BATCH_PROMPT=\"${MS_REPL_BATCH_PROMPT:-1}\"" --define "process.env.MS_CPY_WORKFLOW=\"${MS_CPY_WORKFLOW:-1}\"" --define "process.env.MS_CPY_REASONING=\"${MS_CPY_REASONING:-1}\"" --outfile "$OUT/runner.js" >/dev/null
 cp -r "$CATALOG/providers" "$CATALOG/auth" "$OUT/"   # loadCatalog reads these next to the bundle
 cp target/x86_64-unknown-linux-musl/release/ms "$(command -v bun)" integrations/axiom/cpy_kernel.py "$OUT/"
 cp -r "$PY" "$OUT/python"
+# The bundle inlines axiom-cli as it is on disk, uncommitted edits included (team repo: not committed from here).
+# Record exactly what went in so any run can be rebuilt: HEAD + diff of tracked and untracked files.
+A=../nhom-30
+{ git -C $A rev-parse HEAD; git -C $A status --short -- axiom-cli; } > "$OUT/axiom.rev"
+{ git -C $A diff HEAD -- axiom-cli; git -C $A ls-files --others --exclude-standard -z -- axiom-cli/src | xargs -0 -r -I{} git -C $A diff --no-index /dev/null {} || true; } > "$OUT/axiom.diff"
 rm -rf "$OUT"/python/lib/python3.*/{test,idlelib,tkinter,turtledemo,ensurepip}
 
 # Only access tokens go in (PROVIDERS, default openai-codex): no refresh token, so nothing in a container can rotate the host login.

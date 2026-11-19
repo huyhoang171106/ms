@@ -81,3 +81,16 @@ test('python tool keeps state, isolates stdin and reports an empty call', async 
     expect(await tool.execute({ code: ' ' })).toMatch(/^Error: `code` is required/);
   } finally { await tool.close(); }
 });
+
+test('a reply whose only call has empty code is resampled once, billed together', async () => {
+  let extra = 0;
+  const g = createCpyGate({ onExtraTurn: () => extra++ });
+  const empty = { content: '', toolCalls: [{ id: 'e', name: 'python', arguments: { code: ' ' } }], usage: { promptTokens: 5 } };
+  const real = { content: '', toolCalls: [{ id: 'r', name: 'python', arguments: { code: 'print(1)' } }], usage: { promptTokens: 7 } };
+  const s = scripted(empty, real);
+  const res = await g.chat(msgs(['user', 'task']), s.send);
+  expect([res.toolCalls?.[0].id, res.usage, extra, s.seen.length]).toEqual(['r', { promptTokens: 12 }, 1, 2]);
+  expect(s.seen[1]).toBe(s.seen[0]); // same request, nothing added to history
+  const twice = await createCpyGate().chat(msgs(['user', 'task']), scripted(empty, empty).send);
+  expect(twice.toolCalls?.[0].id).toBe('e'); // still empty: the tool's error reaches the model
+});

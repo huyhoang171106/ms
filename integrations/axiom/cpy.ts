@@ -113,6 +113,8 @@ export function addUsage<U extends object>(a: U | undefined, b: U | undefined): 
  * - Retry once on a spurious "flagged" stream error (lean10 cobol lost a run; pi/codex retry those).
  * - After the reminder, a final reply that still admits a gap gets one ephemeral nudge (lean19 cobol 2/3 fails); its usage is still billed.
  * - Text that is a JSON call runs as the call.
+ * - A reply whose only calls carry empty code is resampled once instead of entering history (luna, lean20-30: 0.3/run,
+ *   each a full turn that only produced "Error: `code` is required.").
  * - A stop skips the reminder only right after a passing tool result AND a passing-suite claim (lean19-22: 12/12 such stops made no edit after it).
  */
 export function createCpyGate(opts: { trim?: boolean; onExtraTurn?: () => void } = {}) {
@@ -127,6 +129,13 @@ export function createCpyGate(opts: { trim?: boolean; onExtraTurn?: () => void }
       const sent = opts.trim === false ? params : { ...params, messages: trimOldToolOutputs(params.messages, reminded ? 1 : 3) };
       const call = (p: P) => send(p).catch((err: unknown) => { if (/flagged as potentially violating/i.test(String(err))) return send(p); throw err; });
       let res = await call(sent);
+      const blank = (r: R) => !!r.toolCalls?.length && r.toolCalls.every((c) => typeof c.arguments.code !== 'string' || !c.arguments.code.trim());
+      if (blank(res)) {
+        opts.onExtraTurn?.();
+        const first = res;
+        res = await call(sent);
+        res = { ...res, usage: addUsage(first.usage, res.usage) };
+      }
       if (reminded && !nudged && !res.toolCalls?.length && admitsGap(res.content ?? '')) {
         nudged = true;
         opts.onExtraTurn?.();

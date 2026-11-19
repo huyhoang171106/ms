@@ -5,6 +5,7 @@
  *   B_repl   integrations/axiom python_repl (sh/patch/lint helpers + batching workflow), unsandboxed: the container is the sandbox
  * Usage and per-call traces are rewritten to --out after every tool call, so a harbor timeout still leaves numbers.
  */
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -21,6 +22,7 @@ import type { BaseTool } from '../../../nhom-30/axiom-cli/src/tools/base-tool.js
 import { ToolRegistry } from '../../../nhom-30/axiom-cli/src/tools/registry.js';
 import { buildMsSystemPrompt, createMsTool } from '../../integrations/axiom/ms-tool.js';
 import { PYTHON_REPL_WORKFLOW, buildPythonReplPrompt, createPythonRepl, hostPython } from '../../integrations/axiom/python-repl.js';
+import { responsesReplayFetch } from '../../integrations/axiom/responses-replay.js';
 import { PYTHON_SYSTEM, admitsGap, createCpyGate, createPythonTool, looksFailed } from '../../integrations/axiom/cpy.js';
 
 const arg = (name: string, fallback?: string): string => {
@@ -136,6 +138,8 @@ try {
       return { ...resolveModel(`${model.slice(0, slash)}/${first.id}`, catalog, config), id, name: id };
     }
   })();
+  // MS_CPY_REASONING is baked in by build.sh: replay reasoning + prompt_cache_key + low verbosity on Responses routes (as pi/codex do).
+  if (arm === 'C_py' && process.env.MS_CPY_REASONING !== '0') globalThis.fetch = responsesReplayFetch(globalThis.fetch, { cacheKey: randomUUID() });
   const raw = await createProviderFor(modelInfo);
   const provider = Object.assign(Object.create(Object.getPrototypeOf(raw)), raw, {
     chat: async (params: Parameters<typeof raw.chat>[0]) => {

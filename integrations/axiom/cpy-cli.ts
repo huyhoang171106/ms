@@ -10,12 +10,14 @@
  * next to this repo) and uses its logins (~/.axiom/auth.json). Progress goes to stderr, the final reply to stdout;
  * exit 0 when the run completed, 1 otherwise.
  */
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { PYTHON_SYSTEM, createCpyGate, createPythonTool } from './cpy.js';
+import { responsesReplayFetch } from './responses-replay.js';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -24,12 +26,13 @@ const { values, positionals } = parseArgs({
     effort: { type: 'string' },
     cwd: { type: 'string', default: process.cwd() },
     'max-steps': { type: 'string', default: '150' },
+    'no-replay': { type: 'boolean' },
     python: { type: 'string', default: 'python3' },
     help: { type: 'boolean', short: 'h' },
   },
 });
 if (values.help) {
-  console.log('EXPERIMENTAL. Usage: cpy-cli.ts [--model ID] [--effort low|medium|high] [--cwd DIR] [--max-steps N] [--python BIN] "task" (or task on stdin)');
+  console.log('EXPERIMENTAL. Usage: cpy-cli.ts [--model ID] [--effort low|medium|high] [--cwd DIR] [--max-steps N] [--python BIN] [--no-replay] "task" (or task on stdin)');
   process.exit(0);
 }
 const task = (positionals.join(' ') || (process.stdin.isTTY ? '' : fs.readFileSync(0, 'utf8'))).trim();
@@ -49,6 +52,8 @@ if (!fs.statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
 }
 // Read by Axiom's providers when the request is built.
 if (values.effort) process.env.AXIOM_REASONING_EFFORT = values.effort;
+// Responses routes: replay reasoning across turns, one prompt_cache_key per run, low verbosity (see responses-replay.ts).
+if (!values['no-replay']) globalThis.fetch = responsesReplayFetch(globalThis.fetch, { cacheKey: randomUUID() });
 
 const axiomDir = path.resolve(process.env.AXIOM_CLI_DIR ?? path.join(import.meta.dirname, '../../../nhom-30/axiom-cli'));
 const ax = (rel: string) => import(path.join(axiomDir, 'src', rel));
