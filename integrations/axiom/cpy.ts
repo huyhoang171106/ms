@@ -14,7 +14,7 @@ export const PYTHON_DESCRIPTION = [
  * C_py system prompt as a terse spec (one word where a sentence was): same rules as the prose version
  * (tb21-luna-lean5..15 traces: batching, quiet tests, branch coverage, stop rule), ~half the characters.
  * labels rule: lean31-34 fix-vuln, 6 of 6 failures listed the specific id + a broad catch-all and skipped its direct parent.
- * chain rule: lean32-39 cobol, 6 of 6 logic failures diverged only after consecutive runs on mutated .DAT files; the runs had checked single runs.
+ * width rule: lean32-40 cobol, 7 of 10 .DAT mismatches parsed INPUT.DAT by the 15-byte sample, not the PIC 9(10) layout; hidden 22-byte records read amount 0.
  * read rule: lean32-35 fix-vuln, 2.3 turns/run were a grep for a name followed by a sed of the lines it found.
  * fix rule: lean20-30 fix-vuln, 19 of 26 failures across C_py/pi/codex validated in the callers while the hidden test calls `_hkey` itself.
  * {cwd} is filled by the runner.
@@ -28,7 +28,7 @@ export const PYTHON_SYSTEM = [
   "  read: grep -n -A40 'def x' (whole def, one call). sed -n 'a,bp'. never char slices.",
   '  print: only needed lines. big data -> variables. repeated step -> function.',
   '  tests (only if project has them): first call, pytest -q --tb=short. never -rA/-v.',
-  '  verify: every branch, not only given input. pass == zero diff. mutates data files -> also diff 3+ chained runs, not run+restore.',
+  '  verify: every branch, not only given input. pass == zero diff. fixed-width input -> parse by declared field widths, test full-width values, not sample lengths.',
   '  fix: in the lowest shared function every caller routes through; hidden tests may call it directly.',
   '  failing build/test/check -> fix, rerun. never stop on failure.',
   '  text: no prose between calls. ground claims in output. every call executes code; never comment-only/empty calls (each costs a full turn).',
