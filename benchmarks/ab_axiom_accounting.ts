@@ -1,4 +1,4 @@
-import type { TokenUsage } from '../../nhom-30/src/core/types.js';
+import type { TokenUsage } from '../../nhom-30/axiom-cli/src/core/types.js';
 
 export type CacheWriteType = 'ephemeral_5m' | 'ephemeral_1h' | 'unknown';
 
@@ -48,7 +48,7 @@ export class UnknownModelPricingError extends Error {
   }
 }
 
-export const PRICING_SOURCE_DEFAULT = 'nhom-30/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier';
+export const PRICING_SOURCE_DEFAULT = 'nhom-30/axiom-cli/src/llm/cost-tracker.ts + Anthropic prompt caching 1.25x 5m write multiplier';
 export const PRICING_AS_OF_DATE = '2026-11-14';
 
 export const MODEL_PRICING_TABLE: Record<string, ModelPricingEntry> = {
@@ -94,7 +94,7 @@ export const MODEL_PRICING_TABLE: Record<string, ModelPricingEntry> = {
     outputPer1M: 10.00,
     cacheReadPer1M: 1.25,
     cacheWrite5mPer1M: 2.50,
-    source: 'nhom-30/src/llm/cost-tracker.ts',
+    source: 'nhom-30/axiom-cli/src/llm/cost-tracker.ts',
     asOfDate: PRICING_AS_OF_DATE,
   },
   'gpt-4o-mini': {
@@ -103,7 +103,7 @@ export const MODEL_PRICING_TABLE: Record<string, ModelPricingEntry> = {
     outputPer1M: 0.60,
     cacheReadPer1M: 0.075,
     cacheWrite5mPer1M: 0.15,
-    source: 'nhom-30/src/llm/cost-tracker.ts',
+    source: 'nhom-30/axiom-cli/src/llm/cost-tracker.ts',
     asOfDate: PRICING_AS_OF_DATE,
   },
   'gemini-2.5-flash': {
@@ -112,7 +112,7 @@ export const MODEL_PRICING_TABLE: Record<string, ModelPricingEntry> = {
     outputPer1M: 0.60,
     cacheReadPer1M: 0.0375,
     cacheWrite5mPer1M: 0.15,
-    source: 'nhom-30/src/llm/cost-tracker.ts',
+    source: 'nhom-30/axiom-cli/src/llm/cost-tracker.ts',
     asOfDate: PRICING_AS_OF_DATE,
   },
   'gemini-2.5-pro': {
@@ -121,7 +121,7 @@ export const MODEL_PRICING_TABLE: Record<string, ModelPricingEntry> = {
     outputPer1M: 5.00,
     cacheReadPer1M: 0.3125,
     cacheWrite5mPer1M: 1.25,
-    source: 'nhom-30/src/llm/cost-tracker.ts',
+    source: 'nhom-30/axiom-cli/src/llm/cost-tracker.ts',
     asOfDate: PRICING_AS_OF_DATE,
   },
 };

@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { redact, SECRET_NAME } from '../../nhom-30/src/core/secrets.js';
+import { redact, SECRET_NAME } from '../../nhom-30/axiom-cli/src/core/secrets.js';
 import type { CostCalculation, ModelPricingEntry, NormalizedUsage } from './ab_axiom_accounting.js';
 import type { AgentStatus, IndependentVerification } from './ab_axiom_oracle.js';
 import type { BenchmarkMode, BundledSkillMode, ExecutionPolicySnapshot, ToolTraceEntry } from './ab_axiom_tools.js';

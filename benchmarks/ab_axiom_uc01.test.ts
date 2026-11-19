@@ -5,10 +5,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { planSandbox } from '../../nhom-30/src/tools/sandbox.js';
-import { BUNDLED_SKILLS_DIR } from '../../nhom-30/src/tools/bundled-skills.js';
-import { registerSecret } from '../../nhom-30/src/core/secrets.js';
-import { destructiveReason } from '../../nhom-30/src/tools/bash.js';
+import { planSandbox } from '../../nhom-30/axiom-cli/src/tools/sandbox.js';
+import { BUNDLED_SKILLS_DIR } from '../../nhom-30/axiom-cli/src/tools/bundled-skills.js';
+import { registerSecret } from '../../nhom-30/axiom-cli/src/core/secrets.js';
+import { destructiveReason } from '../../nhom-30/axiom-cli/src/tools/bash.js';
 import {
   aggregateNormalizedUsage,
   calculateNormalizedCost,
@@ -40,7 +40,7 @@ import {
   gcLogDir,
   MsAxiomAdapter,
 } from '../examples/axiom_adapter.js';
-import { ToolRegistry } from '../../nhom-30/src/tools/registry.js';
+import { ToolRegistry } from '../../nhom-30/axiom-cli/src/tools/registry.js';
 import {
   buildInfraErrorRecord,
   NormalizedCostTracker,
@@ -49,8 +49,8 @@ import {
   type RunRecord,
 } from './ab_axiom_uc01.js';
 
-const FIXTURE_DIR = '/home/hoang/nhom-30/evals/fixtures/uc01';
-const CASES_DIR = '/home/hoang/nhom-30/evals/uc01';
+const FIXTURE_DIR = '/home/hoang/nhom-30/axiom-cli/evals/fixtures/uc01';
+const CASES_DIR = '/home/hoang/nhom-30/axiom-cli/evals/uc01';
 const tempDirs: string[] = [];
 
 function makeTempFixtureCopy(): string {
