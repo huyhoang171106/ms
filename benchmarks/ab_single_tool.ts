@@ -736,13 +736,15 @@ async function runOnce(
       try {
         return resolveModel(options.model, catalog, config);
       } catch (err) {
-        const slash = options.model.indexOf('/');
+        const level = /:(off|minimal|low|medium|high|xhigh)$/.exec(options.model)?.[0] ?? '';
+        const bare = options.model.slice(0, options.model.length - level.length);
+        const slash = bare.indexOf('/');
         if (slash <= 0) throw err;
-        const prov = options.model.slice(0, slash);
-        const customId = options.model.slice(slash + 1);
+        const prov = bare.slice(0, slash);
+        const customId = bare.slice(slash + 1);
         const firstForProv = catalog.models(prov)[0];
         if (!firstForProv) throw err;
-        return { ...resolveModel(`${prov}/${firstForProv.id}`, catalog, config), id: customId, name: customId };
+        return { ...resolveModel(`${prov}/${firstForProv.id}${level}`, catalog, config), id: customId, name: customId };
       }
     })();
     usageApi = modelInfo.api;

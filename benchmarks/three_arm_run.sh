@@ -29,8 +29,8 @@ lean_flag=()
 
 arm_ab() {
   local arm=$1
-  AXIOM_REASONING_EFFORT="$THINKING" stdbuf -oL -eL \
-    bun benchmarks/ab_single_tool.ts --pack uc01 --trials "$TRIALS" --model "$MODEL" --arms "$arm" "${case_flag[@]}" "${lean_flag[@]}" --out "$OUT/$arm" 2>&1 \
+  stdbuf -oL -eL \
+    bun benchmarks/ab_single_tool.ts --pack uc01 --trials "$TRIALS" --model "$MODEL:$THINKING" --arms "$arm" "${case_flag[@]}" "${lean_flag[@]}" --out "$OUT/$arm" 2>&1 \
     | stdbuf -oL tee -a "$OUT/logs/$arm.log"
 }
 

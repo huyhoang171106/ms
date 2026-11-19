@@ -32,7 +32,7 @@ const { values, positionals } = parseArgs({
   },
 });
 if (values.help) {
-  console.log('EXPERIMENTAL. Usage: cpy-cli.ts [--model ID] [--effort low|medium|high] [--cwd DIR] [--max-steps N] [--python BIN] [--replay] "task" (or task on stdin)');
+  console.log('EXPERIMENTAL. Usage: cpy-cli.ts [--model ID] [--effort off|minimal|low|medium|high|xhigh] [--cwd DIR] [--max-steps N] [--python BIN] [--replay] "task" (or task on stdin)');
   process.exit(0);
 }
 const task = (positionals.join(' ') || (process.stdin.isTTY ? '' : fs.readFileSync(0, 'utf8'))).trim();
@@ -51,7 +51,6 @@ if (!fs.statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
   process.exit(2);
 }
 // Read by Axiom's providers when the request is built.
-if (values.effort) process.env.AXIOM_REASONING_EFFORT = values.effort;
 // Opt-in: replay reasoning across turns, one prompt_cache_key per run, low verbosity (responses-replay.ts). No measured gain on TB (lean33 vs lean34).
 globalThis.fetch = stallGuardFetch(globalThis.fetch, 120_000);
 globalThis.fetch = sessionCacheFetch(globalThis.fetch, randomUUID());
@@ -103,7 +102,8 @@ process.on('SIGINT', () => { void close().finally(() => process.exit(130)); });
 let code = 1;
 try {
   const config = loadConfig();
-  const modelInfo = resolveModel(values.model, loadCatalog(), config);
+  // Axiom reads the thinking level from the selector suffix (`openai-codex/gpt-6-luna:medium`).
+  const modelInfo = resolveModel(values.effort ? `${values.model}:${values.effort}` : values.model, loadCatalog(), config);
   const raw = await createProviderFor(modelInfo);
   const provider = Object.assign(Object.create(Object.getPrototypeOf(raw)), raw, {
     chat: (params: { messages: Array<{ role: string; content: string }> }) => gate.chat(params, (p) => raw.chat(p)),

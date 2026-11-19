@@ -25,7 +25,7 @@ class AxiomArm(BaseAgent):
         super().__init__(*args, **kwargs)
         if arm not in ("A_eight", "B_one", "C_py", "B_repl"):
             raise ValueError(f"unknown arm {arm}")
-        if effort not in ("", "minimal", "low", "medium", "high", "xhigh", "max"):
+        if effort not in ("", "off", "minimal", "low", "medium", "high", "xhigh"):  # Axiom selector `:level` suffixes
             raise ValueError(f"unknown effort {effort}")
         self.arm, self.max_steps, self.effort = arm, int(max_steps), effort
 
@@ -50,8 +50,8 @@ class AxiomArm(BaseAgent):
         out = f"{self.environment_logs_dir}/result.json"
         cmd = (
             f"mkdir -p {shlex.quote(str(self.environment_logs_dir))} && "
-            f"AXIOM_HOME={REMOTE}/home AXIOM_REASONING_EFFORT={self.effort} {REMOTE}/bun {REMOTE}/runner.js --arm {self.arm} "
-            f"--model {shlex.quote(self.model_name or '')} --workspace \"$(pwd)\" --abx {REMOTE} "
+            f"AXIOM_HOME={REMOTE}/home {REMOTE}/bun {REMOTE}/runner.js --arm {self.arm} "
+            f"--model {shlex.quote((self.model_name or '') + (f':{self.effort}' if self.effort else ''))} --workspace \"$(pwd)\" --abx {REMOTE} "
             f"--instruction {REMOTE}/instruction.md --out {shlex.quote(out)} --max-steps {self.max_steps} "
             f"> {shlex.quote(str(self.environment_logs_dir))}/runner.log 2>&1"
         )
