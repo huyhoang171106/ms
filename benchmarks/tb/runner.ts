@@ -131,11 +131,14 @@ try {
     try {
       return resolveModel(model, catalog, config);
     } catch (err) {
-      const slash = model.indexOf('/');
-      const first = slash > 0 ? catalog.models(model.slice(0, slash))[0] : undefined;
+      // Uncatalogued id: borrow the provider's first model, keeping a `:level` thinking suffix on the selector.
+      const level = /:(off|minimal|low|medium|high|xhigh)$/.exec(model)?.[0] ?? '';
+      const bare = model.slice(0, model.length - level.length);
+      const slash = bare.indexOf('/');
+      const first = slash > 0 ? catalog.models(bare.slice(0, slash))[0] : undefined;
       if (!first) throw err;
-      const id = model.slice(slash + 1);
-      return { ...resolveModel(`${model.slice(0, slash)}/${first.id}`, catalog, config), id, name: id };
+      const id = bare.slice(slash + 1);
+      return { ...resolveModel(`${bare.slice(0, slash)}/${first.id}${level}`, catalog, config), id, name: id };
     }
   })();
   globalThis.fetch = stallGuardFetch(globalThis.fetch, 120_000);
