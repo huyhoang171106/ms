@@ -17,7 +17,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { PYTHON_SYSTEM, createCpyGate, createPythonTool } from './cpy.js';
-import { responsesReplayFetch, stallGuardFetch } from './responses-replay.js';
+import { responsesReplayFetch, sessionCacheFetch, stallGuardFetch } from './responses-replay.js';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -54,6 +54,7 @@ if (!fs.statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
 if (values.effort) process.env.AXIOM_REASONING_EFFORT = values.effort;
 // Opt-in: replay reasoning across turns, one prompt_cache_key per run, low verbosity (responses-replay.ts). No measured gain on TB (lean33 vs lean34).
 globalThis.fetch = stallGuardFetch(globalThis.fetch, 120_000);
+globalThis.fetch = sessionCacheFetch(globalThis.fetch, randomUUID());
 if (values.replay) globalThis.fetch = responsesReplayFetch(globalThis.fetch, { cacheKey: randomUUID() });
 
 const axiomDir = path.resolve(process.env.AXIOM_CLI_DIR ?? path.join(import.meta.dirname, '../../../nhom-30/axiom-cli'));

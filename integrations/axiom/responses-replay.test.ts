@@ -61,3 +61,14 @@ test('stallGuardFetch errors a body that goes silent, passes a live one through'
   const hang = stallGuardFetch(((_: string, init: RequestInit) => new Promise((_r, rej) => init.signal!.addEventListener('abort', () => rej(init.signal!.reason)))) as unknown as typeof fetch, 50);
   await expect(hang('https://x/responses')).rejects.toThrow('stream stalled');
 });
+
+test('sessionCacheFetch tags /responses POSTs with one session id, leaves others alone', async () => {
+  const { sessionCacheFetch } = await import('./responses-replay.ts');
+  const seen: Array<RequestInit | undefined> = [];
+  const f = sessionCacheFetch((async (_u: string, init?: RequestInit) => { seen.push(init); return new Response('ok'); }) as unknown as typeof fetch, 's1');
+  await f('https://x/backend-api/codex/responses', { method: 'POST', headers: { a: 'b' }, body: '{"input":[]}' });
+  await f('https://x/v1/messages', { method: 'POST', body: '{}' });
+  const h = new Headers(seen[0]!.headers);
+  expect([h.get('session-id'), h.get('x-client-request-id'), h.get('a'), JSON.parse(String(seen[0]!.body)).prompt_cache_key]).toEqual(['s1', 's1', 'b', 's1']);
+  expect(seen[1]!.body).toBe('{}');
+});

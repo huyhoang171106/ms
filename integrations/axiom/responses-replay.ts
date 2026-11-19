@@ -127,3 +127,22 @@ export function stallGuardFetch(base: typeof fetch, idleMs: number): typeof fetc
   };
   return Object.assign(wrapped, base) as typeof fetch;
 }
+
+/**
+ * Routes every `/responses` request of one run to the same prompt cache, as pi does (body `prompt_cache_key` plus
+ * `session-id` / `x-client-request-id` headers). Axiom sends neither: tb21-luna-lean38-43 C_py hit cache on 12% of
+ * input vs pi 67%, codex 85%, though a simulated replay of those traces keeps ~83% of each request's prefix stable.
+ */
+export function sessionCacheFetch(base: typeof fetch, sessionId: string): typeof fetch {
+  const wrapped = async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (!/\/responses(\?|$)/.test(url) || init?.method !== 'POST' || typeof init.body !== 'string') return base(input, init);
+    let body: Item;
+    try { body = JSON.parse(init.body); } catch { return base(input, init); }
+    const headers = new Headers(init.headers);
+    headers.set('session-id', sessionId);
+    headers.set('x-client-request-id', sessionId);
+    return base(input, { ...init, headers, body: JSON.stringify({ ...body, prompt_cache_key: body.prompt_cache_key ?? sessionId }) });
+  };
+  return Object.assign(wrapped, base) as typeof fetch;
+}
