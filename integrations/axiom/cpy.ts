@@ -36,11 +36,17 @@ export const PYTHON_SYSTEM = [
   '  stop: result exists && check passes -> 1-line summary. no tool call == run ends.',
 ].join('\n');
 
-export function createPythonTool(opts: { python: string; kernel: string; cwd: string; timeoutMs: number; preview?: boolean }) {
+/** R_llm: the extra tool line and system rule for the kernel's llm() (one tool-less sub-model call answered by the host). */
+export const LLM_DESCRIPTION = 'llm(prompt, ctx=None) -> str: one tool-less sub-model call; ctx (file text, logs, data) never enters your history.';
+// Filter-first: a local smoke (6000-line log, find the one ERROR) spent 72k child tokens on what one grep returns for free.
+export const LLM_RULE = '  llm: code can filter it (grep/parse/regex) -> filter, no llm. big text that needs reading (>4k chars: source, docs, long failing output) -> llm(question, ctx); print only its answer. exact lines/values -> ask it to quote them with line numbers.';
+export type KernelRpc = { rpc: string; prompt?: string; ctx?: string };
+
+export function createPythonTool(opts: { python: string; kernel: string; cwd: string; timeoutMs: number; preview?: boolean; rpc?: (msg: KernelRpc) => Promise<string> }) {
   let child: ChildProcessWithoutNullStreams | undefined;
   let lines: AsyncIterator<string> | undefined;
   const start = () => {
-    child = spawn(opts.python, ['-u', opts.kernel, ...(opts.preview ? ['--preview'] : [])], { cwd: opts.cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: true });
+    child = spawn(opts.python, ['-u', opts.kernel, ...(opts.preview ? ['--preview'] : []), ...(opts.rpc ? ['--rpc'] : [])], { cwd: opts.cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: true });
     child.stderr.resume();
     lines = readline.createInterface({ input: child.stdout })[Symbol.asyncIterator]();
   };
@@ -48,29 +54,39 @@ export function createPythonTool(opts: { python: string; kernel: string; cwd: st
     if (child?.pid) try { process.kill(group ? -child.pid : child.pid, 'SIGKILL'); } catch { /* already gone */ }
     child = undefined;
   };
+  const description = opts.rpc ? `${PYTHON_DESCRIPTION}\n${LLM_DESCRIPTION}` : PYTHON_DESCRIPTION;
   return {
     name: 'python',
-    description: PYTHON_DESCRIPTION,
+    description,
     parameters: { type: 'object' as const, properties: { code: { type: 'string', description: 'Python source to run' } }, required: ['code'] },
     isReadOnly: false,
     toDefinition() {
-      return { name: this.name, description: PYTHON_DESCRIPTION, parameters: this.parameters };
+      return { name: this.name, description, parameters: this.parameters };
     },
     async execute(args: Record<string, unknown>): Promise<string> {
       const code = typeof args.code === 'string' ? args.code : '';
       if (!code.trim()) return 'Error: `code` is required.';
       if (!child) start();
       child!.stdin.write(`${JSON.stringify({ code })}\n`);
-      let timer: NodeJS.Timeout | undefined;
-      const timeout = new Promise<'timeout'>((resolve) => { timer = setTimeout(() => resolve('timeout'), opts.timeoutMs); });
-      const next = await Promise.race([lines!.next(), timeout]).finally(() => clearTimeout(timer));
-      if (next === 'timeout' || next.done) {
-        kill();
-        return next === 'timeout'
-          ? `Error: cell exceeded ${opts.timeoutMs / 1000}s; the REPL was restarted and its state is lost.`
-          : 'Error: the REPL process exited; its state is lost.';
+      const deadline = Date.now() + opts.timeoutMs;
+      for (;;) {
+        let timer: NodeJS.Timeout | undefined;
+        const timeout = new Promise<'timeout'>((resolve) => { timer = setTimeout(() => resolve('timeout'), Math.max(0, deadline - Date.now())); });
+        const next = await Promise.race([lines!.next(), timeout]).finally(() => clearTimeout(timer));
+        if (next === 'timeout' || next.done) {
+          kill();
+          return next === 'timeout'
+            ? `Error: cell exceeded ${opts.timeoutMs / 1000}s; the REPL was restarted and its state is lost.`
+            : 'Error: the REPL process exited; its state is lost.';
+        }
+        const msg = JSON.parse(next.value);
+        if (typeof msg.rpc !== 'string') return String(msg.output);
+        // A kernel call (llm()) blocks the cell until the host answers on stdin; a failure is raised inside the cell.
+        const reply = opts.rpc
+          ? await opts.rpc(msg).then((result) => ({ result }), (err: unknown) => ({ error: err instanceof Error ? err.message : String(err) }))
+          : { error: 'rpc is not enabled' };
+        child?.stdin.write(`${JSON.stringify(reply)}\n`);
       }
-      return String(JSON.parse(next.value).output);
     },
     // keepServices: kill only the kernel, so servers the task asked to leave running (Popen/os.system share the kernel's
     // group) survive into verification: tb21 kv-store-grpc C_py 0/7, all 5 plain-Popen servers dead at the verifier.

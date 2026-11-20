@@ -93,6 +93,21 @@ test('python tool keeps state, isolates stdin and reports an empty call', async 
   } finally { await tool.close(); }
 });
 
+test('llm(): the kernel asks the host mid-cell, keeps state, and raises a host failure inside the cell', async () => {
+  const seen: unknown[] = [];
+  const rpc = async (m: { rpc: string; prompt?: string; ctx?: string }) => { seen.push(m); if (m.prompt === 'boom') throw new Error('quota'); return `answer:${m.ctx?.length}`; };
+  const tool = createPythonTool({ python: 'python3', kernel: path.join(import.meta.dirname, 'cpy_kernel.py'), cwd: import.meta.dirname, timeoutMs: 10_000, rpc });
+  try {
+    expect(tool.toDefinition().description).toContain('llm(prompt');
+    expect(await tool.execute({ code: "big = 'x' * 50000\na = llm('count', big)\nb = llm('again')\nprint(a, b)" })).toBe('answer:50000 answer:0\n');
+    expect(seen).toEqual([{ rpc: 'llm', prompt: 'count', ctx: 'x'.repeat(50000) }, { rpc: 'llm', prompt: 'again', ctx: '' }]);
+    expect(await tool.execute({ code: "llm('boom')" })).toContain('RuntimeError: llm() failed: quota');
+    expect(await tool.execute({ code: 'a' })).toBe("'answer:50000'\n");
+  } finally { await tool.close(); }
+  const plain = createPythonTool({ python: 'python3', kernel: path.join(import.meta.dirname, 'cpy_kernel.py'), cwd: import.meta.dirname, timeoutMs: 10_000 });
+  try { expect(await plain.execute({ code: "llm('x')" })).toContain("NameError: name 'llm' is not defined"); } finally { await plain.close(); }
+});
+
 test('sys.executable points at the container python on PATH, not the kernel interpreter', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cpy-sys-'));
   fs.writeFileSync(path.join(dir, 'python3'), '#!/bin/sh\n', { mode: 0o755 });

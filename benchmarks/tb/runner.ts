@@ -23,7 +23,7 @@ import { ToolRegistry } from '../../../nhom-30/axiom-cli/src/tools/registry.js';
 import { buildMsSystemPrompt, createMsTool } from '../../integrations/axiom/ms-tool.js';
 import { PYTHON_REPL_WORKFLOW, buildPythonReplPrompt, createPythonRepl, hostPython } from '../../integrations/axiom/python-repl.js';
 import { responsesReplayFetch, sessionCacheFetch, stallGuardFetch } from '../../integrations/axiom/responses-replay.js';
-import { PYTHON_SYSTEM, admitsGap, createCpyGate, createPythonTool, looksFailed } from '../../integrations/axiom/cpy.js';
+import { LLM_RULE, PYTHON_SYSTEM, admitsGap, createCpyGate, createPythonTool, looksFailed, type KernelRpc } from '../../integrations/axiom/cpy.js';
 
 const arg = (name: string, fallback?: string): string => {
   const i = process.argv.indexOf(`--${name}`);
@@ -41,6 +41,10 @@ const maxSteps = Number(arg('max-steps', '150'));
 // (luna-low-fast10: 2 runs sat 13 min at 120s and hit the 900s agent timeout). Lower it for low-effort runs.
 const stallMs = Number(arg('stall-ms', '120000'));
 const instruction = fs.readFileSync(arg('instruction'), 'utf8');
+// R_llm = C_py + llm(): the kernel asks the host for one tool-less call of the same model; its tokens are counted in record.child.
+const cpyArm = arm === 'C_py' || arm === 'R_llm';
+const LLM_CTX_MAX = 400_000; // chars; a larger ctx is cut with a note rather than failing the call
+let subLlm: ((msg: KernelRpc) => Promise<string>) | undefined; // bound once the provider exists
 
 function buildArm(): { registry: ToolRegistry; system: string; close: (completed: boolean) => Promise<void> } {
   if (arm === 'A_eight') {
@@ -62,12 +66,14 @@ function buildArm(): { registry: ToolRegistry; system: string; close: (completed
       .replace('Shell runs on a snapshot, so persist with the file API.', 'Shell runs in the workspace and its effects persist; the file API is confined to the workspace root.');
     return { registry, system, close: () => tool.close() };
   }
-  if (arm === 'C_py') {
+  if (cpyArm) {
     const registry = new ToolRegistry(['python']);
     registry.allowWithoutApprover = true;
-    const tool = createPythonTool({ python: path.join(abx, 'python/bin/python3'), kernel: path.join(abx, 'cpy_kernel.py'), cwd: workspace, timeoutMs: 900_000, preview: process.env.MS_CPY_PREVIEW === '1' });
+    const rpc = arm === 'R_llm' ? (msg: KernelRpc) => subLlm!(msg) : undefined;
+    const tool = createPythonTool({ python: path.join(abx, 'python/bin/python3'), kernel: path.join(abx, 'cpy_kernel.py'), cwd: workspace, timeoutMs: 900_000, preview: process.env.MS_CPY_PREVIEW === '1', rpc });
     registry.registerTool(tool as unknown as BaseTool);
-    return { registry, system: PYTHON_SYSTEM.replace('{cwd}', workspace), close: (completed) => tool.close(completed) };
+    const system = PYTHON_SYSTEM.replace('{cwd}', workspace);
+    return { registry, system: rpc ? system.replace('  stop:', `${LLM_RULE}\n  stop:`) : system, close: (completed) => tool.close(completed) };
   }
   if (arm === 'B_repl') {
     const registry = new ToolRegistry(['python_repl']);
@@ -84,6 +90,7 @@ function buildArm(): { registry: ToolRegistry; system: string; close: (completed
 const usage = { prompt: 0, completion: 0, cacheRead: 0, cacheWrite: 0, total: 0 };
 const record = {
   arm, model, status: 'running', error: undefined as string | undefined,
+  child: { calls: 0, failures: 0, prompt: 0, completion: 0, cacheRead: 0, cacheWrite: 0, ctxChars: 0 },
   llmTurns: 0, toolCalls: 0, toolFailures: 0, toolOutputBytes: 0, usage, wallMs: 0,
   perTurn: [] as Array<[ms: number, prompt: number, cacheRead: number]>,
   retries: [] as Array<[ms: number, attempt: number, reason: string]>, // cache diagnosis: hit pattern + idle gaps per request
@@ -155,12 +162,33 @@ try {
   if (process.env.MS_CPY_SESSION_CACHE === '1') globalThis.fetch = sessionCacheFetch(globalThis.fetch, randomUUID());
   // MS_CPY_REASONING=1 (baked in by build.sh) replays reasoning + prompt_cache_key + low verbosity on Responses routes (as pi/codex do).
   // Off by default: concurrent A/B lean33 (on) 77.8%/48.2k vs lean34 (off) 85.2%/49.9k, no measurable gain on luna medium.
-  if (arm === 'C_py' && process.env.MS_CPY_REASONING === '1') globalThis.fetch = responsesReplayFetch(globalThis.fetch, { cacheKey: randomUUID() });
+  if (cpyArm && process.env.MS_CPY_REASONING === '1') globalThis.fetch = responsesReplayFetch(globalThis.fetch, { cacheKey: randomUUID() });
   const raw = await createProviderFor(modelInfo);
+  subLlm = async ({ rpc, prompt = '', ctx = '' }) => {
+    if (rpc !== 'llm') throw new Error(`unknown kernel call ${rpc}`);
+    const c = record.child;
+    c.calls++;
+    c.ctxChars += ctx.length;
+    const body = ctx.length > LLM_CTX_MAX ? `${ctx.slice(0, LLM_CTX_MAX)}\n[ctx cut: first ${LLM_CTX_MAX} of ${ctx.length} chars]` : ctx;
+    const res = await raw.chat({
+      model: modelInfo.id,
+      maxTokens: 8192,
+      messages: [
+        { role: 'system', content: 'Answer the request about the given context. Exact and terse: quote exact lines/values (with line numbers when asked); no preamble.', timestamp: Date.now() },
+        { role: 'user', content: body ? `${prompt}\n\n<ctx>\n${body}\n</ctx>` : prompt, timestamp: Date.now() },
+      ],
+    } as Parameters<typeof raw.chat>[0]).catch((err: unknown) => { c.failures++; flush(); throw err; });
+    c.prompt += res.usage.promptTokens ?? 0;
+    c.completion += res.usage.completionTokens ?? 0;
+    c.cacheRead += res.usage.cacheReadInputTokens ?? 0;
+    c.cacheWrite += res.usage.cacheCreationInputTokens ?? 0;
+    flush();
+    return res.content;
+  };
   const provider = Object.assign(Object.create(Object.getPrototypeOf(raw)), raw, {
     chat: async (params: Parameters<typeof raw.chat>[0]) => {
       record.llmTurns++;
-      if (arm === 'C_py') return gate.chat(params, (p) => raw.chat(p));
+      if (cpyArm) return gate.chat(params, (p) => raw.chat(p));
       // tb21-luna-lean10 cobol: one run died on a spurious "flagged as potentially violating" stream error; pi/codex retry those.
       const res = await raw.chat(params).catch((err: unknown) => { if (/flagged as potentially violating/i.test(String(err))) return raw.chat(params); throw err; });
       sinceChat = true; if (!res.toolCalls?.length && admitsGap(res.content ?? '')) lastCheckPassed = false;
@@ -181,7 +209,7 @@ try {
     sessionManager: new SessionManager({ workspaceRoot: workspace, sessionsDir: path.join(abx, 'sessions'), autoSave: false }),
     costTracker: new CostTracker(),
     eventBus: bus,
-    systemPrompt: arm === 'C_py' ? system : `${system}\n\n${env}`,  // C_py's spec carries its own env lines
+    systemPrompt: cpyArm ? system : `${system}\n\n${env}`,  // C_py's spec carries its own env lines
     maxTokens: modelInfo.maxTokens ?? 32768,
     maxSteps,
     budgetLimitDollars: 20,
@@ -191,8 +219,8 @@ try {
     // C_py always gets the one reminder: tb21-luna-lean10 cobol 0/3 stopped after a passing check that only ran the given input (one branch).
     // C_py skips the reminder only when it stops on a passing test suite: lean19-22, 12/12 such stops (fix-vuln "All 367 tests pass")
     // made no edit after the reminder, which only cost 1-3 full-context turns. Stops on weaker evidence (syntax compile, one input) still get it.
-    isComplete: () => (arm === 'C_py' ? gate.isComplete() : arm === 'B_repl' && sinceChat && lastCheckPassed),
-    completionReminder: arm === 'C_py'
+    isComplete: () => (cpyArm ? gate.isComplete() : arm === 'B_repl' && sinceChat && lastCheckPassed),
+    completionReminder: cpyArm
       ? gate.reminder
       : 'You stopped. If anything you were asked to produce is missing or unverified, or a build/test you ran still fails, continue with tool calls now. Otherwise reply with a one-line final summary.',
   });

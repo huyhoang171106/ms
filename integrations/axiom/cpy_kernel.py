@@ -12,6 +12,7 @@ import tempfile
 import traceback
 
 LIMIT = 16_000
+RPC = "--rpc" in sys.argv[1:]  # R_llm arm: llm() asks the host for one sub-model call over the protocol pipe
 PREVIEW = "--preview" in sys.argv[1:]  # A/B flag: long outputs -> preview + out() paging instead of a 16k clip
 # Protocol gets its own fd; fds 1/2 are captured per cell so os.system/subprocess output cannot corrupt it.
 _out = os.fdopen(os.dup(1), "w")
@@ -49,6 +50,16 @@ def bash(cmd, timeout=600):
             os.killpg(p.pid, signal.SIGKILL)
         out, _ = p.communicate()
         return Shell(124, out.decode(errors="replace") + f"\n[timed out after {timeout}s]")
+
+
+def llm(prompt, ctx=None):
+    """One tool-less sub-model call on prompt (+ ctx, which never enters the caller's history); returns its text answer."""
+    _out.write(json.dumps({"rpc": "llm", "prompt": str(prompt), "ctx": "" if ctx is None else str(ctx)}) + "\n")
+    _out.flush()
+    reply = json.loads(_in.readline())
+    if "error" in reply:
+        raise RuntimeError(f"llm() failed: {reply['error']}")
+    return reply["result"]
 
 
 def clip(text):
@@ -128,7 +139,7 @@ def main():
     # 7/7 runs that pip-installed via sys.executable landed grpcio in the bundled python and failed; 3/3 via `python` passed.
     # ponytail: REPL imports still resolve against the bundled python; multiprocessing 'spawn' would now start the system one.
     sys.executable = system_python() or sys.executable
-    ns = {"__name__": "__main__", "bash": bash, "out": out}
+    ns = {"__name__": "__main__", "bash": bash, "out": out, **({"llm": llm} if RPC else {})}
     for line in _in:
         reply = run(json.loads(line)["code"], ns)
         _out.write(json.dumps({"output": reply}) + "\n")
