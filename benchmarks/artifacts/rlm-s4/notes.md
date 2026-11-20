@@ -1,0 +1,6 @@
+- Compare behavior against the original executable on representative valid, invalid, and boundary inputs before trusting a reimplementation. (evidence: VBTXFzg, T6rGtBU, rkCp5Lj)
+- Derive fixed-record widths from declarations and exercise complete-width fields; short fixtures can conceal parsing errors. (evidence: cLpof8W, T6rGtBU)
+- Reproduce optimized-only crashes and inspect the failing stack before changing allocator or initialization code; verify the actual exit status afterward. (evidence: 2ApY4DC, ii8rHip, TYWtf2p)
+- Validate interactive terminal behavior end to end, including delayed output, signals, startup configuration, and real interactive applications. (evidence: CvzD4bK, SqUfqFB, 8syQmA8)
+- Test protocol compatibility with an independent client using the specified field names, not only generated code from your own schema. (evidence: ndC6vfX, QmpvKka)
+- After probing an executable, persist the recovered result in the required artifact and read it back before stopping. (evidence: uyDywMa, XPck2pQ)

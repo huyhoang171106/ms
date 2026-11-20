@@ -42,7 +42,8 @@ const maxSteps = Number(arg('max-steps', '150'));
 const stallMs = Number(arg('stall-ms', '120000'));
 const instruction = fs.readFileSync(arg('instruction'), 'utf8');
 // R_llm = C_py + llm(): the kernel asks the host for one tool-less call of the same model; its tokens are counted in record.child.
-const cpyArm = arm === 'C_py' || arm === 'R_llm';
+// R_ref = C_py + notes.md (lessons refined offline from other tasks' traces by benchmarks/refine.py), appended to the spec.
+const cpyArm = arm === 'C_py' || arm === 'R_llm' || arm === 'R_ref';
 const LLM_CTX_MAX = 400_000; // chars; a larger ctx is cut with a note rather than failing the call
 let subLlm: ((msg: KernelRpc) => Promise<string>) | undefined; // bound once the provider exists
 
@@ -73,7 +74,8 @@ function buildArm(): { registry: ToolRegistry; system: string; close: (completed
     const tool = createPythonTool({ python: path.join(abx, 'python/bin/python3'), kernel: path.join(abx, 'cpy_kernel.py'), cwd: workspace, timeoutMs: 900_000, preview: process.env.MS_CPY_PREVIEW === '1', rpc });
     registry.registerTool(tool as unknown as BaseTool);
     const system = PYTHON_SYSTEM.replace('{cwd}', workspace);
-    return { registry, system: rpc ? system.replace('  stop:', `${LLM_RULE}\n  stop:`) : system, close: (completed) => tool.close(completed) };
+    const notes = arm === 'R_ref' ? `\nlessons from past runs:\n${fs.readFileSync(path.join(abx, 'notes.md'), 'utf8').trim()}` : '';
+    return { registry, system: (rpc ? system.replace('  stop:', `${LLM_RULE}\n  stop:`) : system) + notes, close: (completed) => tool.close(completed) };
   }
   if (arm === 'B_repl') {
     const registry = new ToolRegistry(['python_repl']);

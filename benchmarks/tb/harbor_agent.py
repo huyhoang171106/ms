@@ -23,7 +23,7 @@ REMOTE = "/opt/abx"
 class AxiomArm(BaseAgent):
     def __init__(self, *args, arm: str = "A_eight", max_steps: str | int = 150, effort: str = "", stall_ms: str | int = 120_000, **kwargs):
         super().__init__(*args, **kwargs)
-        if arm not in ("A_eight", "B_one", "C_py", "R_llm", "B_repl"):
+        if arm not in ("A_eight", "B_one", "C_py", "R_llm", "R_ref", "B_repl"):
             raise ValueError(f"unknown arm {arm}")
         if effort not in ("", "off", "minimal", "low", "medium", "high", "xhigh"):  # Axiom selector `:level` suffixes
             raise ValueError(f"unknown effort {effort}")
