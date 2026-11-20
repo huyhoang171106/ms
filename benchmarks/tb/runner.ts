@@ -39,7 +39,7 @@ const abx = arg('abx', '/opt/abx');
 const maxSteps = Number(arg('max-steps', '150'));
 const instruction = fs.readFileSync(arg('instruction'), 'utf8');
 
-function buildArm(): { registry: ToolRegistry; system: string; close: () => Promise<void> } {
+function buildArm(): { registry: ToolRegistry; system: string; close: (completed: boolean) => Promise<void> } {
   if (arm === 'A_eight') {
     const registry = new ToolRegistry();
     registry.allowWithoutApprover = true;
@@ -64,7 +64,7 @@ function buildArm(): { registry: ToolRegistry; system: string; close: () => Prom
     registry.allowWithoutApprover = true;
     const tool = createPythonTool({ python: path.join(abx, 'python/bin/python3'), kernel: path.join(abx, 'cpy_kernel.py'), cwd: workspace, timeoutMs: 900_000 });
     registry.registerTool(tool as unknown as BaseTool);
-    return { registry, system: PYTHON_SYSTEM.replace('{cwd}', workspace), close: () => tool.close() };
+    return { registry, system: PYTHON_SYSTEM.replace('{cwd}', workspace), close: (completed) => tool.close(completed) };
   }
   if (arm === 'B_repl') {
     const registry = new ToolRegistry(['python_repl']);
@@ -82,6 +82,7 @@ const usage = { prompt: 0, completion: 0, cacheRead: 0, cacheWrite: 0, total: 0 
 const record = {
   arm, model, status: 'running', error: undefined as string | undefined,
   llmTurns: 0, toolCalls: 0, toolFailures: 0, toolOutputBytes: 0, usage, wallMs: 0,
+  perTurn: [] as Array<[ms: number, prompt: number, cacheRead: number]>, // cache diagnosis: hit pattern + idle gaps per request
   assistant: [] as Array<{ turn: number; toolCalls: number; text: string }>,
   traces: [] as Array<{ turn: number; name: string; isError: boolean; bytes: number; args: string; output: string }>,
 };
@@ -99,6 +100,7 @@ bus.on('cost_update', (u: TokenUsage) => {
   usage.cacheRead += u.cacheReadInputTokens ?? 0;
   usage.cacheWrite += u.cacheCreationInputTokens ?? 0;
   usage.total += u.totalTokens ?? 0;
+  record.perTurn.push([Math.round(performance.now() - started), u.promptTokens ?? 0, u.cacheReadInputTokens ?? 0]);
   flush();
 });
 bus.on('tool_call_start', (tc: { id: string; arguments: unknown }) => pending.set(tc.id, tc.arguments));
@@ -196,7 +198,7 @@ try {
   record.status = 'error';
   record.error = caught instanceof Error ? caught.message : String(caught);
 } finally {
-  await close();
+  await close(record.status === 'completed');
   flush();
 }
 process.exit(0);

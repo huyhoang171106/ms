@@ -1,4 +1,6 @@
 import { expect, test } from 'bun:test';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { CPY_REMINDER, addUsage, createCpyGate, createPythonTool, trimOldToolOutputs } from './cpy.ts';
@@ -89,6 +91,38 @@ test('python tool keeps state, isolates stdin and reports an empty call', async 
     expect(await tool.execute({ code: "bash('cat').code" })).toBe('0\n');
     expect(await tool.execute({ code: ' ' })).toMatch(/^Error: `code` is required/);
   } finally { await tool.close(); }
+});
+
+test('sys.executable points at the container python on PATH, not the kernel interpreter', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cpy-sys-'));
+  fs.writeFileSync(path.join(dir, 'python3'), '#!/bin/sh\n', { mode: 0o755 });
+  const saved = process.env.PATH;
+  const real = Bun.which('python3')!; // the kernel interpreter; the fake python3 below must not shadow it
+  process.env.PATH = `${dir}:${saved}`;
+  const tool = createPythonTool({ python: real, kernel: path.join(import.meta.dirname, 'cpy_kernel.py'), cwd: import.meta.dirname, timeoutMs: 10_000 });
+  try {
+    expect(await tool.execute({ code: 'import sys; sys.executable' })).toBe(`'${path.join(dir, 'python3')}'\n`);
+  } finally { process.env.PATH = saved; await tool.close(); fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('close(true) keeps a plain-Popen server alive; close() kills the kernel group', async () => {
+  const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  const spawnServer = async () => {
+    const tool = createPythonTool({ python: 'python3', kernel: path.join(import.meta.dirname, 'cpy_kernel.py'), cwd: import.meta.dirname, timeoutMs: 10_000 });
+    const pid = Number(await tool.execute({ code: "import subprocess; subprocess.Popen('exec sleep 30', shell=True).pid" }));
+    return { tool, pid };
+  };
+  const kept = await spawnServer();
+  try {
+    await kept.tool.close(true);
+    await Bun.sleep(100);
+    expect(alive(kept.pid)).toBe(true);
+  } finally { try { process.kill(kept.pid, 'SIGKILL'); } catch { /* gone */ } }
+
+  const killed = await spawnServer();
+  await killed.tool.close();
+  await Bun.sleep(100);
+  expect(alive(killed.pid)).toBe(false);
 });
 
 test('a reply whose only call has empty code is resampled once, billed together', async () => {

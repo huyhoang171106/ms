@@ -44,8 +44,8 @@ export function createPythonTool(opts: { python: string; kernel: string; cwd: st
     child.stderr.resume();
     lines = readline.createInterface({ input: child.stdout })[Symbol.asyncIterator]();
   };
-  const kill = () => {
-    if (child?.pid) try { process.kill(-child.pid, 'SIGKILL'); } catch { /* already gone */ }
+  const kill = (group = true) => {
+    if (child?.pid) try { process.kill(group ? -child.pid : child.pid, 'SIGKILL'); } catch { /* already gone */ }
     child = undefined;
   };
   return {
@@ -72,7 +72,9 @@ export function createPythonTool(opts: { python: string; kernel: string; cwd: st
       }
       return String(JSON.parse(next.value).output);
     },
-    async close() { kill(); },
+    // keepServices: kill only the kernel, so servers the task asked to leave running (Popen/os.system share the kernel's
+    // group) survive into verification: tb21 kv-store-grpc C_py 0/7, all 5 plain-Popen servers dead at the verifier.
+    async close(keepServices = false) { kill(!keepServices); },
   };
 }
 

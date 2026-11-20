@@ -77,7 +77,22 @@ def run(code, ns):
     return clip(text) or "(no output)"
 
 
+def system_python():
+    """The container's own python on PATH (not this bundled one), or None."""
+    own = os.path.realpath(sys.base_prefix) + os.sep
+    for name in ("python3", "python"):
+        for d in os.environ.get("PATH", "").split(os.pathsep):
+            p = os.path.join(d, name)
+            if os.path.isfile(p) and os.access(p, os.X_OK) and not os.path.realpath(p).startswith(own):
+                return p
+    return None
+
+
 def main():
+    # `sys.executable -m pip install` must reach the interpreter the task's tests use: tb21 luna-high kv-store-grpc,
+    # 7/7 runs that pip-installed via sys.executable landed grpcio in the bundled python and failed; 3/3 via `python` passed.
+    # ponytail: REPL imports still resolve against the bundled python; multiprocessing 'spawn' would now start the system one.
+    sys.executable = system_python() or sys.executable
     ns = {"__name__": "__main__", "bash": bash}
     for line in _in:
         reply = run(json.loads(line)["code"], ns)
