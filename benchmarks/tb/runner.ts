@@ -37,6 +37,9 @@ const workspace = arg('workspace', '/app');
 const outFile = arg('out');
 const abx = arg('abx', '/opt/abx');
 const maxSteps = Number(arg('max-steps', '150'));
+// Idle limit per LLM stream. Axiom retries a stalled stream up to 6x, so one dead request costs ~6x this plus backoff
+// (luna-low-fast10: 2 runs sat 13 min at 120s and hit the 900s agent timeout). Lower it for low-effort runs.
+const stallMs = Number(arg('stall-ms', '120000'));
 const instruction = fs.readFileSync(arg('instruction'), 'utf8');
 
 function buildArm(): { registry: ToolRegistry; system: string; close: (completed: boolean) => Promise<void> } {
@@ -82,7 +85,8 @@ const usage = { prompt: 0, completion: 0, cacheRead: 0, cacheWrite: 0, total: 0 
 const record = {
   arm, model, status: 'running', error: undefined as string | undefined,
   llmTurns: 0, toolCalls: 0, toolFailures: 0, toolOutputBytes: 0, usage, wallMs: 0,
-  perTurn: [] as Array<[ms: number, prompt: number, cacheRead: number]>, // cache diagnosis: hit pattern + idle gaps per request
+  perTurn: [] as Array<[ms: number, prompt: number, cacheRead: number]>,
+  retries: [] as Array<[ms: number, attempt: number, reason: string]>, // cache diagnosis: hit pattern + idle gaps per request
   assistant: [] as Array<{ turn: number; toolCalls: number; text: string }>,
   traces: [] as Array<{ turn: number; name: string; isError: boolean; bytes: number; args: string; output: string }>,
 };
@@ -101,6 +105,10 @@ bus.on('cost_update', (u: TokenUsage) => {
   usage.cacheWrite += u.cacheCreationInputTokens ?? 0;
   usage.total += u.totalTokens ?? 0;
   record.perTurn.push([Math.round(performance.now() - started), u.promptTokens ?? 0, u.cacheReadInputTokens ?? 0]);
+  flush();
+});
+bus.on('provider_retry', (e: { attempt: number; reason: string }) => {
+  record.retries.push([Math.round(performance.now() - started), e.attempt, String(e.reason).slice(0, 200)]);
   flush();
 });
 bus.on('tool_call_start', (tc: { id: string; arguments: unknown }) => pending.set(tc.id, tc.arguments));
@@ -143,7 +151,7 @@ try {
       return { ...resolveModel(`${bare.slice(0, slash)}/${first.id}${level}`, catalog, config), id, name: id };
     }
   })();
-  globalThis.fetch = stallGuardFetch(globalThis.fetch, 120_000);
+  globalThis.fetch = stallGuardFetch(globalThis.fetch, stallMs);
   if (process.env.MS_CPY_SESSION_CACHE === '1') globalThis.fetch = sessionCacheFetch(globalThis.fetch, randomUUID());
   // MS_CPY_REASONING=1 (baked in by build.sh) replays reasoning + prompt_cache_key + low verbosity on Responses routes (as pi/codex do).
   // Off by default: concurrent A/B lean33 (on) 77.8%/48.2k vs lean34 (off) 85.2%/49.9k, no measurable gain on luna medium.

@@ -21,13 +21,13 @@ REMOTE = "/opt/abx"
 
 
 class AxiomArm(BaseAgent):
-    def __init__(self, *args, arm: str = "A_eight", max_steps: str | int = 150, effort: str = "", **kwargs):
+    def __init__(self, *args, arm: str = "A_eight", max_steps: str | int = 150, effort: str = "", stall_ms: str | int = 120_000, **kwargs):
         super().__init__(*args, **kwargs)
         if arm not in ("A_eight", "B_one", "C_py", "B_repl"):
             raise ValueError(f"unknown arm {arm}")
         if effort not in ("", "off", "minimal", "low", "medium", "high", "xhigh"):  # Axiom selector `:level` suffixes
             raise ValueError(f"unknown effort {effort}")
-        self.arm, self.max_steps, self.effort = arm, int(max_steps), effort
+        self.arm, self.max_steps, self.effort, self.stall_ms = arm, int(max_steps), effort, int(stall_ms)
 
     @staticmethod
     def name() -> str:
@@ -52,7 +52,7 @@ class AxiomArm(BaseAgent):
             f"mkdir -p {shlex.quote(str(self.environment_logs_dir))} && "
             f"AXIOM_HOME={REMOTE}/home {REMOTE}/bun {REMOTE}/runner.js --arm {self.arm} "
             f"--model {shlex.quote((self.model_name or '') + (f':{self.effort}' if self.effort else ''))} --workspace \"$(pwd)\" --abx {REMOTE} "
-            f"--instruction {REMOTE}/instruction.md --out {shlex.quote(out)} --max-steps {self.max_steps} "
+            f"--instruction {REMOTE}/instruction.md --out {shlex.quote(out)} --max-steps {self.max_steps} --stall-ms {self.stall_ms} "
             f"> {shlex.quote(str(self.environment_logs_dir))}/runner.log 2>&1"
         )
         try:
