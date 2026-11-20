@@ -108,7 +108,7 @@ bus.on('tool_call_start', (tc: { id: string; arguments: unknown }) => pending.se
 let lastCheckPassed = false;
 // AgentLoop also calls isComplete() right after tools run (and ends the run if true), so only answer true right after a model reply.
 let sinceChat = false;
-const gate = createCpyGate({ trim: process.env.MS_CPY_TRIM !== '0', onExtraTurn: () => { record.llmTurns++; } });
+const gate = createCpyGate({ trim: process.env.MS_CPY_TRIM === '1', onExtraTurn: () => { record.llmTurns++; } });
 bus.on('tool_call_end', (r: { toolCallId?: string; name?: string; output: string; isError?: boolean }) => {
   const output = String(r.output ?? '');
   lastCheckPassed = !looksFailed(output, r.isError === true);

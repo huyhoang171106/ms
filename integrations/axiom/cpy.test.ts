@@ -58,14 +58,14 @@ test('a call printed as JSON text runs as a python call; flagged errors retry on
   await expect(g.chat(msgs(['user', 'task']), async () => { throw new Error('boom'); })).rejects.toThrow('boom');
 });
 
-test('old long tool outputs are clipped (keep 3, keep 1 after the reminder) unless trim is off', async () => {
+test('old long tool outputs are clipped (keep 3, keep 1 after the reminder) only when trim is on', async () => {
   const big = 'x'.repeat(9000);
   const conv = msgs(['user', 'task'], ['tool', big], ['tool', big], ['tool', big], ['tool', big]);
   const clipped = (p: { messages: Array<{ content: string }> }) => p.messages.filter((m) => m.content.includes('elided')).length;
   const s = scripted({ content: 'x' }, { content: 'x' }, { content: 'x' });
+  await createCpyGate({ trim: true }).chat(conv, s.send);
+  await createCpyGate({ trim: true }).chat({ messages: [...conv.messages, { role: 'user', content: CPY_REMINDER }] }, s.send);
   await createCpyGate().chat(conv, s.send);
-  await createCpyGate().chat({ messages: [...conv.messages, { role: 'user', content: CPY_REMINDER }] }, s.send);
-  await createCpyGate({ trim: false }).chat(conv, s.send);
   expect(s.seen.map(clipped)).toEqual([1, 3, 0]);
 });
 

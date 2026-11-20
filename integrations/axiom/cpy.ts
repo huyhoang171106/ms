@@ -126,7 +126,9 @@ export function addUsage<U extends object>(a: U | undefined, b: U | undefined): 
 
 /**
  * The C_py chat gate. `chat` wraps one provider call; `toolEnded` sees every tool result; `isComplete` answers AgentLoop.
- * - Trim old tool outputs (keep 3; keep 1 after the reminder: lean14 tokens/pass 102k -> 62k). Never below 8000 chars: lean20 cobol re-read files 10x at 1500.
+ * - Opt-in (`trim: true`): trim old tool outputs (keep 3; keep 1 after the reminder). Off by default: rewriting an old message
+ *   makes the Codex backend return cacheRead=0 for that request (no partial-prefix reuse). tb21 fix-ocaml-gc gpt-6.2-sol:medium,
+ *   trim on 16% cached / $0.429 per trial vs off 84% / $0.205, both all-pass.
  * - Retry once on a spurious "flagged" stream error (lean10 cobol lost a run; pi/codex retry those).
  * - After the reminder, a final reply that still admits a gap gets one ephemeral nudge (lean19 cobol 2/3 fails); its usage is still billed.
  * - Text that is a JSON call runs as the call.
@@ -143,7 +145,7 @@ export function createCpyGate(opts: { trim?: boolean; onExtraTurn?: () => void }
     toolEnded(output: string, isError = false) { lastCheckPassed = !looksFailed(output, isError); sinceChat = false; },
     async chat<P extends { messages: Msg[] }, R extends Reply>(params: P, send: (p: P) => Promise<R>): Promise<R> {
       const reminded = params.messages.some((m) => m.role === 'user' && String(m.content).startsWith('You stopped.'));
-      const sent = opts.trim === false ? params : { ...params, messages: trimOldToolOutputs(params.messages, reminded ? 1 : 3) };
+      const sent = opts.trim !== true ? params : { ...params, messages: trimOldToolOutputs(params.messages, reminded ? 1 : 3) };
       const call = (p: P) => send(p).catch((err: unknown) => { if (/flagged as potentially violating/i.test(String(err))) return send(p); throw err; });
       let res = await call(sent);
       const blank = (r: R) => !!r.toolCalls?.length && r.toolCalls.every((c) => typeof c.arguments.code !== 'string' || !c.arguments.code.trim());
