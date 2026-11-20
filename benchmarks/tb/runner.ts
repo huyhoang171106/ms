@@ -62,7 +62,7 @@ function buildArm(): { registry: ToolRegistry; system: string; close: (completed
   if (arm === 'C_py') {
     const registry = new ToolRegistry(['python']);
     registry.allowWithoutApprover = true;
-    const tool = createPythonTool({ python: path.join(abx, 'python/bin/python3'), kernel: path.join(abx, 'cpy_kernel.py'), cwd: workspace, timeoutMs: 900_000 });
+    const tool = createPythonTool({ python: path.join(abx, 'python/bin/python3'), kernel: path.join(abx, 'cpy_kernel.py'), cwd: workspace, timeoutMs: 900_000, preview: process.env.MS_CPY_PREVIEW === '1' });
     registry.registerTool(tool as unknown as BaseTool);
     return { registry, system: PYTHON_SYSTEM.replace('{cwd}', workspace), close: (completed) => tool.close(completed) };
   }

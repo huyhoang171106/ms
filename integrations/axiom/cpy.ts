@@ -36,11 +36,11 @@ export const PYTHON_SYSTEM = [
   '  stop: result exists && check passes -> 1-line summary. no tool call == run ends.',
 ].join('\n');
 
-export function createPythonTool(opts: { python: string; kernel: string; cwd: string; timeoutMs: number }) {
+export function createPythonTool(opts: { python: string; kernel: string; cwd: string; timeoutMs: number; preview?: boolean }) {
   let child: ChildProcessWithoutNullStreams | undefined;
   let lines: AsyncIterator<string> | undefined;
   const start = () => {
-    child = spawn(opts.python, ['-u', opts.kernel], { cwd: opts.cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: true });
+    child = spawn(opts.python, ['-u', opts.kernel, ...(opts.preview ? ['--preview'] : [])], { cwd: opts.cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: true });
     child.stderr.resume();
     lines = readline.createInterface({ input: child.stdout })[Symbol.asyncIterator]();
   };

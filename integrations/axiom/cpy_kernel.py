@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -11,6 +12,7 @@ import tempfile
 import traceback
 
 LIMIT = 16_000
+PREVIEW = "--preview" in sys.argv[1:]  # A/B flag: long outputs -> preview + out() paging instead of a 16k clip
 # Protocol gets its own fd; fds 1/2 are captured per cell so os.system/subprocess output cannot corrupt it.
 _out = os.fdopen(os.dup(1), "w")
 _null = os.open(os.devnull, os.O_WRONLY)
@@ -53,6 +55,39 @@ def clip(text):
     return text if len(text) <= LIMIT else f"{text[:LIMIT // 2]}\n… {len(text) - LIMIT} chars cut …\n{text[-LIMIT // 2:]}"
 
 
+PREVIEW_OVER, PREVIEW_SIDE = 8_000, 3_000
+_outputs = {}  # cell id -> full output, kept for out(); only with --preview
+_FAIL = re.compile(r"^\[exit [1-9]\d*\]|Traceback \(most recent call last\)|^Error:")
+
+
+def out(cell, start=1, stop=None):
+    """Lines start..stop (1-based, inclusive) of an earlier cell's full output."""
+    lines = _outputs[cell].splitlines()
+    return "\n".join(lines[start - 1:stop])
+
+
+def preview(text):
+    """Immutable head+tail preview of a long output; the full text stays in the REPL (out(id, a, b)).
+    Old history is never rewritten, so the backend prompt cache keeps hitting (rewrites -> cacheRead 0 on Codex)."""
+    if len(text.encode()) <= PREVIEW_OVER:
+        return text
+    cell = len(_outputs) + 1
+    _outputs[cell] = text
+    lines = text.splitlines()
+    head = tail = 0
+    while head < len(lines) and sum(len(l) + 1 for l in lines[:head + 1]) <= PREVIEW_SIDE:
+        head += 1
+    while tail < len(lines) - head and sum(len(l) + 1 for l in lines[len(lines) - tail - 1:]) <= PREVIEW_SIDE:
+        tail += 1
+    head = max(head, 1)
+    mid = lines[head:len(lines) - tail]
+    if not mid:
+        return clip(text)
+    fails = [l for l in mid if _FAIL.search(l)][:5]
+    note = f"… lines {head + 1}-{len(lines) - tail} of {len(lines)} omitted; out({cell}, {head + 1}, {len(lines) - tail}) prints them …"
+    return "\n".join(lines[:head] + [note] + fails + lines[len(lines) - tail:])
+
+
 def run(code, ns):
     with tempfile.TemporaryFile() as tmp:
         os.dup2(tmp.fileno(), 1)
@@ -74,7 +109,7 @@ def run(code, ns):
             os.dup2(_null, 2)
         tmp.seek(0)
         text = tmp.read().decode(errors="replace")
-    return clip(text) or "(no output)"
+    return (preview(text) if PREVIEW else clip(text)) or "(no output)"
 
 
 def system_python():
@@ -93,7 +128,7 @@ def main():
     # 7/7 runs that pip-installed via sys.executable landed grpcio in the bundled python and failed; 3/3 via `python` passed.
     # ponytail: REPL imports still resolve against the bundled python; multiprocessing 'spawn' would now start the system one.
     sys.executable = system_python() or sys.executable
-    ns = {"__name__": "__main__", "bash": bash}
+    ns = {"__name__": "__main__", "bash": bash, "out": out}
     for line in _in:
         reply = run(json.loads(line)["code"], ns)
         _out.write(json.dumps({"output": reply}) + "\n")
@@ -102,6 +137,12 @@ def main():
 
 if __name__ == "__main__":
     if sys.argv[1:] == ["--selftest"]:
+        PREVIEW = True
+        big = run("print('\\n'.join(f'line {i}' for i in range(2000)) + '\\nTraceback (most recent call last)\\n' + 'z' * 10)", {"bash": bash})
+        assert "out(1, " in big and "Traceback (most recent call last)" in big and len(big) < 7_000, big[:200]
+        assert out(1, 1000, 1000) == "line 999", "omitted lines are retrievable"
+        assert run("print('short')", {}) == "short\n"
+        PREVIEW = False
         ns = {"bash": bash}
         assert run("x = 2\nx + 1", ns) == "3\n"
         assert run("x", ns) == "2\n", "state persists across cells"

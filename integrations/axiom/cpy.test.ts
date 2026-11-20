@@ -105,6 +105,16 @@ test('sys.executable points at the container python on PATH, not the kernel inte
   } finally { process.env.PATH = saved; await tool.close(); fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('preview: a long output becomes an immutable head+tail whose middle out() returns', async () => {
+  const tool = createPythonTool({ python: 'python3', kernel: path.join(import.meta.dirname, 'cpy_kernel.py'), cwd: import.meta.dirname, timeoutMs: 10_000, preview: true });
+  try {
+    const big = await tool.execute({ code: "print('\\n'.join(f'row {i}' for i in range(3000)))" });
+    expect(big).toContain('out(1, ');
+    expect(big.length).toBeLessThan(7000);
+    expect(await tool.execute({ code: 'print(out(1, 1501, 1501))' })).toBe('row 1500\n');
+  } finally { await tool.close(); }
+});
+
 test('close(true) keeps a plain-Popen server alive; close() kills the kernel group', async () => {
   const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
   const spawnServer = async () => {
